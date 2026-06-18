@@ -2,9 +2,9 @@
 
 # crawlie
 
-**The fast, free, open-source technical SEO + GEO crawler.**
+**The fast, free, open-source technical SEO + GEO crawler — built for humans and agents.**
 
-A Vercel-grade alternative to Screaming Frog and Sitebulb — built in Rust, runs on your machine, and is **built for agents**: one engine powers a desktop app, a CLI, and an MCP server.
+Crawl any site for broken links, redirects, missing metadata, and 40+ SEO & Generative-Engine checks — with plain-English guidance on every fix. Runs locally, ships a CLI and an MCP server, and costs nothing.
 
 *by [Spronta](https://spronta.com)*
 
@@ -12,95 +12,144 @@ A Vercel-grade alternative to Screaming Frog and Sitebulb — built in Rust, run
 
 ---
 
-## Why crawlie
+## Why I built this
 
-Screaming Frog and Sitebulb are great — and dated. They're heavyweight desktop apps (JVM / .NET), they cost money to unlock, they have no agent story, and they audit yesterday's SEO. crawlie rethinks the category:
+I'm **Sean Ryan**. I spent 6+ years building websites at **Pendo.io** as Lead Marketing Engineer and a lead engineer on Pendo.io itself, and I'm now the founder of **[Spronta](https://spronta.com)**, where I'm exploring marketing agents.
 
-| | **crawlie** | Screaming Frog | Sitebulb |
-|---|:---:|:---:|:---:|
-| Price | **Free & open-source** | £259/yr to unlock | from £13.50/mo |
-| Engine | **Rust, async, tiny binary** | Java (JVM) | .NET |
-| Runs locally | ✅ | ✅ | ✅ |
-| **CLI with JSON output** | ✅ | partial | ❌ |
-| **MCP server (agent-native)** | ✅ | ❌ | ❌ |
-| **GEO — AI/answer-engine audit** | ✅ | ❌ | ❌ |
-| **"Why it matters" guidance built in** | ✅ every issue | ❌ | partial |
-| Self-contained HTML report | ✅ | paid | ✅ |
-| Whole-site **or** single-page / URL list | ✅ | ✅ | ✅ |
-| Health + GEO scores | ✅ | ❌ | scores |
-| Saved report history | ✅ | ✅ (project files) | ✅ |
-| Source you can read & extend | ✅ | ❌ | ❌ |
+With AI, it's faster than ever to ship a marketing site — but most of what gets generated is slop that was never built to be found. And the tools meant to catch that fall short: most SEO auditors cost money, don't play nicely with your agents, or tell you *what's* wrong without telling you *how to actually rank* for SEO **and** GEO (Generative Engine Optimization — being cited by AI search like ChatGPT, Perplexity, and Google AI Overviews).
 
-The whole thing is one Rust crate (`crawlie-core`) wrapped by four thin surfaces. No lock-in, no per-seat pricing, and it's genuinely faster and lighter than either incumbent.
+crawlie fixes that. It's free, it's local-first, it's agent-native, and every issue it finds comes with *why it matters* and *how to fix it*.
 
-## What it checks — 46 rules and counting
+**If this is useful to you, [connect with me on LinkedIn →](https://linkedin.com/in/sean-exe)** — I share what I'm learning building agents and SEO/GEO tooling, and I'd love to hear how you're using crawlie.
 
-**Technical SEO** — broken links · 4xx/5xx · redirects & chains · titles & meta descriptions (missing / duplicate / length) · H1s · canonicals · noindex / nofollow / X-Robots-Tag · robots.txt blocking · images missing alt · thin content · duplicate content (content-hash) · low text ratio · orphan & deep pages
+---
 
-**Performance & security** — slow responses · large pages · missing compression · HTTPS · mixed content · HSTS
+## Setup
 
-**Mobile, international & social** — viewport · `lang` · hreflang · Open Graph · Twitter cards · structured data
-
-**GEO — Generative Engine Optimization** *(new category nobody else has)* — whether your pages can be **cited by AI search** (ChatGPT, Perplexity, Google AI Overviews): structured data, semantic HTML, answer-readiness, authorship/E-E-A-T, dated content, question-style headings, and extractable blocks — rolled into a per-page **GEO score**.
-
-Every finding links to plain-English guidance: **why it matters**, **how to fix it**, and **what happens if you ignore it**. crawlie teaches, it doesn't just report.
-
-## Install
-
-Requires [Rust](https://rustup.rs). Clone and build:
+You need [Rust](https://rustup.rs) (for the engine/CLI/MCP) and, optionally, [pnpm](https://pnpm.io) + Node (for the desktop app).
 
 ```bash
 git clone https://github.com/spronta/crawlie
 cd crawlie
 cargo build --release
-# binaries: target/release/crawlie  and  target/release/crawlie-mcp
 ```
 
-## CLI
+That produces two binaries:
+
+- `target/release/crawlie` — the CLI
+- `target/release/crawlie-mcp` — the MCP server for agents
+
+Put `crawlie` on your `PATH` if you like:
+
+```bash
+cargo install --path crates/crawlie-cli      # installs `crawlie`
+cargo install --path crates/crawlie-mcp      # installs `crawlie-mcp`
+```
+
+---
+
+## How to use (CLI)
 
 ```bash
 # Crawl a whole site (respects robots.txt, seeds from sitemap.xml)
 crawlie crawl https://example.com --format pretty
 
-# Audit one page, or a specific set of pages
+# Audit a single page, or a specific set of pages
 crawlie audit https://example.com/pricing
 crawlie audit https://example.com/a https://example.com/b
 
-# Agent-friendly: clean JSON on stdout, gate CI on errors
-crawlie crawl https://example.com --format json --fail-on error -o report.json
-
-# Shareable, self-contained HTML report
+# Save a shareable, self-contained HTML report
 crawlie crawl https://example.com --format html -o report.html
 
-# Save to history, then browse it
-crawlie crawl https://example.com --save
-crawlie reports
-crawlie report <id> --format html -o report.html
+# Clean JSON on stdout (perfect for piping / scripting / agents)
+crawlie crawl https://example.com --format json -o report.json
 
-# Learn why any issue matters
+# Learn why any finding matters and how to fix it
 crawlie explain geo-not-answerable
 ```
 
-Useful flags: `--max-pages`, `--max-depth`, `--concurrency`, `--include <glob>`, `--exclude <glob>`, `--no-robots`, `--no-sitemap`, `--no-external`, `--severity error|warning|notice`.
+**Output formats:** `pretty` (terminal), `json` (machine-readable, the default), `csv` (issues), `html` (shareable file).
 
-## Agents & MCP
+**Common flags:**
 
-crawlie is built to be driven by LLM agents. Point any MCP client at the server:
+| Flag | What it does |
+|---|---|
+| `--max-pages <n>` | Cap pages fetched (default 500) |
+| `--max-depth <n>` | Max click depth from the seed |
+| `--concurrency <n>` | Parallel requests (default 16) |
+| `--include <glob>` / `--exclude <glob>` | Scope the crawl by URL pattern |
+| `--no-robots` / `--no-sitemap` / `--no-external` | Turn off robots.txt, sitemap seeding, external link checks |
+| `--severity error\|warning\|notice` | Only output findings at/above a level |
+| `--save` | Save to local report history (`crawlie reports`, `crawlie report <id>`) |
+| `--fail-on error\|warning` | Non-zero exit code for CI gating |
+
+Every crawl returns two scores: a **Health** score (technical SEO) and a **GEO** score (AI-search readiness).
+
+---
+
+## Use with agents (MCP)
+
+crawlie ships a [Model Context Protocol](https://modelcontextprotocol.io) server so an LLM agent can run a full audit and act on it — no human in the loop. This is the part most SEO tools don't have.
+
+### Connect it
+
+Point any MCP client at the `crawlie-mcp` binary. For **Claude Desktop**, edit `claude_desktop_config.json`:
 
 ```jsonc
-// claude_desktop_config.json (or any MCP client)
 {
   "mcpServers": {
-    "crawlie": { "command": "/absolute/path/to/target/release/crawlie-mcp" }
+    "crawlie": {
+      "command": "/absolute/path/to/target/release/crawlie-mcp"
+    }
   }
 }
 ```
 
-Tools exposed: **`crawl_site`**, **`audit_url`**, **`audit_urls`**, **`explain_issue`**, **`list_rules`**, **`list_reports`**, **`get_report`**. An agent can run a full technical + GEO audit, then ask `explain_issue` to understand and prioritise every finding — no human in the loop.
+For **Claude Code**:
+
+```bash
+claude mcp add crawlie /absolute/path/to/target/release/crawlie-mcp
+```
+
+(Any MCP-compatible client works — Cursor, Cline, your own agent. It speaks JSON-RPC over stdio.)
+
+### Tools exposed
+
+| Tool | Purpose |
+|---|---|
+| `crawl_site` | Crawl + audit a whole site (SEO + GEO), returns scores, issues, per-page data |
+| `audit_url` | Audit a single page |
+| `audit_urls` | Audit an explicit list of pages |
+| `explain_issue` | Why a rule matters + how to fix it |
+| `list_rules` | The full catalogue of checks |
+| `list_reports` / `get_report` | Read saved crawl history |
+
+### Example agent prompts
+
+> *"Crawl spronta.com, then give me the top 5 fixes that would most improve my GEO score, with the exact change for each."*
+
+> *"Audit these three landing pages and tell me which is least ready to be cited by AI search, and why."*
+
+> *"Run a crawl with `--fail-on error` semantics — are there any broken links or 5xx pages blocking launch?"*
+
+The agent calls `crawl_site`, reads the structured issues, and uses `explain_issue` to turn findings into a prioritized, actionable plan.
+
+---
+
+## Use cases
+
+- **Pre-launch QA** — catch broken links, redirects, 4xx/5xx, and missing metadata before you ship.
+- **GEO optimization** — make pages citable by AI search: structured data, semantic HTML, answer-ready content, authorship/E-E-A-T.
+- **Agent workflows** — let a marketing/SEO agent audit a site and propose fixes autonomously via MCP.
+- **CI/CD gating** — `crawlie crawl … --fail-on error` in a pipeline to block regressions.
+- **Client reporting** — generate a polished, shareable HTML report in one command.
+- **Auditing AI-generated sites** — verify that the site your agent just built is actually built for search.
+
+---
 
 ## Desktop app
 
-A beautiful Tauri + React app (Geist design system, light/dark, seamless window chrome):
+A beautiful Tauri + React app (Geist design, light/dark, seamless window chrome):
 
 ```bash
 cd apps/desktop
@@ -109,9 +158,40 @@ pnpm tauri dev          # live native crawls
 pnpm dev                # preview the UI in a browser (demo data, no backend)
 ```
 
-Whole-site / single-page / URL-list modes, live progress, Health & GEO score rings, issues with built-in guidance, a sortable pages table, a per-page drawer (GEO signals, headers, schema, hreflang…), and an auto-saved report history.
+Whole-site / single-page / URL-list modes, live progress, **Health** & **GEO** score rings, issues with built-in *why-it-matters* guidance, a sortable pages table, a per-page drawer (GEO signals, headers, schema, hreflang…), auto-saved report history, and one-click shareable HTML export.
 
 > First run, generate the icon set: `cd src-tauri/icons && python3 generate.py && cd .. && pnpm tauri icon icons/source.png`
+
+---
+
+## What it checks — 46 rules and counting
+
+**Technical SEO** — broken links · 4xx/5xx · redirects & chains · titles & meta descriptions (missing / duplicate / length) · H1s · canonicals · noindex / nofollow / X-Robots-Tag · robots.txt blocking · images missing alt · thin & duplicate content · orphan & deep pages
+
+**Performance & security** — slow responses · large pages · missing compression · HTTPS · mixed content · HSTS
+
+**Mobile, international & social** — viewport · `lang` · hreflang · Open Graph · Twitter cards · structured data
+
+**GEO — Generative Engine Optimization** — structured data, semantic HTML, answer-readiness, authorship/E-E-A-T, dated content, question-style headings, and extractable blocks, rolled into a per-page **GEO score**.
+
+Every finding links to plain-English guidance: **why it matters**, **how to fix it**, and **what happens if you ignore it**.
+
+---
+
+## How it compares
+
+| | **crawlie** | Screaming Frog | Sitebulb |
+|---|:---:|:---:|:---:|
+| Price | **Free & open-source** | £259/yr to unlock | from £13.50/mo |
+| Engine | **Rust, async, tiny binary** | Java (JVM) | .NET |
+| CLI with JSON output | ✅ | partial | ❌ |
+| **MCP server (agent-native)** | ✅ | ❌ | ❌ |
+| **GEO — AI/answer-engine audit** | ✅ | ❌ | ❌ |
+| **"Why it matters" built in** | ✅ every issue | ❌ | partial |
+| Shareable HTML report | ✅ | paid | ✅ |
+| Source you can read & extend | ✅ | ❌ | ❌ |
+
+---
 
 ## Architecture
 
@@ -124,15 +204,23 @@ apps/
   desktop         # Tauri v2 + React (Geist) desktop app
 ```
 
-`crawlie-core` has zero host dependencies — the same audited engine drops straight into a cloud worker (the crate already targets `wasm32`). One engine, every surface, identical results.
+`crawlie-core` has zero host dependencies — the same audited engine drops straight into a cloud worker (it already targets `wasm32`). One engine, every surface, identical results.
+
+---
 
 ## Roadmap
 
 - Cloud workers (shared Rust core) for scheduled/remote crawls
 - JavaScript rendering for SPA-heavy sites
 - Crawl-to-crawl comparison & regression alerts
-- Sitemap & internal-link graph visualization
+- Internal-link graph visualization
 
-## License
+---
 
-MIT © Spronta
+## License & author
+
+MIT © **Sean Ryan** / [Spronta](https://spronta.com).
+
+Built by Sean Ryan — ex-Pendo.io Lead Marketing Engineer, now building marketing agents at Spronta. **[Connect on LinkedIn →](https://linkedin.com/in/sean-exe)**
+
+If crawlie saves you time, a ⭐ on the repo and a hello on LinkedIn mean a lot.
