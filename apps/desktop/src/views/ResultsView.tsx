@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { CircleAlert, Info, TriangleAlert } from "lucide-react";
 import type { CrawlResult, GeoSignals, Issue, Page, Severity } from "../lib/types";
 import { CATEGORY_LABELS } from "../lib/types";
 import { ruleInfo } from "../lib/rules";
@@ -204,9 +205,9 @@ function Issues({ result, onOpenUrl }: { result: CrawlResult; onOpenUrl: (u: str
     <div className="section-gap">
       <div className="row wrap">
         <FilterChip active={filter === "all"} onClick={() => setFilter("all")}>All <span className="mono">{problems.length}</span></FilterChip>
-        <FilterChip active={filter === "error"} onClick={() => setFilter("error")}><span className="badge badge-error"><span className="dot" /></span> Errors <span className="mono">{result.summary.errors}</span></FilterChip>
-        <FilterChip active={filter === "warning"} onClick={() => setFilter("warning")}><span className="badge badge-warning"><span className="dot" /></span> Warnings <span className="mono">{result.summary.warnings}</span></FilterChip>
-        <FilterChip active={filter === "notice"} onClick={() => setFilter("notice")}><span className="badge badge-notice"><span className="dot" /></span> Notices <span className="mono">{result.summary.notices}</span></FilterChip>
+        <FilterChip active={filter === "error"} onClick={() => setFilter("error")}><CircleAlert size={14} style={{ color: "var(--red-text)" }} /> Errors <span className="mono">{result.summary.errors}</span></FilterChip>
+        <FilterChip active={filter === "warning"} onClick={() => setFilter("warning")}><TriangleAlert size={14} style={{ color: "var(--amber-text)" }} /> Warnings <span className="mono">{result.summary.warnings}</span></FilterChip>
+        <FilterChip active={filter === "notice"} onClick={() => setFilter("notice")}><Info size={14} style={{ color: "var(--text-secondary)" }} /> Notices <span className="mono">{result.summary.notices}</span></FilterChip>
       </div>
 
       {groups.length === 0 ? (
