@@ -11,7 +11,9 @@
 //! Transport is newline-delimited JSON-RPC 2.0 on stdin/stdout. All diagnostics
 //! go to stderr so stdout stays pure protocol.
 
-use crawlie_core::{all_rules, crawl, rule_info, CancelToken, CrawlConfig, CrawlMode, ReportStore};
+use crawlie_core::{
+    all_rules, crawl, rule_info, top_fixes, CancelToken, CrawlConfig, CrawlMode, ReportStore,
+};
 use serde_json::{json, Value};
 use std::path::PathBuf;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
@@ -256,8 +258,10 @@ fn result_payload(
     let mut payload = json!({
         "summary": result.summary,
         "issues": result.issues,
+        "topFixes": top_fixes(&result.issues, 8),
         "robotsFound": result.robots_found,
         "sitemapUrls": result.sitemap_urls,
+        "llmsTxtFound": result.llms_txt_found,
     });
     if include_pages {
         payload["pages"] = serde_json::to_value(&result.pages).unwrap_or(Value::Null);

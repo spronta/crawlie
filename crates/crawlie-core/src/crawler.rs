@@ -192,6 +192,12 @@ where
     };
     let robots_found = robots.found;
 
+    // Detect /llms.txt — the emerging AI-engine guidance file.
+    let llms_txt_found = match seed.join("/llms.txt") {
+        Ok(u) => check_status(&client, &u).await == 200,
+        Err(_) => false,
+    };
+
     let mut visited: HashSet<String> = HashSet::new();
     let mut frontier: VecDeque<(Url, usize)> = VecDeque::new();
     let mut robots_blocked: Vec<String> = Vec::new();
@@ -327,6 +333,12 @@ where
             .unwrap_or(0);
     }
 
+    // Internal-link authority (PageRank).
+    let scores = crate::scoring::link_scores(&pages);
+    for (i, p) in pages.iter_mut().enumerate() {
+        p.link_score = scores[i];
+    }
+
     // Duplicate content detection (exact content-hash match).
     let mut by_hash: HashMap<String, String> = HashMap::new();
     for p in &pages {
@@ -390,7 +402,17 @@ where
         }
     }
 
-    let issues = audit(&pages, &status_map, &robots_blocked, &seed);
+    let mut issues = audit(&pages, &status_map, &robots_blocked, &seed);
+    if !llms_txt_found {
+        issues.push(Issue {
+            rule: "geo-no-llms-txt".into(),
+            title: "No llms.txt".into(),
+            category: Category::Geo,
+            severity: Severity::Notice,
+            url: seed.to_string(),
+            detail: None,
+        });
+    }
     let summary = build_summary(&pages, &issues, start.elapsed().as_millis() as u64);
     on_event(CrawlEvent::Done {
         summary: summary.clone(),
@@ -404,6 +426,7 @@ where
         robots_found,
         sitemap_urls,
         robots_blocked,
+        llms_txt_found,
         started_at,
     })
 }
@@ -492,6 +515,7 @@ fn build_page(url: &Url, depth: usize, o: FetchOutcome, parsed: Option<Parsed>) 
             .map(|p| p.external_links.clone())
             .unwrap_or_default(),
         inlinks: 0,
+        link_score: 0.0,
         og_title: parsed.as_ref().and_then(|p| p.og_title.clone()),
         og_image: parsed.as_ref().and_then(|p| p.og_image.clone()),
         twitter_card: parsed.as_ref().and_then(|p| p.twitter_card.clone()),
@@ -548,6 +572,7 @@ fn error_page(url: &Url, depth: usize, error: String) -> Page {
         internal_links: Vec::new(),
         external_links: Vec::new(),
         inlinks: 0,
+        link_score: 0.0,
         og_title: None,
         og_image: None,
         twitter_card: None,

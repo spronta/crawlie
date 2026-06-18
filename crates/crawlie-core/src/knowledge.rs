@@ -236,6 +236,10 @@ entries! {
         "Landmarks like <main>, <article>, and a clean heading outline help machines isolate the main content from navigation and boilerplate.",
         "Wrap primary content in <main>/<article>, and use a logical H1→H2→H3 outline.",
         "Harder for engines to separate content from chrome, lowering extraction quality.";
+    "geo-no-llms-txt" => "GEO: No llms.txt", Geo, Notice,
+        "An /llms.txt file is an emerging standard that tells AI engines which content matters most and how to use it — the robots.txt of the generative-search era. Sites that publish one make it easier for assistants to find and cite the right pages.",
+        "Add an /llms.txt at your site root: a short Markdown file listing your key pages and a one-line description of the site, with links to the most important content (and optionally full-text .md versions).",
+        "AI engines have to guess your most important content instead of being told.";
     "geo-ready" => "GEO: AI-Ready Page", Geo, Good,
         "This page has the structure, semantics, and signals generative engines prefer — it's well positioned to be cited in AI answers.",
         "Maintain this: keep structured data current, answers near the top, and authorship clear.",

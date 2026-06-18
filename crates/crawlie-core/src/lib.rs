@@ -20,6 +20,7 @@ pub mod crawler;
 pub mod fetch;
 pub mod knowledge;
 pub mod parse;
+pub mod priority;
 pub mod report;
 pub mod report_html;
 pub mod robots;
@@ -30,8 +31,9 @@ pub mod types;
 
 pub use crawler::{crawl, CancelToken};
 pub use knowledge::{all_rules, rule_info};
+pub use priority::top_fixes;
 pub use report::ReportStore;
 pub use types::{
-    Category, CrawlConfig, CrawlError, CrawlEvent, CrawlMode, CrawlResult, GeoSignals, Hreflang,
-    Issue, Page, Redirect, ReportMeta, RuleInfo, Severity, Summary,
+    Category, CrawlConfig, CrawlError, CrawlEvent, CrawlMode, CrawlResult, Fix, GeoSignals,
+    Hreflang, Issue, Page, Redirect, ReportMeta, RuleInfo, Severity, Summary,
 };

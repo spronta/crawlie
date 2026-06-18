@@ -169,6 +169,8 @@ pub struct Page {
     pub internal_links: Vec<String>,
     pub external_links: Vec<String>,
     pub inlinks: usize,
+    /// Internal PageRank authority, 0–100 (the most-linked page = 100).
+    pub link_score: f32,
 
     // --- social / structured data ---
     pub og_title: Option<String>,
@@ -353,8 +355,26 @@ pub struct CrawlResult {
     pub sitemap_urls: usize,
     /// URLs skipped because robots.txt disallowed them.
     pub robots_blocked: Vec<String>,
+    /// Whether the site publishes an `/llms.txt` (AI-engine guidance file).
+    pub llms_txt_found: bool,
     /// Unix-ms timestamp the crawl started.
     pub started_at: u64,
+}
+
+/// A prioritized recommended fix — an issue type ranked by impact, with guidance.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Fix {
+    pub rule: String,
+    pub title: String,
+    pub category: Category,
+    pub severity: Severity,
+    /// Number of affected URLs.
+    pub count: usize,
+    /// Relative priority score (higher = fix first).
+    pub impact: f32,
+    pub why: String,
+    pub how_to_fix: String,
 }
 
 /// Metadata describing a saved report on disk (for history/listing).

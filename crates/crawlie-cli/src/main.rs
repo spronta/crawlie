@@ -6,8 +6,8 @@
 
 use clap::{Parser, Subcommand, ValueEnum};
 use crawlie_core::{
-    all_rules, crawl, report_html, rule_info, CancelToken, CrawlConfig, CrawlMode, CrawlResult,
-    ReportStore, Severity,
+    all_rules, crawl, report_html, rule_info, top_fixes, CancelToken, CrawlConfig, CrawlMode,
+    CrawlResult, ReportStore, Severity,
 };
 use std::io::Write;
 use std::path::PathBuf;
@@ -362,14 +362,26 @@ fn render_pretty(r: &CrawlResult, min: Option<u8>) -> String {
         "  {} errors · {} warnings · {} notices\n",
         s.errors, s.warnings, s.notices
     ));
-    if r.robots_found || r.sitemap_urls > 0 {
-        out.push_str(&format!(
-            "  robots.txt: {} · sitemap URLs: {}\n",
-            if r.robots_found { "found" } else { "none" },
-            r.sitemap_urls
-        ));
-    }
+    out.push_str(&format!(
+        "  robots.txt: {} · sitemap URLs: {} · llms.txt: {}\n",
+        if r.robots_found { "found" } else { "none" },
+        r.sitemap_urls,
+        if r.llms_txt_found { "found" } else { "none" }
+    ));
     out.push('\n');
+
+    // Prioritized action plan — the highest-impact fixes first.
+    let fixes = top_fixes(&r.issues, 5);
+    if !fixes.is_empty() {
+        out.push_str("  Top fixes\n");
+        for (n, f) in fixes.iter().enumerate() {
+            out.push_str(&format!("    {}. {} ({})\n", n + 1, f.title, f.count));
+            if !f.how_to_fix.is_empty() {
+                out.push_str(&format!("       → {}\n", truncate(&f.how_to_fix, 86)));
+            }
+        }
+        out.push('\n');
+    }
 
     if !s.by_status.is_empty() {
         out.push_str("  Status codes\n");

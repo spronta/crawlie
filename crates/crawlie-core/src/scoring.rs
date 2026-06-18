@@ -2,6 +2,72 @@
 //! an overall site health score. Both are 0–100 and intentionally explainable.
 
 use crate::types::{Category, Issue, Page, Severity};
+use std::collections::{HashMap, HashSet};
+use url::Url;
+
+fn norm(s: &str) -> String {
+    match Url::parse(s) {
+        Ok(mut u) => {
+            u.set_fragment(None);
+            u.to_string()
+        }
+        Err(_) => s.to_string(),
+    }
+}
+
+/// Internal-link authority via PageRank, returned index-aligned with `pages` and
+/// normalized so the most authoritative page scores 100.
+pub fn link_scores(pages: &[Page]) -> Vec<f32> {
+    let n = pages.len();
+    if n == 0 {
+        return Vec::new();
+    }
+    let mut idx: HashMap<String, usize> = HashMap::new();
+    for (i, p) in pages.iter().enumerate() {
+        idx.entry(norm(&p.final_url)).or_insert(i);
+        idx.entry(norm(&p.url)).or_insert(i);
+    }
+    let mut out: Vec<Vec<usize>> = vec![Vec::new(); n];
+    for (i, p) in pages.iter().enumerate() {
+        let mut seen = HashSet::new();
+        for l in &p.internal_links {
+            if let Some(&j) = idx.get(&norm(l)) {
+                if j != i && seen.insert(j) {
+                    out[i].push(j);
+                }
+            }
+        }
+    }
+    let damping = 0.85f32;
+    let mut rank = vec![1.0f32 / n as f32; n];
+    for _ in 0..40 {
+        let mut next = vec![(1.0 - damping) / n as f32; n];
+        let mut dangling = 0.0f32;
+        for i in 0..n {
+            if out[i].is_empty() {
+                dangling += rank[i];
+            } else {
+                let share = damping * rank[i] / out[i].len() as f32;
+                for &j in &out[i] {
+                    next[j] += share;
+                }
+            }
+        }
+        let spread = damping * dangling / n as f32;
+        for v in next.iter_mut() {
+            *v += spread;
+        }
+        rank = next;
+    }
+    let max = rank
+        .iter()
+        .cloned()
+        .fold(0.0f32, f32::max)
+        .max(f32::MIN_POSITIVE);
+    rank.iter()
+        .map(|r| (r / max * 100.0).clamp(0.0, 100.0))
+        .collect()
+}
 
 /// GEO readiness for one page, 0–100. Only meaningful for indexable HTML pages;
 /// returns 0 otherwise.

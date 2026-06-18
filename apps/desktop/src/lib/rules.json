@@ -405,6 +405,15 @@
     "impact": "Harder for engines to separate content from chrome, lowering extraction quality."
   },
   {
+    "rule": "geo-no-llms-txt",
+    "title": "GEO: No llms.txt",
+    "category": "geo",
+    "severity": "notice",
+    "why": "An /llms.txt file is an emerging standard that tells AI engines which content matters most and how to use it \u2014 the robots.txt of the generative-search era. Sites that publish one make it easier for assistants to find and cite the right pages.",
+    "howToFix": "Add an /llms.txt at your site root: a short Markdown file listing your key pages and a one-line description of the site, with links to the most important content (and optionally full-text .md versions).",
+    "impact": "AI engines have to guess your most important content instead of being told."
+  },
+  {
     "rule": "geo-ready",
     "title": "GEO: AI-Ready Page",
     "category": "geo",

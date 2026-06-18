@@ -6,6 +6,7 @@ import { ruleInfo } from "../lib/rules";
 import { Donut, Bars } from "../components/charts";
 import { IconDownload, IconRefresh, IconShare, IconX, ScoreRing, SeverityBadge, StatusPill } from "../components/ui";
 import { exportHtml, isTauri } from "../lib/api";
+import { topFixes } from "../lib/priority";
 import { bytes, ms, num, severityRank, shortUrl } from "../lib/format";
 
 type Tab = "overview" | "issues" | "pages";
@@ -57,6 +58,7 @@ export function ResultsView({ result, onReset }: { result: CrawlResult; onReset:
             {num(s.totalPages)} pages · {ms(s.durationMs)} · {num(s.indexablePages)} indexable
             {result.robotsFound ? " · robots.txt ✓" : ""}
             {result.sitemapUrls > 0 ? ` · ${num(result.sitemapUrls)} sitemap URLs` : ""}
+            {result.llmsTxtFound ? " · llms.txt ✓" : ""}
           </span>
         </div>
         <div className="row">
@@ -112,8 +114,31 @@ function Overview({ result }: { result: CrawlResult }) {
     .sort((a, b) => Number(a[0]) - Number(b[0]))
     .map(([d, value]) => ({ label: d === "0" ? "Home" : `${d} clicks`, value, color: "var(--blue)" }));
 
+  const fixes = topFixes(result.issues, 5);
+
   return (
     <div className="section-gap">
+      {fixes.length > 0 && (
+        <div className="card card-pad">
+          <div className="row between" style={{ marginBottom: "var(--sp-4)" }}>
+            <h3 className="h3">Top fixes</h3>
+            <span className="tertiary" style={{ font: "var(--label-12)" }}>ranked by impact on your score</span>
+          </div>
+          <div className="col" style={{ gap: "var(--sp-3)" }}>
+            {fixes.map((f, i) => (
+              <div className="row" key={f.rule} style={{ gap: "var(--sp-3)", alignItems: "flex-start" }}>
+                <span className="mono tertiary" style={{ fontSize: 13, width: 18, textAlign: "right", paddingTop: 2 }}>{i + 1}</span>
+                <SeverityBadge severity={f.severity} />
+                <div className="col" style={{ gap: 2, minWidth: 0 }}>
+                  <span style={{ font: "var(--label-14)" }}>{f.title} <span className="tertiary mono" style={{ fontSize: 12 }}>· {f.count}</span></span>
+                  {f.howToFix && <span className="muted" style={{ font: "var(--copy-13)" }}>{f.howToFix}</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="score-cards">
         <div className="card score-card">
           <ScoreRing value={s.healthScore} caption="HEALTH" />
@@ -264,7 +289,7 @@ function FilterChip({ active, onClick, children }: { active: boolean; onClick: (
 }
 
 /* ---------------- Pages ---------------- */
-type SortKey = "url" | "status" | "depth" | "wordCount" | "inlinks" | "responseTimeMs" | "geoScore";
+type SortKey = "url" | "status" | "depth" | "wordCount" | "inlinks" | "linkScore" | "responseTimeMs" | "geoScore";
 
 function Pages({ pages, onOpen }: { pages: Page[]; onOpen: (p: Page) => void }) {
   const [q, setQ] = useState("");
@@ -305,6 +330,7 @@ function Pages({ pages, onOpen }: { pages: Page[]; onOpen: (p: Page) => void }) 
               {th("depth", "Depth", "right")}
               {th("wordCount", "Words", "right")}
               {th("inlinks", "Inlinks", "right")}
+              {th("linkScore", "Link", "right")}
               {th("geoScore", "GEO", "right")}
               <th>Indexable</th>
             </tr>
@@ -320,13 +346,14 @@ function Pages({ pages, onOpen }: { pages: Page[]; onOpen: (p: Page) => void }) 
                 <td className="num">{p.depth}</td>
                 <td className="num">{num(p.wordCount)}</td>
                 <td className="num">{p.inlinks}</td>
+                <td className="num">{Math.round(p.linkScore)}</td>
                 <td className="num" style={{ color: p.status === 200 ? scoreColor(p.geo.score) : "var(--text-tertiary)" }}>
                   {p.status === 200 ? p.geo.score : "—"}
                 </td>
                 <td>{p.indexable ? <span className="badge badge-ok"><span className="dot" />Yes</span> : <span className="badge badge-neutral" title={p.indexability ?? ""}>{p.indexability ?? "No"}</span>}</td>
               </tr>
             ))}
-            {rows.length === 0 && <tr><td colSpan={8}><Empty>No pages match.</Empty></td></tr>}
+            {rows.length === 0 && <tr><td colSpan={9}><Empty>No pages match.</Empty></td></tr>}
           </tbody>
         </table>
       </div>
@@ -385,6 +412,7 @@ function PageDrawer({ page, issues, onClose }: { page: Page; issues: Issue[]; on
             <Row k="Images" v={`${page.imagesTotal} (${page.imagesMissingAlt} missing alt)`} />
             <Row k="Internal / External links" v={`${num(page.internalLinks.length)} / ${num(page.externalLinks.length)}`} />
             <Row k="Inlinks" v={num(page.inlinks)} />
+            <Row k="Link score" v={`${Math.round(page.linkScore)} / 100`} />
             <Row k="Response" v={`${ms(page.responseTimeMs)} · ${bytes(page.sizeBytes)}`} />
             <Row k="Compression" v={page.contentEncoding ?? "none"} />
             <Row k="HSTS" v={page.hsts ? "Yes" : "No"} />

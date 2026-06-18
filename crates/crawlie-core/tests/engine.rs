@@ -111,6 +111,7 @@ fn ok_page(url: &str) -> Page {
         internal_links: vec![],
         external_links: vec![],
         inlinks: 3,
+        link_score: 50.0,
         og_title: Some("OG".into()),
         og_image: Some("https://example.com/og.png".into()),
         twitter_card: Some("summary".into()),
@@ -181,6 +182,40 @@ fn audit_detects_duplicate_titles_and_broken_links() {
     let r = rules(&issues);
     assert!(r.contains(&"title-duplicate"), "missing dup title in {r:?}");
     assert!(r.contains(&"broken-link"), "missing broken link in {r:?}");
+}
+
+#[test]
+fn link_scores_rank_the_hub_highest() {
+    // home ← linked by a and b; a,b link only to home. Home should top the ranking.
+    let mut home = ok_page("https://example.com/");
+    let mut a = ok_page("https://example.com/a");
+    let mut b = ok_page("https://example.com/b");
+    home.internal_links = vec![];
+    a.internal_links = vec!["https://example.com/".into()];
+    b.internal_links = vec!["https://example.com/".into()];
+    let scores = crawlie_core::scoring::link_scores(&[home, a, b]);
+    assert_eq!(scores.len(), 3);
+    assert_eq!(scores[0], 100.0, "hub should be the max-scored page");
+    assert!(scores[1] < scores[0] && scores[2] < scores[0]);
+}
+
+#[test]
+fn top_fixes_rank_errors_first() {
+    let seed = Url::parse("https://example.com/").unwrap();
+    let mut bad = ok_page("https://example.com/x");
+    bad.title = None; // error: title-missing
+    bad.canonical = None; // notice: canonical-missing
+    bad.word_count = 5; // notice: thin-content
+    let issues = crawlie_core::audit::audit(&[bad], &HashMap::new(), &[], &seed);
+    let fixes = crawlie_core::top_fixes(&issues, 5);
+    assert!(!fixes.is_empty());
+    assert_eq!(
+        fixes[0].severity,
+        Severity::Error,
+        "errors should rank first, got {:?}",
+        fixes[0].rule
+    );
+    assert!(!fixes[0].how_to_fix.is_empty(), "fix should carry guidance");
 }
 
 #[test]

@@ -93,6 +93,7 @@ export interface Page {
   internalLinks: string[];
   externalLinks: string[];
   inlinks: number;
+  linkScore: number;
   ogTitle: string | null;
   ogImage: string | null;
   twitterCard: string | null;
@@ -149,7 +150,19 @@ export interface CrawlResult {
   robotsFound: boolean;
   sitemapUrls: number;
   robotsBlocked: string[];
+  llmsTxtFound: boolean;
   startedAt: number;
+}
+
+export interface Fix {
+  rule: string;
+  title: string;
+  category: Category;
+  severity: Severity;
+  count: number;
+  impact: number;
+  why: string;
+  howToFix: string;
 }
 
 export interface ReportMeta {

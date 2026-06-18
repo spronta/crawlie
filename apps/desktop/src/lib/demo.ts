@@ -61,6 +61,7 @@ function page(p: Partial<Page> & { url: string }): Page {
     internalLinks: [],
     externalLinks: [],
     inlinks: 5,
+    linkScore: 45,
     ogTitle: "Acme",
     ogImage: `${host}/og.png`,
     twitterCard: "summary_large_image",
@@ -76,7 +77,7 @@ function page(p: Partial<Page> & { url: string }): Page {
 }
 
 const pages: Page[] = [
-  page({ url: `${host}/`, depth: 0, title: "Acme — Modern Tools for Teams", wordCount: 920, inlinks: 0, geo: GOOD_GEO }),
+  page({ url: `${host}/`, depth: 0, title: "Acme — Modern Tools for Teams", wordCount: 920, inlinks: 9, linkScore: 100, geo: GOOD_GEO }),
   page({ url: `${host}/pricing`, responseTimeMs: 240, schemaTypes: [] }),
   page({ url: `${host}/blog`, title: null, metaDescription: null, h1: [], geo: WEAK_GEO }),
   page({ url: `${host}/blog/launch`, title: "Launch", wordCount: 120, canonical: `${host}/blog`, canonicalized: true, indexable: false, indexability: "Canonicalised", geo: WEAK_GEO }),
@@ -143,5 +144,6 @@ export const DEMO_RESULT: CrawlResult = {
   robotsFound: true,
   sitemapUrls: 12,
   robotsBlocked: [`${host}/admin`],
+  llmsTxtFound: false,
   startedAt: 1781800000000,
 };
