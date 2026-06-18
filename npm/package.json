@@ -1,6 +1,6 @@
 {
   "name": "@spronta/crawlie",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Fast, free, open-source technical SEO + GEO crawler — CLI and MCP server. By Spronta.",
   "bin": {
     "crawlie": "bin/crawlie.js",
@@ -13,10 +13,10 @@
     "README.md"
   ],
   "optionalDependencies": {
-    "@spronta/crawlie-darwin-arm64": "0.1.0",
-    "@spronta/crawlie-darwin-x64": "0.1.0",
-    "@spronta/crawlie-linux-x64": "0.1.0",
-    "@spronta/crawlie-win32-x64": "0.1.0"
+    "@spronta/crawlie-darwin-arm64": "0.1.1",
+    "@spronta/crawlie-darwin-x64": "0.1.1",
+    "@spronta/crawlie-linux-x64": "0.1.1",
+    "@spronta/crawlie-win32-x64": "0.1.1"
   },
   "engines": {
     "node": ">=18"
