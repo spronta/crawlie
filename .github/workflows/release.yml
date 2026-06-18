@@ -1,0 +1,126 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  # 1. Create a draft GitHub Release for this tag (idempotent).
+  create-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create draft release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1 || \
+          gh release create "${GITHUB_REF_NAME}" \
+            --title "crawlie ${GITHUB_REF_NAME}" \
+            --notes "Install the CLI with \`npm i -g @spronta/crawlie\`, or download a binary / the macOS installer below." \
+            --draft
+
+  # 2. Build the CLI + MCP server for every platform and attach to the release.
+  cli:
+    needs: create-release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: macos-latest, target: aarch64-apple-darwin, asset: darwin-arm64, ext: "" }
+          - { os: macos-latest, target: x86_64-apple-darwin, asset: darwin-x64, ext: "" }
+          - { os: ubuntu-latest, target: x86_64-unknown-linux-gnu, asset: linux-x64, ext: "" }
+          - { os: windows-latest, target: x86_64-pc-windows-msvc, asset: win32-x64, ext: ".exe" }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+      - name: Build CLI + MCP
+        run: cargo build --release --target ${{ matrix.target }} -p crawlie-cli -p crawlie-mcp
+      - name: Stage + upload binaries
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p dist
+          cp "target/${{ matrix.target }}/release/crawlie${{ matrix.ext }}" "dist/crawlie-${{ matrix.asset }}${{ matrix.ext }}"
+          cp "target/${{ matrix.target }}/release/crawlie-mcp${{ matrix.ext }}" "dist/crawlie-mcp-${{ matrix.asset }}${{ matrix.ext }}"
+          gh release upload "${GITHUB_REF_NAME}" dist/* --clobber
+
+  # 3. Build the signed + notarized macOS desktop app (universal) and attach it.
+  desktop:
+    needs: create-release
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "apps/desktop/src-tauri -> target"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install frontend deps
+        working-directory: apps/desktop
+        run: pnpm install --frozen-lockfile
+      - name: Build signed desktop app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          # Apple Developer signing + notarization (Spronta) — set as repo secrets.
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        with:
+          projectPath: apps/desktop
+          args: --target universal-apple-darwin
+      - name: Upload installers to release
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          base=apps/desktop/src-tauri/target/universal-apple-darwin/release/bundle
+          gh release upload "${GITHUB_REF_NAME}" "$base"/dmg/*.dmg --clobber
+
+  # 4. Publish the release (un-draft) once all artifacts are attached.
+  finalize:
+    needs: [cli, desktop]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Mark release published
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release edit "${GITHUB_REF_NAME}" --draft=false --latest
+
+  # 5. Publish the npm wrapper (@spronta/crawlie) that fetches the binaries above.
+  npm:
+    needs: finalize
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: "https://registry.npmjs.org"
+      - name: Set version from tag
+        working-directory: npm
+        run: npm version "${GITHUB_REF_NAME#v}" --no-git-tag-version --allow-same-version
+      - name: Publish
+        working-directory: npm
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

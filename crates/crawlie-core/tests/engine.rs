@@ -43,7 +43,10 @@ fn extracts_core_fields() {
     assert_eq!(p.h2_count, 2);
     assert_eq!(p.lang.as_deref(), Some("en"));
     assert_eq!(p.meta_robots.as_deref(), Some("noindex, follow")); // lowercased
-    assert_eq!(p.canonical.as_deref(), Some("https://example.com/canonical-target"));
+    assert_eq!(
+        p.canonical.as_deref(),
+        Some("https://example.com/canonical-target")
+    );
 }
 
 #[test]
@@ -51,7 +54,10 @@ fn classifies_and_dedupes_links() {
     let p = parsed();
     // /about and /about#team collapse to one internal link; external is separate;
     // mailto: and pure fragments are dropped.
-    assert_eq!(p.internal_links, vec!["https://example.com/about".to_string()]);
+    assert_eq!(
+        p.internal_links,
+        vec!["https://example.com/about".to_string()]
+    );
     assert_eq!(p.external_links, vec!["https://other.com/x".to_string()]);
 }
 
@@ -147,7 +153,14 @@ fn audit_flags_a_broken_page() {
     let status_map = HashMap::new();
     let issues = crawlie_core::audit::audit(&[bad], &status_map, &[], &seed);
     let r = rules(&issues);
-    for expected in ["title-missing", "description-missing", "h1-missing", "canonical-missing", "thin-content", "image-missing-alt"] {
+    for expected in [
+        "title-missing",
+        "description-missing",
+        "h1-missing",
+        "canonical-missing",
+        "thin-content",
+        "image-missing-alt",
+    ] {
         assert!(r.contains(&expected), "expected rule {expected} in {r:?}");
     }
 }
@@ -182,6 +195,12 @@ fn audit_is_quiet_on_a_clean_page() {
         .filter(|i| i.severity != Severity::Good)
         .map(|i| i.rule.as_str())
         .collect();
-    assert!(problems.is_empty(), "expected no problems, got {problems:?}");
-    assert!(rules(&issues).contains(&"geo-ready"), "expected geo-ready good signal");
+    assert!(
+        problems.is_empty(),
+        "expected no problems, got {problems:?}"
+    );
+    assert!(
+        rules(&issues).contains(&"geo-ready"),
+        "expected geo-ready good signal"
+    );
 }

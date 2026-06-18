@@ -23,7 +23,9 @@ fn slugify(url: &str) -> String {
 
 impl ReportStore {
     pub fn new(dir: impl AsRef<Path>) -> Self {
-        Self { dir: dir.as_ref().to_path_buf() }
+        Self {
+            dir: dir.as_ref().to_path_buf(),
+        }
     }
 
     fn ensure(&self) -> io::Result<()> {

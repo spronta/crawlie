@@ -18,7 +18,12 @@ fn default_timeout() -> u64 {
     15
 }
 fn default_user_agent() -> String {
-    concat!("crawlie/", env!("CARGO_PKG_VERSION"), " (+https://spronta.com/crawlie)").to_string()
+    concat!(
+        "crawlie/",
+        env!("CARGO_PKG_VERSION"),
+        " (+https://spronta.com/crawlie)"
+    )
+    .to_string()
 }
 fn default_true() -> bool {
     true
@@ -370,14 +375,18 @@ pub struct ReportMeta {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum CrawlEvent {
-    Started { url: String },
+    Started {
+        url: String,
+    },
     Progress {
         crawled: usize,
         discovered: usize,
         queued: usize,
         current: String,
     },
-    Done { summary: Summary },
+    Done {
+        summary: Summary,
+    },
 }
 
 /// Errors that abort a crawl before it produces a result.

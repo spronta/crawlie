@@ -14,7 +14,11 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 #[derive(Parser)]
-#[command(name = "crawlie", version, about = "Fast OSS SEO + GEO crawler by Spronta")]
+#[command(
+    name = "crawlie",
+    version,
+    about = "Fast OSS SEO + GEO crawler by Spronta"
+)]
 struct Cli {
     #[command(subcommand)]
     command: Command,
@@ -99,6 +103,9 @@ struct ReportArgs {
     format: Format,
     #[arg(long, short = 'o')]
     output: Option<String>,
+    /// Delete this report instead of printing it.
+    #[arg(long)]
+    delete: bool,
 }
 
 #[derive(Copy, Clone, ValueEnum)]
@@ -133,7 +140,9 @@ fn rank(s: Severity) -> u8 {
 }
 
 fn reports_dir() -> PathBuf {
-    let home = std::env::var("HOME").or_else(|_| std::env::var("USERPROFILE")).unwrap_or_else(|_| ".".into());
+    let home = std::env::var("HOME")
+        .or_else(|_| std::env::var("USERPROFILE"))
+        .unwrap_or_else(|_| ".".into());
     PathBuf::from(home).join(".crawlie").join("reports")
 }
 
@@ -180,7 +189,16 @@ async fn run_audit(a: AuditArgs) -> ExitCode {
         max_depth: 0,
         ..CrawlConfig::new(&first)
     };
-    execute(config, a.format, None, a.output, false, FailOn::None, a.quiet).await
+    execute(
+        config,
+        a.format,
+        None,
+        a.output,
+        false,
+        FailOn::None,
+        a.quiet,
+    )
+    .await
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -197,8 +215,17 @@ async fn execute(
         if quiet {
             return;
         }
-        if let crawlie_core::CrawlEvent::Progress { crawled, queued, current, .. } = evt {
-            eprint!("\r\x1b[2K  crawled {crawled} · queued {queued} · {}", truncate(&current, 56));
+        if let crawlie_core::CrawlEvent::Progress {
+            crawled,
+            queued,
+            current,
+            ..
+        } = evt
+        {
+            eprint!(
+                "\r\x1b[2K  crawled {crawled} · queued {queued} · {}",
+                truncate(&current, 56)
+            );
             let _ = std::io::stderr().flush();
         }
     };
@@ -213,13 +240,20 @@ async fn execute(
     if !quiet {
         eprintln!(
             "\r\x1b[2K  done · {} pages · health {}/100 · GEO {}/100 · {} ms",
-            result.summary.total_pages, result.summary.health_score, result.summary.geo_score, result.summary.duration_ms
+            result.summary.total_pages,
+            result.summary.health_score,
+            result.summary.geo_score,
+            result.summary.duration_ms
         );
     }
 
     if save {
         match ReportStore::new(reports_dir()).save(&result) {
-            Ok(meta) => if !quiet { eprintln!("  saved report {}", meta.id) },
+            Ok(meta) => {
+                if !quiet {
+                    eprintln!("  saved report {}", meta.id)
+                }
+            }
             Err(e) => eprintln!("  warning: could not save report: {e}"),
         }
     }
@@ -234,7 +268,11 @@ async fn execute(
         FailOn::Error => result.summary.errors > 0,
         FailOn::Warning => result.summary.errors > 0 || result.summary.warnings > 0,
     };
-    if fail { ExitCode::from(1) } else { ExitCode::SUCCESS }
+    if fail {
+        ExitCode::from(1)
+    } else {
+        ExitCode::SUCCESS
+    }
 }
 
 fn sev_rank(s: Sev) -> u8 {
@@ -295,8 +333,12 @@ fn render_csv(r: &CrawlResult, min: Option<u8>) -> String {
     for i in filtered(r, min) {
         out.push_str(&format!(
             "{},{},{},{},{},{}\n",
-            i.severity.label(), i.category.label(), i.rule,
-            csv(&i.title), csv(&i.url), csv(i.detail.as_deref().unwrap_or("")),
+            i.severity.label(),
+            i.category.label(),
+            i.rule,
+            csv(&i.title),
+            csv(&i.url),
+            csv(i.detail.as_deref().unwrap_or("")),
         ));
     }
     out
@@ -308,11 +350,24 @@ fn render_pretty(r: &CrawlResult, min: Option<u8>) -> String {
     let mut out = String::new();
     out.push_str(&format!("\n  crawlie · {}\n", r.config.url));
     out.push_str(&format!("  {}\n", "─".repeat(54)));
-    out.push_str(&format!("  Health {}/100   GEO {}/100\n", s.health_score, s.geo_score));
-    out.push_str(&format!("  {} pages · {} ms · {} indexable · {} duplicate\n", s.total_pages, s.duration_ms, s.indexable_pages, s.duplicate_pages));
-    out.push_str(&format!("  {} errors · {} warnings · {} notices\n", s.errors, s.warnings, s.notices));
+    out.push_str(&format!(
+        "  Health {}/100   GEO {}/100\n",
+        s.health_score, s.geo_score
+    ));
+    out.push_str(&format!(
+        "  {} pages · {} ms · {} indexable · {} duplicate\n",
+        s.total_pages, s.duration_ms, s.indexable_pages, s.duplicate_pages
+    ));
+    out.push_str(&format!(
+        "  {} errors · {} warnings · {} notices\n",
+        s.errors, s.warnings, s.notices
+    ));
     if r.robots_found || r.sitemap_urls > 0 {
-        out.push_str(&format!("  robots.txt: {} · sitemap URLs: {}\n", if r.robots_found { "found" } else { "none" }, r.sitemap_urls));
+        out.push_str(&format!(
+            "  robots.txt: {} · sitemap URLs: {}\n",
+            if r.robots_found { "found" } else { "none" },
+            r.sitemap_urls
+        ));
     }
     out.push('\n');
 
@@ -337,7 +392,12 @@ fn render_pretty(r: &CrawlResult, min: Option<u8>) -> String {
     } else {
         out.push_str("  Issues\n");
         for (_, (sev, title, count)) in rows {
-            out.push_str(&format!("    [{}] {:<30} {}\n", sev.label().chars().next().unwrap(), title, count));
+            out.push_str(&format!(
+                "    [{}] {:<30} {}\n",
+                sev.label().chars().next().unwrap(),
+                title,
+                count
+            ));
         }
         out.push_str("\n  Run `crawlie explain <rule>` to learn why any issue matters.\n");
     }
@@ -357,21 +417,33 @@ fn explain(rule: Option<String>) -> ExitCode {
                     cat = info.category.label();
                     println!("  {cat}");
                 }
-                println!("    {:<26} [{}] {}", info.rule, info.severity.label().chars().next().unwrap(), info.title);
+                println!(
+                    "    {:<26} [{}] {}",
+                    info.rule,
+                    info.severity.label().chars().next().unwrap(),
+                    info.title
+                );
             }
             println!("\n  Run `crawlie explain <rule>` for the full guidance.\n");
             ExitCode::SUCCESS
         }
         Some(rule) => match rule_info(&rule) {
             Some(i) => {
-                println!("\n  {}  [{}]  ·  {}\n", i.title, i.severity.label(), i.category.label());
+                println!(
+                    "\n  {}  [{}]  ·  {}\n",
+                    i.title,
+                    i.severity.label(),
+                    i.category.label()
+                );
                 println!("  WHY IT MATTERS\n  {}\n", wrap(&i.why));
                 println!("  HOW TO FIX\n  {}\n", wrap(&i.how_to_fix));
                 println!("  IF IGNORED\n  {}\n", wrap(&i.impact));
                 ExitCode::SUCCESS
             }
             None => {
-                eprintln!("crawlie: unknown rule '{rule}'. Run `crawlie explain` to list all rules.");
+                eprintln!(
+                    "crawlie: unknown rule '{rule}'. Run `crawlie explain` to list all rules."
+                );
                 ExitCode::from(2)
             }
         },
@@ -385,19 +457,47 @@ fn list_reports() -> ExitCode {
         return ExitCode::SUCCESS;
     }
     println!("\n  Saved reports\n");
-    println!("  {:<34} {:>6} {:>7} {:>5}  URL", "ID", "PAGES", "HEALTH", "GEO");
+    println!(
+        "  {:<20} {:>6} {:>7} {:>5}  {:<34} URL",
+        "DATE", "PAGES", "HEALTH", "GEO", "ID"
+    );
     for m in reports {
-        println!("  {:<34} {:>6} {:>6}/100 {:>3}/100  {}", m.id, m.total_pages, m.health_score, m.geo_score, m.url);
+        println!(
+            "  {:<20} {:>6} {:>6}/100 {:>3}/100  {:<34} {}",
+            crawlie_core::timefmt::format_utc(m.created_at),
+            m.total_pages,
+            m.health_score,
+            m.geo_score,
+            m.id,
+            m.url
+        );
     }
-    println!();
+    println!(
+        "\n  Print one with `crawlie report <id>` · delete with `crawlie report <id> --delete`.\n"
+    );
     ExitCode::SUCCESS
 }
 
 fn show_report(a: ReportArgs) -> ExitCode {
-    match ReportStore::new(reports_dir()).load(&a.id) {
+    let store = ReportStore::new(reports_dir());
+    if a.delete {
+        return match store.delete(&a.id) {
+            Ok(()) => {
+                println!("  deleted report {}", a.id);
+                ExitCode::SUCCESS
+            }
+            Err(e) => {
+                eprintln!("crawlie: could not delete '{}': {e}", a.id);
+                ExitCode::from(2)
+            }
+        };
+    }
+    match store.load(&a.id) {
         Some(result) => {
             let rendered = render(&result, a.format, None);
-            emit(rendered, a.output, false).err().unwrap_or(ExitCode::SUCCESS)
+            emit(rendered, a.output, false)
+                .err()
+                .unwrap_or(ExitCode::SUCCESS)
         }
         None => {
             eprintln!("crawlie: report '{}' not found.", a.id);

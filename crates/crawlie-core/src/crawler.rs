@@ -80,15 +80,50 @@ fn glob_match(pattern: &str, text: &str) -> bool {
 /// Non-HTML asset URLs that should never be crawled or audited as pages.
 fn is_asset(u: &Url) -> bool {
     let last = u.path().rsplit('/').next().unwrap_or("");
-    let Some(dot) = last.rfind('.') else { return false };
+    let Some(dot) = last.rfind('.') else {
+        return false;
+    };
     let ext = last[dot + 1..].to_ascii_lowercase();
     matches!(
         ext.as_str(),
-        "svg" | "png" | "jpg" | "jpeg" | "gif" | "webp" | "avif" | "ico" | "bmp" | "tiff"
-            | "css" | "js" | "mjs" | "cjs" | "json" | "xml" | "rss" | "atom" | "map"
-            | "pdf" | "zip" | "gz" | "tar" | "dmg" | "exe" | "csv"
-            | "woff" | "woff2" | "ttf" | "otf" | "eot"
-            | "mp4" | "webm" | "mov" | "mp3" | "wav" | "ogg" | "avi"
+        "svg"
+            | "png"
+            | "jpg"
+            | "jpeg"
+            | "gif"
+            | "webp"
+            | "avif"
+            | "ico"
+            | "bmp"
+            | "tiff"
+            | "css"
+            | "js"
+            | "mjs"
+            | "cjs"
+            | "json"
+            | "xml"
+            | "rss"
+            | "atom"
+            | "map"
+            | "pdf"
+            | "zip"
+            | "gz"
+            | "tar"
+            | "dmg"
+            | "exe"
+            | "csv"
+            | "woff"
+            | "woff2"
+            | "ttf"
+            | "otf"
+            | "eot"
+            | "mp4"
+            | "webm"
+            | "mov"
+            | "mp3"
+            | "wav"
+            | "ogg"
+            | "avi"
     )
 }
 
@@ -186,7 +221,10 @@ where
                 break;
             }
             if let Ok(u) = Url::parse(&s) {
-                let same = u.host_str().map(|h| crate::parse::same_site(&host, h)).unwrap_or(false);
+                let same = u
+                    .host_str()
+                    .map(|h| crate::parse::same_site(&host, h))
+                    .unwrap_or(false);
                 if same && !is_asset(&u) && passes_filters(&config, u.as_str()) {
                     if config.respect_robots && !robots.allowed(&robots_path(&u)) {
                         continue;
@@ -217,7 +255,9 @@ where
             inflight.push(async move {
                 let res = fetch(&client, &u, 10).await.map(|o| {
                     let parsed: Option<Parsed> = if o.is_html {
-                        o.body.as_deref().map(|b| parse_html(b, &o.final_url, &host))
+                        o.body
+                            .as_deref()
+                            .map(|b| parse_html(b, &o.final_url, &host))
                     } else {
                         None
                     };
@@ -281,7 +321,10 @@ where
         }
     }
     for p in &mut pages {
-        p.inlinks = inlinks.get(&normalize_str(&p.final_url)).copied().unwrap_or(0);
+        p.inlinks = inlinks
+            .get(&normalize_str(&p.final_url))
+            .copied()
+            .unwrap_or(0);
     }
 
     // Duplicate content detection (exact content-hash match).
@@ -382,10 +425,23 @@ fn build_page(url: &Url, depth: usize, o: FetchOutcome, parsed: Option<Parsed>) 
         indexability = Some("Redirect".into());
     } else if o.status >= 400 {
         indexable = false;
-        indexability = Some(if o.status < 500 { "Client Error" } else { "Server Error" }.into());
+        indexability = Some(
+            if o.status < 500 {
+                "Client Error"
+            } else {
+                "Server Error"
+            }
+            .into(),
+        );
     }
-    let robots_noindex = meta_robots.as_deref().map(|r| r.contains("noindex")).unwrap_or(false)
-        || x_robots.as_deref().map(|r| r.to_ascii_lowercase().contains("noindex")).unwrap_or(false);
+    let robots_noindex = meta_robots
+        .as_deref()
+        .map(|r| r.contains("noindex"))
+        .unwrap_or(false)
+        || x_robots
+            .as_deref()
+            .map(|r| r.to_ascii_lowercase().contains("noindex"))
+            .unwrap_or(false);
     if robots_noindex {
         indexable = false;
         indexability = Some("Noindex".into());
@@ -427,14 +483,26 @@ fn build_page(url: &Url, depth: usize, o: FetchOutcome, parsed: Option<Parsed>) 
         canonicalized,
         images_total: parsed.as_ref().map(|p| p.images_total).unwrap_or(0),
         images_missing_alt: parsed.as_ref().map(|p| p.images_missing_alt).unwrap_or(0),
-        internal_links: parsed.as_ref().map(|p| p.internal_links.clone()).unwrap_or_default(),
-        external_links: parsed.as_ref().map(|p| p.external_links.clone()).unwrap_or_default(),
+        internal_links: parsed
+            .as_ref()
+            .map(|p| p.internal_links.clone())
+            .unwrap_or_default(),
+        external_links: parsed
+            .as_ref()
+            .map(|p| p.external_links.clone())
+            .unwrap_or_default(),
         inlinks: 0,
         og_title: parsed.as_ref().and_then(|p| p.og_title.clone()),
         og_image: parsed.as_ref().and_then(|p| p.og_image.clone()),
         twitter_card: parsed.as_ref().and_then(|p| p.twitter_card.clone()),
-        schema_types: parsed.as_ref().map(|p| p.schema_types.clone()).unwrap_or_default(),
-        hreflang: parsed.as_ref().map(|p| p.hreflang.clone()).unwrap_or_default(),
+        schema_types: parsed
+            .as_ref()
+            .map(|p| p.schema_types.clone())
+            .unwrap_or_default(),
+        hreflang: parsed
+            .as_ref()
+            .map(|p| p.hreflang.clone())
+            .unwrap_or_default(),
         mixed_content: parsed.as_ref().map(|p| p.mixed_content).unwrap_or(0),
         geo: GeoSignals::default(),
         content_hash: parsed.as_ref().and_then(|p| p.content_hash.clone()),
@@ -523,7 +591,9 @@ fn build_summary(pages: &[Page], issues: &[Issue], duration_ms: u64) -> Summary 
     }
     for i in issues {
         if i.severity != Severity::Good {
-            *by_category.entry(i.category.label().to_string()).or_insert(0) += 1;
+            *by_category
+                .entry(i.category.label().to_string())
+                .or_insert(0) += 1;
         }
     }
     Summary {

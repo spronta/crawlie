@@ -7,7 +7,10 @@ use crate::types::{CrawlResult, Severity};
 use std::collections::BTreeMap;
 
 fn esc(s: &str) -> String {
-    s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;")
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
 }
 
 fn sev_class(s: Severity) -> &'static str {
@@ -53,21 +56,38 @@ pub fn render(r: &CrawlResult) -> String {
         }
     }
     let mut ordered: Vec<(String, G)> = groups.into_iter().collect();
-    ordered.sort_by(|a, b| sev_rank(b.1.severity).cmp(&sev_rank(a.1.severity)).then(b.1.count.cmp(&a.1.count)));
+    ordered.sort_by(|a, b| {
+        sev_rank(b.1.severity)
+            .cmp(&sev_rank(a.1.severity))
+            .then(b.1.count.cmp(&a.1.count))
+    });
 
     let mut issues_html = String::new();
     for (rule, g) in &ordered {
         let info = rule_info(rule);
         let why = info.as_ref().map(|i| esc(&i.why)).unwrap_or_default();
-        let how = info.as_ref().map(|i| esc(&i.how_to_fix)).unwrap_or_default();
+        let how = info
+            .as_ref()
+            .map(|i| esc(&i.how_to_fix))
+            .unwrap_or_default();
         let impact = info.as_ref().map(|i| esc(&i.impact)).unwrap_or_default();
         let mut urls = String::new();
         for (u, d) in &g.urls {
-            let detail = d.as_ref().map(|x| format!("<span class=\"d\">{}</span>", esc(x))).unwrap_or_default();
-            urls.push_str(&format!("<div class=\"u\"><span>{}</span>{}</div>", esc(u), detail));
+            let detail = d
+                .as_ref()
+                .map(|x| format!("<span class=\"d\">{}</span>", esc(x)))
+                .unwrap_or_default();
+            urls.push_str(&format!(
+                "<div class=\"u\"><span>{}</span>{}</div>",
+                esc(u),
+                detail
+            ));
         }
         if g.count > g.urls.len() {
-            urls.push_str(&format!("<div class=\"u more\">+ {} more</div>", g.count - g.urls.len()));
+            urls.push_str(&format!(
+                "<div class=\"u more\">+ {} more</div>",
+                g.count - g.urls.len()
+            ));
         }
         let edu = if info.is_some() {
             format!(
@@ -88,10 +108,14 @@ pub fn render(r: &CrawlResult) -> String {
     // status table
     let mut status_rows = String::new();
     for (code, n) in &s.by_status {
-        status_rows.push_str(&format!("<tr><td class=\"mono\">{}</td><td class=\"mono num\">{}</td></tr>", esc(code), n));
+        status_rows.push_str(&format!(
+            "<tr><td class=\"mono\">{}</td><td class=\"mono num\">{}</td></tr>",
+            esc(code),
+            n
+        ));
     }
 
-    let date = format_ts(r.started_at);
+    let date = crate::timefmt::format_utc(r.started_at);
 
     format!(
         r#"<!doctype html>
@@ -139,31 +163,10 @@ pub fn render(r: &CrawlResult) -> String {
 }
 
 fn host_of(url: &str) -> String {
-    url::Url::parse(url).ok().and_then(|u| u.host_str().map(|h| h.to_string())).unwrap_or_else(|| url.to_string())
-}
-
-fn format_ts(ms: u64) -> String {
-    // Lightweight UTC formatting without chrono.
-    let secs = ms / 1000;
-    let days = secs / 86400;
-    let (y, m, d) = civil_from_days(days as i64);
-    let h = (secs % 86400) / 3600;
-    let mi = (secs % 3600) / 60;
-    format!("{y:04}-{m:02}-{d:02} {h:02}:{mi:02} UTC")
-}
-
-// days since 1970-01-01 -> (year, month, day), Howard Hinnant's algorithm.
-fn civil_from_days(z: i64) -> (i64, u32, u32) {
-    let z = z + 719468;
-    let era = if z >= 0 { z } else { z - 146096 } / 146097;
-    let doe = z - era * 146097;
-    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
-    let y = yoe + era * 400;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-    let mp = (5 * doy + 2) / 153;
-    let d = (doy - (153 * mp + 2) / 5 + 1) as u32;
-    let m = (if mp < 10 { mp + 3 } else { mp - 9 }) as u32;
-    (if m <= 2 { y + 1 } else { y }, m, d)
+    url::Url::parse(url)
+        .ok()
+        .and_then(|u| u.host_str().map(|h| h.to_string()))
+        .unwrap_or_else(|| url.to_string())
 }
 
 const CSS: &str = r#"

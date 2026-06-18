@@ -19,7 +19,9 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 const DEFAULT_PROTOCOL: &str = "2024-11-05";
 
 fn reports_dir() -> PathBuf {
-    let home = std::env::var("HOME").or_else(|_| std::env::var("USERPROFILE")).unwrap_or_else(|_| ".".into());
+    let home = std::env::var("HOME")
+        .or_else(|_| std::env::var("USERPROFILE"))
+        .unwrap_or_else(|_| ".".into());
     PathBuf::from(home).join(".crawlie").join("reports")
 }
 
@@ -77,7 +79,11 @@ fn err(id: Value, code: i64, message: &str) -> Value {
 }
 
 fn initialize(params: &Value) -> Value {
-    let protocol = params.get("protocolVersion").and_then(|v| v.as_str()).unwrap_or(DEFAULT_PROTOCOL).to_string();
+    let protocol = params
+        .get("protocolVersion")
+        .and_then(|v| v.as_str())
+        .unwrap_or(DEFAULT_PROTOCOL)
+        .to_string();
     json!({
         "protocolVersion": protocol,
         "capabilities": { "tools": {} },
@@ -147,21 +153,35 @@ fn tools_list() -> Value {
 }
 
 async fn tools_call(params: Value) -> Result<Value, String> {
-    let name = params.get("name").and_then(|n| n.as_str()).ok_or("missing tool name")?;
+    let name = params
+        .get("name")
+        .and_then(|n| n.as_str())
+        .ok_or("missing tool name")?;
     let args = params.get("arguments").cloned().unwrap_or(json!({}));
 
     match name {
         "crawl_site" => {
-            let include_pages = args.get("includePages").and_then(|v| v.as_bool()).unwrap_or(false);
-            let save = args.get("saveReport").and_then(|v| v.as_bool()).unwrap_or(false);
-            let mut config: CrawlConfig = serde_json::from_value(args).map_err(|e| format!("invalid arguments: {e}"))?;
+            let include_pages = args
+                .get("includePages")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+            let save = args
+                .get("saveReport")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+            let mut config: CrawlConfig =
+                serde_json::from_value(args).map_err(|e| format!("invalid arguments: {e}"))?;
             if config.max_pages == 0 {
                 config.max_pages = 200;
             }
             run(config, include_pages, save).await
         }
         "audit_url" => {
-            let url = args.get("url").and_then(|u| u.as_str()).ok_or("missing url")?.to_string();
+            let url = args
+                .get("url")
+                .and_then(|u| u.as_str())
+                .ok_or("missing url")?
+                .to_string();
             let mut config = CrawlConfig::new(url);
             config.mode = CrawlMode::Page;
             config.max_depth = 0;
@@ -171,7 +191,11 @@ async fn tools_call(params: Value) -> Result<Value, String> {
             let urls: Vec<String> = args
                 .get("urls")
                 .and_then(|v| v.as_array())
-                .map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect())
+                .map(|a| {
+                    a.iter()
+                        .filter_map(|x| x.as_str().map(String::from))
+                        .collect()
+                })
                 .ok_or("missing urls")?;
             if urls.is_empty() {
                 return Err("urls must be a non-empty array".into());
@@ -183,7 +207,10 @@ async fn tools_call(params: Value) -> Result<Value, String> {
             run(config, true, false).await
         }
         "explain_issue" => {
-            let rule = args.get("rule").and_then(|v| v.as_str()).ok_or("missing rule")?;
+            let rule = args
+                .get("rule")
+                .and_then(|v| v.as_str())
+                .ok_or("missing rule")?;
             match rule_info(rule) {
                 Some(info) => text_result(serde_json::to_string_pretty(&info).unwrap_or_default()),
                 None => Err(format!("unknown rule '{rule}'")),
@@ -195,8 +222,14 @@ async fn tools_call(params: Value) -> Result<Value, String> {
             text_result(serde_json::to_string_pretty(&reports).unwrap_or_default())
         }
         "get_report" => {
-            let id = args.get("id").and_then(|v| v.as_str()).ok_or("missing id")?;
-            let include_pages = args.get("includePages").and_then(|v| v.as_bool()).unwrap_or(false);
+            let id = args
+                .get("id")
+                .and_then(|v| v.as_str())
+                .ok_or("missing id")?;
+            let include_pages = args
+                .get("includePages")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
             match ReportStore::new(reports_dir()).load(id) {
                 Some(result) => result_payload(&result, include_pages),
                 None => Err(format!("report '{id}' not found")),
@@ -207,14 +240,19 @@ async fn tools_call(params: Value) -> Result<Value, String> {
 }
 
 async fn run(config: CrawlConfig, include_pages: bool, save: bool) -> Result<Value, String> {
-    let result = crawl(config, |_| {}, CancelToken::new()).await.map_err(|e| e.to_string())?;
+    let result = crawl(config, |_| {}, CancelToken::new())
+        .await
+        .map_err(|e| e.to_string())?;
     if save {
         let _ = ReportStore::new(reports_dir()).save(&result);
     }
     result_payload(&result, include_pages)
 }
 
-fn result_payload(result: &crawlie_core::CrawlResult, include_pages: bool) -> Result<Value, String> {
+fn result_payload(
+    result: &crawlie_core::CrawlResult,
+    include_pages: bool,
+) -> Result<Value, String> {
     let mut payload = json!({
         "summary": result.summary,
         "issues": result.issues,

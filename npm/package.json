@@ -1,0 +1,43 @@
+{
+  "name": "@spronta/crawlie",
+  "version": "0.1.0",
+  "description": "Fast, free, open-source technical SEO + GEO crawler — CLI and MCP server. By Spronta.",
+  "bin": {
+    "crawlie": "bin/crawlie.js",
+    "crawlie-mcp": "bin/crawlie-mcp.js"
+  },
+  "scripts": {
+    "postinstall": "node install.js"
+  },
+  "files": [
+    "bin/crawlie.js",
+    "bin/crawlie-mcp.js",
+    "install.js",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "seo",
+    "geo",
+    "crawler",
+    "site-audit",
+    "sitemap",
+    "robots",
+    "mcp",
+    "screaming-frog",
+    "sitebulb",
+    "generative-engine-optimization"
+  ],
+  "license": "MIT",
+  "author": "Sean Ryan (Spronta)",
+  "homepage": "https://github.com/spronta/crawlie",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/spronta/crawlie.git"
+  },
+  "bugs": {
+    "url": "https://github.com/spronta/crawlie/issues"
+  }
+}

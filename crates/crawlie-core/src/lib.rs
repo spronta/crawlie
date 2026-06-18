@@ -25,6 +25,7 @@ pub mod report_html;
 pub mod robots;
 pub mod scoring;
 pub mod sitemap;
+pub mod timefmt;
 pub mod types;
 
 pub use crawler::{crawl, CancelToken};
@@ -32,5 +33,5 @@ pub use knowledge::{all_rules, rule_info};
 pub use report::ReportStore;
 pub use types::{
     Category, CrawlConfig, CrawlError, CrawlEvent, CrawlMode, CrawlResult, GeoSignals, Hreflang,
-    Issue, Page, ReportMeta, Redirect, RuleInfo, Severity, Summary,
+    Issue, Page, Redirect, ReportMeta, RuleInfo, Severity, Summary,
 };

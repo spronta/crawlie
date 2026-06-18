@@ -26,22 +26,23 @@ crawlie fixes that. It's free, it's local-first, it's agent-native, and every is
 
 ## Setup
 
-You need [Rust](https://rustup.rs) (for the engine/CLI/MCP) and, optionally, [pnpm](https://pnpm.io) + Node (for the desktop app).
+**The easy way — npm** (installs the `crawlie` CLI and the `crawlie-mcp` server):
+
+```bash
+npm i -g @spronta/crawlie
+```
+
+**The macOS app** — grab the signed `.dmg` from [Releases](https://github.com/spronta/crawlie/releases).
+
+**From source** — needs [Rust](https://rustup.rs) (engine/CLI/MCP) and, for the desktop app, [pnpm](https://pnpm.io) + Node:
 
 ```bash
 git clone https://github.com/spronta/crawlie
 cd crawlie
 cargo build --release
-```
+# → target/release/crawlie  and  target/release/crawlie-mcp
 
-That produces two binaries:
-
-- `target/release/crawlie` — the CLI
-- `target/release/crawlie-mcp` — the MCP server for agents
-
-Put `crawlie` on your `PATH` if you like:
-
-```bash
+# or install onto your PATH:
 cargo install --path crates/crawlie-cli      # installs `crawlie`
 cargo install --path crates/crawlie-mcp      # installs `crawlie-mcp`
 ```
@@ -93,13 +94,13 @@ crawlie ships a [Model Context Protocol](https://modelcontextprotocol.io) server
 
 ### Connect it
 
-Point any MCP client at the `crawlie-mcp` binary. For **Claude Desktop**, edit `claude_desktop_config.json`:
+After `npm i -g @spronta/crawlie`, `crawlie-mcp` is on your `PATH`. For **Claude Desktop**, edit `claude_desktop_config.json`:
 
 ```jsonc
 {
   "mcpServers": {
     "crawlie": {
-      "command": "/absolute/path/to/target/release/crawlie-mcp"
+      "command": "crawlie-mcp"
     }
   }
 }
@@ -108,8 +109,10 @@ Point any MCP client at the `crawlie-mcp` binary. For **Claude Desktop**, edit `
 For **Claude Code**:
 
 ```bash
-claude mcp add crawlie /absolute/path/to/target/release/crawlie-mcp
+claude mcp add crawlie crawlie-mcp
 ```
+
+(If you built from source instead, use the absolute path to `target/release/crawlie-mcp`.)
 
 (Any MCP-compatible client works — Cursor, Cline, your own agent. It speaks JSON-RPC over stdio.)
 

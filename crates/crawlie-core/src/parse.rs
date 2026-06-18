@@ -123,7 +123,11 @@ pub fn parse_html(body: &str, final_url: &Url, host: &str) -> Parsed {
     // question-style headings (great for AI answer extraction)
     let question_headings = doc
         .select(&sel("h1, h2, h3"))
-        .filter(|e| collapse(&e.text().collect::<String>()).trim_end().ends_with('?'))
+        .filter(|e| {
+            collapse(&e.text().collect::<String>())
+                .trim_end()
+                .ends_with('?')
+        })
         .count();
 
     // canonical + hreflang from <link>
@@ -131,17 +135,24 @@ pub fn parse_html(body: &str, final_url: &Url, host: &str) -> Parsed {
     let mut hreflang = Vec::new();
     for el in doc.select(&sel("link")) {
         let rel = el.value().attr("rel").unwrap_or("");
-        let rels: Vec<String> = rel.split_whitespace().map(|r| r.to_ascii_lowercase()).collect();
+        let rels: Vec<String> = rel
+            .split_whitespace()
+            .map(|r| r.to_ascii_lowercase())
+            .collect();
         if rels.iter().any(|r| r == "canonical") {
             if let Some(c) = el.value().attr("href").and_then(|h| resolve(final_url, h)) {
                 canonical = Some(c.to_string());
             }
         }
         if rels.iter().any(|r| r == "alternate") {
-            if let (Some(lang), Some(href)) = (el.value().attr("hreflang"), el.value().attr("href")) {
+            if let (Some(lang), Some(href)) = (el.value().attr("hreflang"), el.value().attr("href"))
+            {
                 hreflang.push(Hreflang {
                     lang: lang.to_string(),
-                    href: final_url.join(href.trim()).map(|u| u.to_string()).unwrap_or_else(|_| href.to_string()),
+                    href: final_url
+                        .join(href.trim())
+                        .map(|u| u.to_string())
+                        .unwrap_or_else(|_| href.to_string()),
                 });
             }
         }
@@ -233,7 +244,12 @@ pub fn parse_html(body: &str, final_url: &Url, host: &str) -> Parsed {
         .iter()
         .any(|t| matches!(t.as_str(), "FAQPage" | "QAPage" | "Question"));
     let lc = json_ld_text.to_ascii_lowercase();
-    let has_author = meta_author || lc.contains("\"author\"") || doc.select(&sel("[rel~=author], .author, .byline")).next().is_some();
+    let has_author = meta_author
+        || lc.contains("\"author\"")
+        || doc
+            .select(&sel("[rel~=author], .author, .byline"))
+            .next()
+            .is_some();
     let has_date = meta_date
         || lc.contains("\"datepublished\"")
         || doc.select(&sel("time[datetime]")).next().is_some();
@@ -242,10 +258,12 @@ pub fn parse_html(body: &str, final_url: &Url, host: &str) -> Parsed {
     let semantic_html = doc.select(&sel("main, article")).next().is_some();
     let structured_blocks = doc.select(&sel("ul, ol, table")).count();
     // "answerable" ≈ a substantial paragraph exists early in the main content.
-    let answerable = doc
-        .select(&sel("main p, article p, p"))
-        .take(3)
-        .any(|p| collapse(&p.text().collect::<String>()).split_whitespace().count() >= 25);
+    let answerable = doc.select(&sel("main p, article p, p")).take(3).any(|p| {
+        collapse(&p.text().collect::<String>())
+            .split_whitespace()
+            .count()
+            >= 25
+    });
 
     let geo = GeoSignals {
         semantic_html,

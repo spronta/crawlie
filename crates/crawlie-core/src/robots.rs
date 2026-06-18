@@ -52,18 +52,21 @@ impl Robots {
         let mut group_rules: Vec<Rule> = Vec::new();
         let mut last_was_agent = false;
 
-        let flush = |agents: &[String], rules: &[Rule], star: &mut Vec<Rule>, mine: &mut Vec<Rule>| {
-            for a in agents {
-                if a == "*" {
-                    star.extend(rules.iter().cloned());
+        let flush =
+            |agents: &[String], rules: &[Rule], star: &mut Vec<Rule>, mine: &mut Vec<Rule>| {
+                for a in agents {
+                    if a == "*" {
+                        star.extend(rules.iter().cloned());
+                    }
                 }
-            }
-            // matched if our token contains the agent or vice-versa
-            let matches_us = agents.iter().any(|a| a != "*" && (a.contains(&ua_token) && !ua_token.is_empty()));
-            if matches_us {
-                mine.extend(rules.iter().cloned());
-            }
-        };
+                // matched if our token contains the agent or vice-versa
+                let matches_us = agents
+                    .iter()
+                    .any(|a| a != "*" && (a.contains(&ua_token) && !ua_token.is_empty()));
+                if matches_us {
+                    mine.extend(rules.iter().cloned());
+                }
+            };
 
         for raw in text.lines() {
             let line = raw.split('#').next().unwrap_or("").trim();
@@ -87,12 +90,18 @@ impl Robots {
                 }
                 "disallow" => {
                     if !value.is_empty() {
-                        group_rules.push(Rule { allow: false, path: value });
+                        group_rules.push(Rule {
+                            allow: false,
+                            path: value,
+                        });
                     }
                     last_was_agent = false;
                 }
                 "allow" => {
-                    group_rules.push(Rule { allow: true, path: value });
+                    group_rules.push(Rule {
+                        allow: true,
+                        path: value,
+                    });
                     last_was_agent = false;
                 }
                 "sitemap" => {
@@ -105,8 +114,16 @@ impl Robots {
         flush(&group_agents, &group_rules, &mut star_rules, &mut ua_rules);
 
         // Prefer rules that named us; fall back to the wildcard group.
-        let rules = if !ua_rules.is_empty() { ua_rules } else { star_rules };
-        Robots { rules, sitemaps, found: false }
+        let rules = if !ua_rules.is_empty() {
+            ua_rules
+        } else {
+            star_rules
+        };
+        Robots {
+            rules,
+            sitemaps,
+            found: false,
+        }
     }
 
     /// Is `path` (path + query) allowed? Uses longest-match wins, Allow breaking
