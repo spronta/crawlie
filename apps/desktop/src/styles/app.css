@@ -55,7 +55,8 @@ a:hover {
   height: 52px;
   /* leave room for macOS traffic lights under the overlay titlebar */
   padding: 0 var(--sp-5) 0 80px;
-  background: color-mix(in srgb, var(--bg) 80%, transparent);
+  /* subtle gray accent bar — light gray on light, dark gray on dark */
+  background: color-mix(in srgb, var(--bg-2) 92%, transparent);
   backdrop-filter: saturate(180%) blur(12px);
   border-bottom: 1px solid var(--border);
 }
