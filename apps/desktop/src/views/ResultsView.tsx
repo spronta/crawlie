@@ -289,7 +289,7 @@ function FilterChip({ active, onClick, children }: { active: boolean; onClick: (
 }
 
 /* ---------------- Pages ---------------- */
-type SortKey = "url" | "status" | "depth" | "wordCount" | "inlinks" | "linkScore" | "responseTimeMs" | "geoScore";
+type SortKey = "url" | "status" | "depth" | "wordCount" | "inlinks" | "linkScore" | "seoScore" | "responseTimeMs" | "geoScore";
 
 function Pages({ pages, onOpen }: { pages: Page[]; onOpen: (p: Page) => void }) {
   const [q, setQ] = useState("");
@@ -331,6 +331,7 @@ function Pages({ pages, onOpen }: { pages: Page[]; onOpen: (p: Page) => void }) 
               {th("wordCount", "Words", "right")}
               {th("inlinks", "Inlinks", "right")}
               {th("linkScore", "Link", "right")}
+              {th("seoScore", "SEO", "right")}
               {th("geoScore", "GEO", "right")}
               <th>Indexable</th>
             </tr>
@@ -347,13 +348,16 @@ function Pages({ pages, onOpen }: { pages: Page[]; onOpen: (p: Page) => void }) 
                 <td className="num">{num(p.wordCount)}</td>
                 <td className="num">{p.inlinks}</td>
                 <td className="num">{Math.round(p.linkScore)}</td>
+                <td className="num" style={{ color: p.status === 200 ? scoreColor(p.seoScore) : "var(--text-tertiary)" }}>
+                  {p.status === 200 ? p.seoScore : "—"}
+                </td>
                 <td className="num" style={{ color: p.status === 200 ? scoreColor(p.geo.score) : "var(--text-tertiary)" }}>
                   {p.status === 200 ? p.geo.score : "—"}
                 </td>
                 <td>{p.indexable ? <span className="badge badge-ok"><span className="dot" />Yes</span> : <span className="badge badge-neutral" title={p.indexability ?? ""}>{p.indexability ?? "No"}</span>}</td>
               </tr>
             ))}
-            {rows.length === 0 && <tr><td colSpan={9}><Empty>No pages match.</Empty></td></tr>}
+            {rows.length === 0 && <tr><td colSpan={10}><Empty>No pages match.</Empty></td></tr>}
           </tbody>
         </table>
       </div>
@@ -373,6 +377,7 @@ function PageDrawer({ page, issues, onClose }: { page: Page; issues: Issue[]; on
             <div className="row" style={{ gap: 8 }}>
               <StatusPill status={page.status} />
               <span className="muted mono" style={{ fontSize: 12 }}>depth {page.depth}</span>
+              {page.status === 200 && <span className="mono" style={{ fontSize: 12, color: scoreColor(page.seoScore) }}>SEO {page.seoScore}</span>}
               {page.status === 200 && <span className="mono" style={{ fontSize: 12, color: scoreColor(page.geo.score) }}>GEO {page.geo.score}</span>}
             </div>
             <span className="mono" style={{ fontSize: 13, wordBreak: "break-all" }}>{page.url}</span>

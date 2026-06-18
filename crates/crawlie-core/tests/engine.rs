@@ -112,6 +112,7 @@ fn ok_page(url: &str) -> Page {
         external_links: vec![],
         inlinks: 3,
         link_score: 50.0,
+        seo_score: 100,
         og_title: Some("OG".into()),
         og_image: Some("https://example.com/og.png".into()),
         twitter_card: Some("summary".into()),
@@ -197,6 +198,37 @@ fn link_scores_rank_the_hub_highest() {
     assert_eq!(scores.len(), 3);
     assert_eq!(scores[0], 100.0, "hub should be the max-scored page");
     assert!(scores[1] < scores[0] && scores[2] < scores[0]);
+}
+
+#[test]
+fn page_seo_score_drops_with_issues() {
+    let seed = Url::parse("https://example.com/").unwrap();
+    let clean = ok_page("https://example.com/clean");
+    let mut bad = ok_page("https://example.com/bad");
+    bad.title = None; // error
+    bad.meta_description = None; // warning
+    bad.canonical = None; // notice
+    let pages = vec![clean, bad];
+    let issues = crawlie_core::audit::audit(&pages, &HashMap::new(), &[], &seed);
+    let scores = crawlie_core::scoring::page_seo_scores(&pages, &issues);
+    assert_eq!(scores[0], 100, "clean page should be 100");
+    assert!(
+        scores[1] < 100 && scores[1] > 0,
+        "bad page should drop below 100, got {}",
+        scores[1]
+    );
+    assert!(scores[1] < scores[0]);
+}
+
+#[test]
+fn geo_score_reads_real_signals_not_defaults() {
+    // Regression: geo_score must reflect the page's actual GeoSignals.
+    let p = ok_page("https://example.com/rich"); // has structured data, author, answerable…
+    let score = crawlie_core::scoring::geo_score(&p);
+    assert!(
+        score > 8,
+        "rich page should score well above the old stuck-8 bug, got {score}"
+    );
 }
 
 #[test]

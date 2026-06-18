@@ -171,6 +171,9 @@ pub struct Page {
     pub inlinks: usize,
     /// Internal PageRank authority, 0–100 (the most-linked page = 100).
     pub link_score: f32,
+    /// Per-page SEO score, 0–100 (Yoast-style): 100 minus this page's own
+    /// technical-SEO issues. 0 for non-200 pages.
+    pub seo_score: u8,
 
     // --- social / structured data ---
     pub og_title: Option<String>,

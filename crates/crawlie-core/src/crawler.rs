@@ -413,6 +413,12 @@ where
             detail: None,
         });
     }
+    // Per-page SEO scores (Yoast-style) from each page's own issues.
+    let seo = crate::scoring::page_seo_scores(&pages, &issues);
+    for (i, p) in pages.iter_mut().enumerate() {
+        p.seo_score = seo[i];
+    }
+
     let summary = build_summary(&pages, &issues, start.elapsed().as_millis() as u64);
     on_event(CrawlEvent::Done {
         summary: summary.clone(),
@@ -516,6 +522,7 @@ fn build_page(url: &Url, depth: usize, o: FetchOutcome, parsed: Option<Parsed>) 
             .unwrap_or_default(),
         inlinks: 0,
         link_score: 0.0,
+        seo_score: 0,
         og_title: parsed.as_ref().and_then(|p| p.og_title.clone()),
         og_image: parsed.as_ref().and_then(|p| p.og_image.clone()),
         twitter_card: parsed.as_ref().and_then(|p| p.twitter_card.clone()),
@@ -573,6 +580,7 @@ fn error_page(url: &Url, depth: usize, error: String) -> Page {
         external_links: Vec::new(),
         inlinks: 0,
         link_score: 0.0,
+        seo_score: 0,
         og_title: None,
         og_image: None,
         twitter_card: None,

@@ -94,6 +94,7 @@ export interface Page {
   externalLinks: string[];
   inlinks: number;
   linkScore: number;
+  seoScore: number;
   ogTitle: string | null;
   ogImage: string | null;
   twitterCard: string | null;

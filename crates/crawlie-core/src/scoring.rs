@@ -69,6 +69,35 @@ pub fn link_scores(pages: &[Page]) -> Vec<f32> {
         .collect()
 }
 
+/// Per-page SEO score (Yoast-style), index-aligned with `pages`. Each 200 page
+/// starts at 100 and loses points for its own technical-SEO issues (errors hurt
+/// most). GEO issues are excluded — they have their own score. Non-200 = 0.
+pub fn page_seo_scores(pages: &[Page], issues: &[Issue]) -> Vec<u8> {
+    let mut penalty: HashMap<String, f32> = HashMap::new();
+    for i in issues {
+        if i.category == Category::Geo {
+            continue;
+        }
+        let w = match i.severity {
+            Severity::Error => 15.0,
+            Severity::Warning => 7.0,
+            Severity::Notice => 2.0,
+            Severity::Good => 0.0,
+        };
+        *penalty.entry(norm(&i.url)).or_insert(0.0) += w;
+    }
+    pages
+        .iter()
+        .map(|p| {
+            if p.status != 200 {
+                return 0;
+            }
+            let pen = penalty.get(&norm(&p.url)).copied().unwrap_or(0.0);
+            (100.0 - pen).clamp(0.0, 100.0).round() as u8
+        })
+        .collect()
+}
+
 /// GEO readiness for one page, 0–100. Only meaningful for indexable HTML pages;
 /// returns 0 otherwise.
 pub fn geo_score(p: &Page) -> u8 {

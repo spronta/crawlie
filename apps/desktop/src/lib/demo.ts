@@ -62,6 +62,7 @@ function page(p: Partial<Page> & { url: string }): Page {
     externalLinks: [],
     inlinks: 5,
     linkScore: 45,
+    seoScore: 82,
     ogTitle: "Acme",
     ogImage: `${host}/og.png`,
     twitterCard: "summary_large_image",
