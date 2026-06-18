@@ -10,6 +10,18 @@ Crawl any site for broken links, redirects, missing metadata, and 40+ SEO & Gene
 [![CI](https://github.com/spronta/crawlie/actions/workflows/ci.yml/badge.svg)](https://github.com/spronta/crawlie/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
+<p>
+  <a href="#setup">Setup</a> ·
+  <a href="#how-to-use-cli">CLI</a> ·
+  <a href="#use-with-agents-mcp">MCP &amp; agents</a> ·
+  <a href="#use-cases">Use cases</a> ·
+  <a href="#why-i-built-this">Why I built this</a> ·
+  <a href="#desktop-app">Desktop app</a> ·
+  <a href="#what-it-checks">Checks</a> ·
+  <a href="#how-it-compares">Compare</a> ·
+  <a href="#architecture">Architecture</a>
+</p>
+
 *by [Spronta](https://spronta.com)*
 
 </div>
@@ -38,6 +50,8 @@ cargo build --release
 cargo install --path crates/crawlie-cli      # installs `crawlie`
 cargo install --path crates/crawlie-mcp      # installs `crawlie-mcp`
 ```
+
+> **How it ships:** the **CLI + MCP** come *only* through npm — the right native binary installs automatically as a platform package (nothing to download or unblock). The **desktop app** is the only direct download: a Spronta-signed, notarized `.dmg` on [Releases](https://github.com/spronta/crawlie/releases).
 
 ---
 
@@ -171,7 +185,9 @@ Whole-site / single-page / URL-list modes, live progress, **Health** & **GEO** s
 
 ---
 
-## What it checks — 46 rules and counting
+## What it checks
+
+*46 rules and counting.*
 
 **Technical SEO** — broken links · 4xx/5xx · redirects & chains · titles & meta descriptions (missing / duplicate / length) · H1s · canonicals · noindex / nofollow / X-Robots-Tag · robots.txt blocking · images missing alt · thin & duplicate content · orphan & deep pages
 

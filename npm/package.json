@@ -6,15 +6,18 @@
     "crawlie": "bin/crawlie.js",
     "crawlie-mcp": "bin/crawlie-mcp.js"
   },
-  "scripts": {
-    "postinstall": "node install.js"
-  },
   "files": [
     "bin/crawlie.js",
     "bin/crawlie-mcp.js",
-    "install.js",
+    "resolve.js",
     "README.md"
   ],
+  "optionalDependencies": {
+    "@spronta/crawlie-darwin-arm64": "0.1.0",
+    "@spronta/crawlie-darwin-x64": "0.1.0",
+    "@spronta/crawlie-linux-x64": "0.1.0",
+    "@spronta/crawlie-win32-x64": "0.1.0"
+  },
   "engines": {
     "node": ">=18"
   },

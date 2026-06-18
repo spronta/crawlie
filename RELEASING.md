@@ -1,13 +1,16 @@
 # Releasing crawlie
 
 Releases are fully automated by [`.github/workflows/release.yml`](.github/workflows/release.yml).
-Pushing a tag like `v0.1.0` will:
+Pushing a tag like `v0.1.0` will, in two independent tracks:
 
-1. Create a draft GitHub Release for the tag.
-2. Build the **`crawlie`** CLI + **`crawlie-mcp`** server for macOS (arm64/x64), Linux (x64) and Windows (x64) and attach them.
-3. Build the **signed + notarized macOS desktop app** (universal `.dmg`) and attach it.
-4. Publish the release.
-5. Publish **`@spronta/crawlie`** to npm (the wrapper that downloads those binaries).
+**npm (the CLI + MCP):**
+1. Build `crawlie` + `crawlie-mcp` for macOS (arm64/x64), Linux (x64), Windows (x64) and publish a platform package each (`@spronta/crawlie-darwin-arm64`, …) containing the native binaries.
+2. Publish the main **`@spronta/crawlie`** wrapper, which pulls in the one matching platform package via `optionalDependencies` (no install-time download, no Gatekeeper prompt).
+
+**GitHub Release (the desktop app — the only thing to download):**
+3. Build the **signed + notarized universal macOS `.dmg`** and attach it to the release, then publish the release.
+
+> The two tracks are independent: **npm publishes even if the signed desktop build fails** (e.g. an Apple secret is missing). The CLI never blocks on signing.
 
 ## One-time setup — repository secrets
 
@@ -51,10 +54,13 @@ Using the Spronta Apple Developer account:
    git push origin v0.1.0
    ```
 3. Watch the **Release** workflow. When it finishes you'll have:
-   - `npm i -g @spronta/crawlie` live on npm
-   - signed `.dmg` + per-platform CLI binaries on the GitHub Release
+   - `npm i -g @spronta/crawlie` live on npm (5 packages: the wrapper + 4 platform packages)
+   - a signed `.dmg` on the GitHub Release
+
+> The main wrapper pins its `optionalDependencies` to the exact release version, so all five npm packages always match the tag.
 
 ## Notes
 
-- Linux/Windows **desktop installers** aren't built yet (the CLI ships everywhere; the desktop app currently targets macOS). Add matrix entries to the `desktop` job to extend.
-- The npm wrapper downloads binaries from the release matching its own version, so step 5 runs only after the binaries are attached (steps 2–4).
+- The **CLI/MCP are npm-only** — no loose binaries on the Releases page (that's what avoids the macOS Gatekeeper prompt). The only release download is the desktop `.dmg`.
+- Linux/Windows **desktop installers** aren't built yet (the CLI ships everywhere via npm; the desktop app currently targets macOS). Add matrix entries to the `desktop` job to extend.
+- First publish: the `@spronta` scope must exist on npm and `NPM_TOKEN` must be allowed to create new `@spronta/*` packages (the 4 platform packages are created on the first release).

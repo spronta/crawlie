@@ -8,7 +8,91 @@ permissions:
   contents: write
 
 jobs:
-  # 1. Create a draft GitHub Release for this tag (idempotent).
+  # ── npm: the CLI + MCP ship only through npm (no loose binaries to download) ──
+
+  # Build each platform's binaries and publish them as a platform package
+  # (@spronta/crawlie-<platform>). npm installs only the one matching os/cpu.
+  npm-platforms:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: macos-latest, target: aarch64-apple-darwin, asset: darwin-arm64, npmos: darwin, npmcpu: arm64, ext: "" }
+          - { os: macos-latest, target: x86_64-apple-darwin, asset: darwin-x64, npmos: darwin, npmcpu: x64, ext: "" }
+          - { os: ubuntu-latest, target: x86_64-unknown-linux-gnu, asset: linux-x64, npmos: linux, npmcpu: x64, ext: "" }
+          - { os: windows-latest, target: x86_64-pc-windows-msvc, asset: win32-x64, npmos: win32, npmcpu: x64, ext: ".exe" }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: "https://registry.npmjs.org"
+      - name: Build CLI + MCP
+        run: cargo build --release --target ${{ matrix.target }} -p crawlie-cli -p crawlie-mcp
+      - name: Assemble + publish platform package
+        shell: bash
+        env:
+          VERSION: ${{ github.ref_name }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          V="${VERSION#v}"
+          mkdir -p pkg
+          cp "target/${{ matrix.target }}/release/crawlie${{ matrix.ext }}" pkg/
+          cp "target/${{ matrix.target }}/release/crawlie-mcp${{ matrix.ext }}" pkg/
+          if [ -z "${{ matrix.ext }}" ]; then chmod +x pkg/crawlie pkg/crawlie-mcp; fi
+          VERSION="$V" node -e '
+            const fs = require("fs");
+            fs.writeFileSync("pkg/package.json", JSON.stringify({
+              name: "@spronta/crawlie-${{ matrix.asset }}",
+              version: process.env.VERSION,
+              description: "crawlie prebuilt binaries (${{ matrix.asset }}).",
+              license: "MIT",
+              homepage: "https://github.com/spronta/crawlie",
+              repository: { type: "git", url: "git+https://github.com/spronta/crawlie.git" },
+              os: ["${{ matrix.npmos }}"],
+              cpu: ["${{ matrix.npmcpu }}"],
+              files: ["crawlie${{ matrix.ext }}", "crawlie-mcp${{ matrix.ext }}"]
+            }, null, 2) + "\n");
+          '
+          cd pkg && npm publish --access public
+
+  # Publish the main wrapper once every platform package is live.
+  npm-main:
+    needs: npm-platforms
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: "https://registry.npmjs.org"
+      - name: Set version + pin platform deps to this release
+        working-directory: npm
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          V="${VERSION#v}"
+          VERSION="$V" node -e '
+            const fs = require("fs"); const v = process.env.VERSION;
+            const p = JSON.parse(fs.readFileSync("package.json"));
+            p.version = v;
+            for (const k of Object.keys(p.optionalDependencies || {})) p.optionalDependencies[k] = v;
+            fs.writeFileSync("package.json", JSON.stringify(p, null, 2) + "\n");
+          '
+      - name: Publish @spronta/crawlie
+        working-directory: npm
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  # ── GitHub Release: the desktop app is the only installer to download ──
+
   create-release:
     runs-on: ubuntu-latest
     steps:
@@ -20,40 +104,10 @@ jobs:
           gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1 || \
           gh release create "${GITHUB_REF_NAME}" \
             --title "crawlie ${GITHUB_REF_NAME}" \
-            --notes "Install the CLI with \`npm i -g @spronta/crawlie\`, or download a binary / the macOS installer below." \
+            --notes "**CLI + MCP:** \`npm i -g @spronta/crawlie\`. **Desktop app:** download the signed .dmg below." \
             --draft
 
-  # 2. Build the CLI + MCP server for every platform and attach to the release.
-  cli:
-    needs: create-release
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - { os: macos-latest, target: aarch64-apple-darwin, asset: darwin-arm64, ext: "" }
-          - { os: macos-latest, target: x86_64-apple-darwin, asset: darwin-x64, ext: "" }
-          - { os: ubuntu-latest, target: x86_64-unknown-linux-gnu, asset: linux-x64, ext: "" }
-          - { os: windows-latest, target: x86_64-pc-windows-msvc, asset: win32-x64, ext: ".exe" }
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
-      - uses: Swatinem/rust-cache@v2
-      - name: Build CLI + MCP
-        run: cargo build --release --target ${{ matrix.target }} -p crawlie-cli -p crawlie-mcp
-      - name: Stage + upload binaries
-        shell: bash
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          mkdir -p dist
-          cp "target/${{ matrix.target }}/release/crawlie${{ matrix.ext }}" "dist/crawlie-${{ matrix.asset }}${{ matrix.ext }}"
-          cp "target/${{ matrix.target }}/release/crawlie-mcp${{ matrix.ext }}" "dist/crawlie-mcp-${{ matrix.asset }}${{ matrix.ext }}"
-          gh release upload "${GITHUB_REF_NAME}" dist/* --clobber
-
-  # 3. Build the signed + notarized macOS desktop app (universal) and attach it.
+  # Signed + notarized universal macOS desktop app.
   desktop:
     needs: create-release
     runs-on: macos-latest
@@ -77,7 +131,6 @@ jobs:
       - name: Build signed desktop app
         uses: tauri-apps/tauri-action@v0
         env:
-          # Apple Developer signing + notarization (Spronta) — set as repo secrets.
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
@@ -87,40 +140,11 @@ jobs:
         with:
           projectPath: apps/desktop
           args: --target universal-apple-darwin
-      - name: Upload installers to release
+      - name: Upload installer + publish release
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           base=apps/desktop/src-tauri/target/universal-apple-darwin/release/bundle
           gh release upload "${GITHUB_REF_NAME}" "$base"/dmg/*.dmg --clobber
-
-  # 4. Publish the release (un-draft) once all artifacts are attached.
-  finalize:
-    needs: [cli, desktop]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Mark release published
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release edit "${GITHUB_REF_NAME}" --draft=false --latest
-
-  # 5. Publish the npm wrapper (@spronta/crawlie) that fetches the binaries above.
-  npm:
-    needs: finalize
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          registry-url: "https://registry.npmjs.org"
-      - name: Set version from tag
-        working-directory: npm
-        run: npm version "${GITHUB_REF_NAME#v}" --no-git-tag-version --allow-same-version
-      - name: Publish
-        working-directory: npm
-        run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          gh release edit "${GITHUB_REF_NAME}" --draft=false --latest

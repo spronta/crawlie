@@ -1,12 +1,13 @@
 #!/usr/bin/env node
-// Thin launcher → the native `crawlie-mcp` binary fetched by install.js.
+// Launcher → the native `crawlie-mcp` binary from the matching platform package.
 const { spawnSync } = require("child_process");
-const path = require("path");
-const fs = require("fs");
+const { binaryPath } = require("../resolve.js");
 
-const bin = path.join(__dirname, `crawlie-mcp${process.platform === "win32" ? ".exe" : ""}`);
-if (!fs.existsSync(bin)) {
-  console.error("[crawlie] binary not found — reinstall @spronta/crawlie, or build from https://github.com/spronta/crawlie");
+let bin;
+try {
+  bin = binaryPath("crawlie-mcp");
+} catch (err) {
+  console.error(err.message);
   process.exit(1);
 }
 const result = spawnSync(bin, process.argv.slice(2), { stdio: "inherit" });
