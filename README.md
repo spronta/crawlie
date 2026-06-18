@@ -26,6 +26,8 @@ Crawl any site for broken links, redirects, missing metadata, and 40+ SEO & Gene
 
 </div>
 
+![Showcase of the example app demonstrating a report](https://cdn.spronta.com/spronta-8d32a2/pretty_snap_2026_5_18_23_58%20(2).png)
+
 ---
 
 ## Setup
