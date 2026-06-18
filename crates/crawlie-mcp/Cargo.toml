@@ -1,0 +1,17 @@
+[package]
+name = "crawlie-mcp"
+description = "Model Context Protocol server exposing crawlie's SEO crawler to agents."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "crawlie-mcp"
+path = "src/main.rs"
+
+[dependencies]
+crawlie-core = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+serde_json = { workspace = true }

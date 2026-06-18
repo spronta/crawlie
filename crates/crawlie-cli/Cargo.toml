@@ -1,0 +1,18 @@
+[package]
+name = "crawlie-cli"
+description = "crawlie command-line SEO crawler — agent-friendly JSON output."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "crawlie"
+path = "src/main.rs"
+
+[dependencies]
+crawlie-core = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+clap = { workspace = true }
+serde_json = { workspace = true }

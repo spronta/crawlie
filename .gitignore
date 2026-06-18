@@ -1,0 +1,15 @@
+# Rust
+/target
+**/target
+
+# Node
+node_modules
+apps/desktop/dist
+
+# Tauri generated
+apps/desktop/src-tauri/gen
+apps/desktop/src-tauri/target
+
+# Misc
+.DS_Store
+*.log

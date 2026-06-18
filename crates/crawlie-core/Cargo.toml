@@ -1,0 +1,20 @@
+[package]
+name = "crawlie-core"
+description = "Fast, embeddable SEO crawler engine — powers the crawlie desktop app, CLI, MCP server and cloud workers."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+tokio = { workspace = true }
+reqwest = { workspace = true }
+scraper = { workspace = true }
+url = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+futures = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full"] }

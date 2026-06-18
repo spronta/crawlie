@@ -1,0 +1,12 @@
+{
+  "name": "crawlie",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Fast, free, open-source technical SEO crawler by Spronta.",
+  "scripts": {
+    "dev": "pnpm -C apps/desktop dev",
+    "build": "pnpm -C apps/desktop build",
+    "preview": "pnpm -C apps/desktop preview",
+    "tauri": "pnpm -C apps/desktop tauri"
+  }
+}
