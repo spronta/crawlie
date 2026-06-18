@@ -52,6 +52,7 @@ export function ResultsView({ result, onReset }: { result: CrawlResult; onReset:
         <div className="col" style={{ gap: 4 }}>
           <h1 className="h1">{hostOf(result.config.url)}</h1>
           <span className="mono muted" style={{ fontSize: 13 }}>
+            {result.startedAt ? `${fmtWhen(result.startedAt)} · ` : ""}
             {num(s.totalPages)} pages · {ms(s.durationMs)} · {num(s.indexablePages)} indexable
             {result.robotsFound ? " · robots.txt ✓" : ""}
             {result.sitemapUrls > 0 ? ` · ${num(result.sitemapUrls)} sitemap URLs` : ""}
@@ -442,6 +443,13 @@ function hostOf(url: string): string {
     return new URL(url).host;
   } catch {
     return url;
+  }
+}
+function fmtWhen(ms: number): string {
+  try {
+    return new Date(ms).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+  } catch {
+    return "";
   }
 }
 function pct(a: number, b: number): number {
