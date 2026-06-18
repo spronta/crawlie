@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { CircleAlert, Info, TriangleAlert } from "lucide-react";
-import type { CrawlResult, GeoSignals, Issue, Page, Severity } from "../lib/types";
+import type { Category, CrawlResult, GeoSignals, Issue, Page, Severity } from "../lib/types";
 import { CATEGORY_LABELS } from "../lib/types";
 import { ruleInfo } from "../lib/rules";
 import { Donut, Bars } from "../components/charts";
@@ -15,7 +15,17 @@ export function ResultsView({ result, onReset }: { result: CrawlResult; onReset:
   const [tab, setTab] = useState<Tab>("overview");
   const [page, setPage] = useState<Page | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  // Cross-filter state, driven by the overview charts.
+  const [sevFilter, setSevFilter] = useState<Severity | "all">("all");
+  const [catFilter, setCatFilter] = useState<Category | null>(null);
+  const [pageStatus, setPageStatus] = useState<number | null>(null);
+  const [pageDepth, setPageDepth] = useState<number | null>(null);
   const s = result.summary;
+
+  const goCategory = (c: Category) => { setCatFilter(c); setSevFilter("all"); setTab("issues"); };
+  const goSeverity = (sv: Severity) => { setSevFilter(sv); setCatFilter(null); setTab("issues"); };
+  const goStatus = (code: number) => { setPageStatus(code); setPageDepth(null); setTab("pages"); };
+  const goDepth = (d: number) => { setPageDepth(d); setPageStatus(null); setTab("pages"); };
 
   async function share() {
     const path = await exportHtml(result);
@@ -76,9 +86,27 @@ export function ResultsView({ result, onReset }: { result: CrawlResult; onReset:
         <Tabish id="pages" tab={tab} set={setTab} count={result.pages.length}>Pages</Tabish>
       </div>
 
-      {tab === "overview" && <Overview result={result} />}
-      {tab === "issues" && <Issues result={result} onOpenUrl={(u) => openByUrl(result, u, setPage, setTab)} />}
-      {tab === "pages" && <Pages pages={result.pages} onOpen={setPage} />}
+      {tab === "overview" && <Overview result={result} onCategory={goCategory} onSeverity={goSeverity} onStatus={goStatus} onDepth={goDepth} />}
+      {tab === "issues" && (
+        <Issues
+          result={result}
+          sevFilter={sevFilter}
+          setSevFilter={setSevFilter}
+          catFilter={catFilter}
+          setCatFilter={setCatFilter}
+          onOpenUrl={(u) => openByUrl(result, u, setPage, setTab)}
+        />
+      )}
+      {tab === "pages" && (
+        <Pages
+          pages={result.pages}
+          statusFilter={pageStatus}
+          setStatusFilter={setPageStatus}
+          depthFilter={pageDepth}
+          setDepthFilter={setPageDepth}
+          onOpen={setPage}
+        />
+      )}
 
       {page && <PageDrawer page={page} issues={result.issues.filter((i) => i.url === page.url)} onClose={() => setPage(null)} />}
     </div>
@@ -103,16 +131,47 @@ function Tabish({ id, tab, set, count, children }: { id: Tab; tab: Tab; set: (t:
 }
 
 /* ---------------- Overview ---------------- */
-function Overview({ result }: { result: CrawlResult }) {
+function Overview({
+  result,
+  onCategory,
+  onSeverity,
+  onStatus,
+  onDepth,
+}: {
+  result: CrawlResult;
+  onCategory: (c: Category) => void;
+  onSeverity: (s: Severity) => void;
+  onStatus: (code: number) => void;
+  onDepth: (d: number) => void;
+}) {
   const s = result.summary;
   const statusRows = Object.entries(s.byStatus)
     .filter(([, v]) => v > 0)
     .sort((a, b) => Number(a[0]) - Number(b[0]))
-    .map(([code, v]) => ({ label: code === "0" ? "Conn. error" : code, value: v, color: statusColor(Number(code)) }));
-  const catRows = Object.entries(s.byCategory).sort((a, b) => b[1] - a[1]).map(([label, value]) => ({ label, value }));
+    .map(([code, v]) => ({ label: code === "0" ? "Conn. error" : code, value: v, color: statusColor(Number(code)), key: code }));
   const depthRows = Object.entries(s.byDepth)
     .sort((a, b) => Number(a[0]) - Number(b[0]))
-    .map(([d, value]) => ({ label: d === "0" ? "Home" : `${d} clicks`, value, color: "var(--blue)" }));
+    .map(([d, value]) => ({ label: d === "0" ? "Home" : `${d} clicks`, value, color: "var(--blue)", key: d }));
+
+  // Category rows coloured by their worst severity (red = contains errors).
+  const catRows = useMemo(() => {
+    const m = new Map<Category, { count: number; worst: number }>();
+    for (const i of result.issues) {
+      if (i.severity === "good") continue;
+      const e = m.get(i.category) ?? { count: 0, worst: 0 };
+      e.count++;
+      e.worst = Math.max(e.worst, severityRank(i.severity));
+      m.set(i.category, e);
+    }
+    return [...m.entries()]
+      .sort((a, b) => b[1].count - a[1].count)
+      .map(([cat, d]) => ({
+        label: CATEGORY_LABELS[cat],
+        value: d.count,
+        key: cat,
+        color: d.worst >= 2 ? "var(--red)" : d.worst === 1 ? "var(--amber)" : "var(--text-tertiary)",
+      }));
+  }, [result.issues]);
 
   const fixes = topFixes(result.issues, 5);
 
@@ -171,26 +230,27 @@ function Overview({ result }: { result: CrawlResult }) {
           <h3 className="h3" style={{ marginBottom: "var(--sp-4)" }}>Issues by severity</h3>
           <Donut
             slices={[
-              { label: "Errors", value: s.errors, color: "var(--red)" },
-              { label: "Warnings", value: s.warnings, color: "var(--amber)" },
-              { label: "Notices", value: s.notices, color: "var(--text-tertiary)" },
+              { label: "Errors", value: s.errors, color: "var(--red)", key: "error" },
+              { label: "Warnings", value: s.warnings, color: "var(--amber)", key: "warning" },
+              { label: "Notices", value: s.notices, color: "var(--text-tertiary)", key: "notice" },
             ]}
+            onSelect={(k) => onSeverity(k as Severity)}
           />
         </div>
         <div className="card card-pad">
           <h3 className="h3" style={{ marginBottom: "var(--sp-4)" }}>Issues by category</h3>
-          {catRows.length ? <Bars rows={catRows} /> : <Empty>No issues — clean crawl.</Empty>}
+          {catRows.length ? <Bars rows={catRows} onSelect={(k) => onCategory(k as Category)} /> : <Empty>No issues — clean crawl.</Empty>}
         </div>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--sp-3)" }}>
         <div className="card card-pad">
           <h3 className="h3" style={{ marginBottom: "var(--sp-4)" }}>Status codes</h3>
-          <Bars rows={statusRows} />
+          <Bars rows={statusRows} onSelect={(k) => onStatus(Number(k))} />
         </div>
         <div className="card card-pad">
           <h3 className="h3" style={{ marginBottom: "var(--sp-4)" }}>Crawl depth</h3>
-          <Bars rows={depthRows} />
+          <Bars rows={depthRows} onSelect={(k) => onDepth(Number(k))} />
         </div>
       </div>
     </div>
@@ -211,12 +271,27 @@ function Stat({ k, v, sub, tone }: { k: string; v: string; sub?: string; tone?: 
 }
 
 /* ---------------- Issues ---------------- */
-function Issues({ result, onOpenUrl }: { result: CrawlResult; onOpenUrl: (u: string) => void }) {
-  const [filter, setFilter] = useState<Severity | "all">("all");
+function Issues({
+  result,
+  sevFilter,
+  setSevFilter,
+  catFilter,
+  setCatFilter,
+  onOpenUrl,
+}: {
+  result: CrawlResult;
+  sevFilter: Severity | "all";
+  setSevFilter: (s: Severity | "all") => void;
+  catFilter: Category | null;
+  setCatFilter: (c: Category | null) => void;
+  onOpenUrl: (u: string) => void;
+}) {
   const problems = result.issues.filter((i) => i.severity !== "good");
 
   const groups = useMemo(() => {
-    const filtered = problems.filter((i) => filter === "all" || i.severity === filter);
+    const filtered = problems.filter(
+      (i) => (sevFilter === "all" || i.severity === sevFilter) && (catFilter === null || i.category === catFilter)
+    );
     const map = new Map<string, { rule: string; title: string; severity: Severity; category: Issue["category"]; items: Issue[] }>();
     for (const i of filtered) {
       const g = map.get(i.rule) ?? { rule: i.rule, title: i.title, severity: i.severity, category: i.category, items: [] };
@@ -224,19 +299,26 @@ function Issues({ result, onOpenUrl }: { result: CrawlResult; onOpenUrl: (u: str
       map.set(i.rule, g);
     }
     return [...map.values()].sort((a, b) => severityRank(b.severity) - severityRank(a.severity) || b.items.length - a.items.length);
-  }, [result.issues, filter]);
+  }, [result.issues, sevFilter, catFilter]);
 
   return (
     <div className="section-gap">
-      <div className="row wrap">
-        <FilterChip active={filter === "all"} onClick={() => setFilter("all")}>All <span className="mono">{problems.length}</span></FilterChip>
-        <FilterChip active={filter === "error"} onClick={() => setFilter("error")}><CircleAlert size={14} style={{ color: "var(--red-text)" }} /> Errors <span className="mono">{result.summary.errors}</span></FilterChip>
-        <FilterChip active={filter === "warning"} onClick={() => setFilter("warning")}><TriangleAlert size={14} style={{ color: "var(--amber-text)" }} /> Warnings <span className="mono">{result.summary.warnings}</span></FilterChip>
-        <FilterChip active={filter === "notice"} onClick={() => setFilter("notice")}><Info size={14} style={{ color: "var(--text-secondary)" }} /> Notices <span className="mono">{result.summary.notices}</span></FilterChip>
+      <div className="row between wrap" style={{ gap: "var(--sp-2)" }}>
+        <div className="row wrap">
+          <FilterChip active={sevFilter === "all"} onClick={() => setSevFilter("all")}>All <span className="mono">{problems.length}</span></FilterChip>
+          <FilterChip active={sevFilter === "error"} onClick={() => setSevFilter("error")}><CircleAlert size={14} style={{ color: "var(--red-text)" }} /> Errors <span className="mono">{result.summary.errors}</span></FilterChip>
+          <FilterChip active={sevFilter === "warning"} onClick={() => setSevFilter("warning")}><TriangleAlert size={14} style={{ color: "var(--amber-text)" }} /> Warnings <span className="mono">{result.summary.warnings}</span></FilterChip>
+          <FilterChip active={sevFilter === "notice"} onClick={() => setSevFilter("notice")}><Info size={14} style={{ color: "var(--text-secondary)" }} /> Notices <span className="mono">{result.summary.notices}</span></FilterChip>
+        </div>
+        {catFilter && (
+          <button className="btn btn-sm btn-secondary" onClick={() => setCatFilter(null)} style={{ gap: 6 }}>
+            {CATEGORY_LABELS[catFilter]} <IconX size={13} />
+          </button>
+        )}
       </div>
 
       {groups.length === 0 ? (
-        <div className="card card-pad"><Empty>No issues found 🎉</Empty></div>
+        <div className="card card-pad"><Empty>No issues match this filter.</Empty></div>
       ) : (
         <div>{groups.map((g) => <IssueGroup key={g.rule} group={g} onOpenUrl={onOpenUrl} />)}</div>
       )}
@@ -291,13 +373,32 @@ function FilterChip({ active, onClick, children }: { active: boolean; onClick: (
 /* ---------------- Pages ---------------- */
 type SortKey = "url" | "status" | "depth" | "wordCount" | "inlinks" | "linkScore" | "seoScore" | "responseTimeMs" | "geoScore";
 
-function Pages({ pages, onOpen }: { pages: Page[]; onOpen: (p: Page) => void }) {
+function Pages({
+  pages,
+  statusFilter,
+  setStatusFilter,
+  depthFilter,
+  setDepthFilter,
+  onOpen,
+}: {
+  pages: Page[];
+  statusFilter: number | null;
+  setStatusFilter: (s: number | null) => void;
+  depthFilter: number | null;
+  setDepthFilter: (d: number | null) => void;
+  onOpen: (p: Page) => void;
+}) {
   const [q, setQ] = useState("");
   const [sort, setSort] = useState<SortKey>("depth");
   const [dir, setDir] = useState<1 | -1>(1);
 
   const rows = useMemo(() => {
-    const f = pages.filter((p) => p.url.toLowerCase().includes(q.toLowerCase()));
+    const f = pages.filter(
+      (p) =>
+        p.url.toLowerCase().includes(q.toLowerCase()) &&
+        (statusFilter === null || p.status === statusFilter) &&
+        (depthFilter === null || p.depth === depthFilter)
+    );
     const val = (p: Page): number | string => (sort === "geoScore" ? p.geo.score : (p[sort as keyof Page] as number | string));
     return f.sort((a, b) => {
       const av = val(a);
@@ -305,7 +406,7 @@ function Pages({ pages, onOpen }: { pages: Page[]; onOpen: (p: Page) => void }) 
       if (typeof av === "string" || typeof bv === "string") return String(av).localeCompare(String(bv)) * dir;
       return (av - bv) * dir;
     });
-  }, [pages, q, sort, dir]);
+  }, [pages, q, sort, dir, statusFilter, depthFilter]);
 
   function th(key: SortKey, label: string, align?: "right") {
     const active = sort === key;
@@ -319,7 +420,20 @@ function Pages({ pages, onOpen }: { pages: Page[]; onOpen: (p: Page) => void }) 
 
   return (
     <div className="section-gap">
-      <input className="input input-sm mono" placeholder="Filter by URL…" value={q} onChange={(e) => setQ(e.target.value)} style={{ maxWidth: 360 }} />
+      <div className="row wrap" style={{ gap: "var(--sp-2)" }}>
+        <input className="input input-sm mono" placeholder="Filter by URL…" value={q} onChange={(e) => setQ(e.target.value)} style={{ maxWidth: 360 }} />
+        {statusFilter !== null && (
+          <button className="btn btn-sm btn-secondary" onClick={() => setStatusFilter(null)} style={{ gap: 6 }}>
+            Status {statusFilter === 0 ? "error" : statusFilter} <IconX size={13} />
+          </button>
+        )}
+        {depthFilter !== null && (
+          <button className="btn btn-sm btn-secondary" onClick={() => setDepthFilter(null)} style={{ gap: 6 }}>
+            Depth {depthFilter} <IconX size={13} />
+          </button>
+        )}
+        <span className="tertiary mono" style={{ fontSize: 12, alignSelf: "center" }}>{rows.length} pages</span>
+      </div>
       <div className="table-wrap" style={{ maxHeight: "62vh" }}>
         <table className="grid">
           <thead>

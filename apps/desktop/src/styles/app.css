@@ -479,6 +479,23 @@ table.grid tbody tr:last-child td {
   gap: var(--sp-3);
   padding: 6px 0;
 }
+.bar-row.clickable {
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  margin: 0 calc(var(--sp-2) * -1);
+  padding: 6px var(--sp-2);
+  transition: background var(--t-fast) var(--ease);
+}
+.bar-row.clickable:hover { background: var(--bg-subtle); }
+.bar-row.clickable:hover .lbl { color: var(--text); }
+.legend .item.clickable {
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  margin: 0 -6px;
+  padding: 3px 6px;
+  transition: background var(--t-fast) var(--ease);
+}
+.legend .item.clickable:hover { background: var(--bg-subtle); }
 .bar-row .lbl { font: var(--label-13); color: var(--text-secondary); }
 .bar-track {
   height: 8px;
