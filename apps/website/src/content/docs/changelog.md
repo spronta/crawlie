@@ -5,6 +5,13 @@ section: Project
 order: 9
 ---
 
+## [0.2.1] - 2026-06-19
+
+### Changed
+- **Renamed the npm package to `crawlie`** (unscoped) — install with `npm i -g crawlie`.
+  Platform binary packages stay scoped (`@spronta/crawlie-<platform>`), and the previous
+  `@spronta/crawlie` package remains published as an alias.
+
 ## [0.2.0] - 2026-06-19
 
 ### Added
@@ -44,5 +51,6 @@ order: 9
 - ~40 technical-SEO and GEO (AI-search) checks, Health + GEO scoring, and plain-English
   fix guidance for every rule.
 
+[0.2.1]: https://github.com/spronta/crawlie/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/spronta/crawlie/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/spronta/crawlie/releases/tag/v0.1.1

@@ -243,7 +243,7 @@ checksum = "cc14f565cf027a105f7a44ccf9e5b424348421a1d8952a8fc9d499d313107789"
 
 [[package]]
 name = "crawlie-cli"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "clap",
  "crawlie-core",
@@ -253,7 +253,7 @@ dependencies = [
 
 [[package]]
 name = "crawlie-core"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "futures",
  "reqwest",
@@ -266,7 +266,7 @@ dependencies = [
 
 [[package]]
 name = "crawlie-mcp"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "crawlie-core",
  "serde_json",
