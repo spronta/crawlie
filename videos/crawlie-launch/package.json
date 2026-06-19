@@ -1,0 +1,11 @@
+{
+  "name": "crawlie-launch",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "npx --yes hyperframes@0.6.112 preview",
+    "check": "npx --yes hyperframes@0.6.112 lint && npx --yes hyperframes@0.6.112 validate && npx --yes hyperframes@0.6.112 inspect",
+    "render": "npx --yes hyperframes@0.6.112 render",
+    "publish": "npx --yes hyperframes@0.6.112 publish"
+  }
+}

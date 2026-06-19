@@ -6,6 +6,7 @@ import { StartView } from "./views/StartView";
 import { CrawlingView, type Progress } from "./views/CrawlingView";
 import { ResultsView } from "./views/ResultsView";
 import { ReportsView } from "./views/ReportsView";
+import { UpdateBanner } from "./components/UpdateBanner";
 
 type Phase =
   | { name: "idle" }
@@ -53,6 +54,8 @@ export function App() {
         </a>
         <ThemeToggle />
       </header>
+
+      <UpdateBanner />
 
       <main className="main">
         {phase.name === "idle" && <StartView onStart={start} />}

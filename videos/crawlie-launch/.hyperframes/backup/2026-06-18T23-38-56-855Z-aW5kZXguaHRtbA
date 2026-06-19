@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1920, height=1080">
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      @font-face {
+        font-family: "Geist";
+        src: url("./assets/fonts/geist-latin-wght-normal.woff2") format("woff2");
+        font-weight: 100 900;
+        font-style: normal;
+        font-display: swap;
+      }
+      @font-face {
+        font-family: "Geist Mono";
+        src: url("./assets/fonts/geist-mono-latin-wght-normal.woff2") format("woff2");
+        font-weight: 100 900;
+        font-style: normal;
+        font-display: swap;
+      }
+      html,
+      body {
+        margin: 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #080a0f;
+      }
+      body {
+        font-family: "Geist", ui-sans-serif, system-ui, sans-serif;
+        color: #f5f7fb;
+      }
+      code,
+      pre,
+      .mono {
+        font-family: "Geist Mono", ui-monospace, monospace;
+        font-variant-numeric: tabular-nums;
+      }
+      #root {
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #080a0f;
+      }
+      .scene {
+        position: absolute;
+        inset: 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #080a0f;
+      }
+      #scene1 {
+        z-index: 1;
+      }
+      #scene2,
+      #scene3,
+      #scene4 {
+        opacity: 0;
+      }
+      #scene2 {
+        z-index: 2;
+      }
+      #scene3 {
+        z-index: 3;
+      }
+      #scene4 {
+        z-index: 4;
+      }
+      .scene-content {
+        position: relative;
+        z-index: 4;
+        width: 100%;
+        height: 100%;
+        padding: 86px 104px;
+        box-sizing: border-box;
+      }
+      .grid-bg {
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        background-image:
+          linear-gradient(rgba(59, 158, 255, 0.09) 1px, rgba(59, 158, 255, 0) 1px),
+          linear-gradient(90deg, rgba(59, 158, 255, 0.08) 1px, rgba(59, 158, 255, 0) 1px);
+        background-size: 80px 80px;
+        opacity: 0.38;
+      }
+      .scanline {
+        position: absolute;
+        left: 0;
+        right: 0;
+        height: 2px;
+        top: 160px;
+        z-index: 1;
+        background: #3b9eff;
+        opacity: 0.36;
+        box-shadow: 0 0 34px rgba(59, 158, 255, 0.55);
+      }
+      .glow {
+        position: absolute;
+        width: 820px;
+        height: 820px;
+        border-radius: 50%;
+        filter: blur(28px);
+        opacity: 0.34;
+        z-index: 0;
+      }
+      .glow-blue {
+        right: -220px;
+        top: -260px;
+        background: radial-gradient(circle, rgba(59, 158, 255, 0.75), rgba(59, 158, 255, 0));
+      }
+      .glow-green {
+        left: -260px;
+        bottom: -320px;
+        background: radial-gradient(circle, rgba(61, 220, 145, 0.7), rgba(61, 220, 145, 0));
+      }
+      .label {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        color: #9aa3b2;
+        font: 700 24px/1.2 "Geist Mono", ui-monospace, monospace;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .label::before {
+        content: "";
+        width: 54px;
+        height: 2px;
+        background: #3b9eff;
+        box-shadow: 0 0 24px rgba(59, 158, 255, 0.6);
+      }
+      h1,
+      h2,
+      p {
+        margin: 0;
+      }
+      .hero-title {
+        max-width: 1240px;
+        margin-top: 82px;
+        font-size: 132px;
+        line-height: 0.92;
+        font-weight: 900;
+        letter-spacing: 0.01em;
+      }
+      .hero-title .accent,
+      .bigline .accent {
+        color: #3ddc91;
+      }
+      .hero-copy {
+        max-width: 790px;
+        margin-top: 36px;
+        color: #c6ccd7;
+        font-size: 34px;
+        line-height: 1.28;
+        font-weight: 350;
+      }
+      .command-panel {
+        position: absolute;
+        right: 104px;
+        bottom: 92px;
+        width: 720px;
+        border: 1px solid #273040;
+        background: rgba(16, 19, 25, 0.92);
+        box-shadow: 0 22px 80px rgba(0, 0, 0, 0.35);
+      }
+      .panel-bar {
+        height: 54px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 0 20px;
+        border-bottom: 1px solid #273040;
+        color: #9aa3b2;
+        font-size: 18px;
+      }
+      .dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+      }
+      .red {
+        background: #ff6166;
+      }
+      .amber {
+        background: #f5b544;
+      }
+      .green {
+        background: #3ddc91;
+      }
+      .terminal {
+        padding: 30px;
+        color: #f5f7fb;
+        font-size: 28px;
+        line-height: 1.65;
+      }
+      .terminal .prompt {
+        color: #3ddc91;
+      }
+      .terminal .muted {
+        color: #9aa3b2;
+      }
+      .terminal .blue {
+        color: #3b9eff;
+      }
+      .split {
+        height: 100%;
+        display: grid;
+        grid-template-columns: 0.92fr 1.08fr;
+        gap: 68px;
+        align-items: center;
+      }
+      .bigline {
+        font-size: 96px;
+        line-height: 0.96;
+        font-weight: 900;
+        letter-spacing: 0.01em;
+        max-width: 760px;
+      }
+      .body {
+        margin-top: 30px;
+        color: #c6ccd7;
+        font-size: 30px;
+        line-height: 1.35;
+        max-width: 680px;
+        font-weight: 350;
+      }
+      .crawl-stack {
+        display: grid;
+        gap: 18px;
+      }
+      .crawl-row {
+        display: grid;
+        grid-template-columns: 90px 1fr 128px;
+        align-items: center;
+        gap: 22px;
+        min-height: 76px;
+        padding: 0 24px;
+        border: 1px solid #273040;
+        background: rgba(16, 19, 25, 0.9);
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.18);
+      }
+      .status {
+        font-size: 24px;
+        font-weight: 800;
+      }
+      .url {
+        color: #dce3ef;
+        font-size: 24px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .tag {
+        justify-self: end;
+        min-width: 108px;
+        text-align: center;
+        padding: 10px 14px;
+        border: 1px solid #273040;
+        font-size: 18px;
+        font-weight: 800;
+      }
+      .tag.ok {
+        color: #3ddc91;
+        border-color: rgba(61, 220, 145, 0.45);
+        background: rgba(61, 220, 145, 0.09);
+      }
+      .tag.warn {
+        color: #f5b544;
+        border-color: rgba(245, 181, 68, 0.45);
+        background: rgba(245, 181, 68, 0.1);
+      }
+      .tag.err {
+        color: #ff8589;
+        border-color: rgba(255, 97, 102, 0.48);
+        background: rgba(255, 97, 102, 0.1);
+      }
+      .score-board {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 26px;
+      }
+      .score-card {
+        position: relative;
+        min-height: 360px;
+        padding: 34px;
+        border: 1px solid #273040;
+        background: #101319;
+        overflow: hidden;
+      }
+      .score-card::after {
+        content: "";
+        position: absolute;
+        inset: auto -90px -170px auto;
+        width: 300px;
+        height: 300px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(59, 158, 255, 0.4), rgba(59, 158, 255, 0));
+      }
+      .score-caption {
+        color: #9aa3b2;
+        font-size: 24px;
+        font-weight: 750;
+        letter-spacing: 0.08em;
+      }
+      .score-num {
+        margin-top: 26px;
+        font-size: 146px;
+        line-height: 0.9;
+        font-weight: 900;
+        font-variant-numeric: tabular-nums;
+      }
+      .score-detail {
+        margin-top: 18px;
+        color: #c6ccd7;
+        font-size: 25px;
+        line-height: 1.28;
+      }
+      .fix-list {
+        margin-top: 28px;
+        display: grid;
+        gap: 16px;
+      }
+      .fix {
+        display: grid;
+        grid-template-columns: 32px 1fr;
+        gap: 16px;
+        color: #dce3ef;
+        font-size: 24px;
+        line-height: 1.2;
+      }
+      .fix-mark {
+        width: 32px;
+        height: 32px;
+        display: grid;
+        place-items: center;
+        background: rgba(61, 220, 145, 0.12);
+        color: #3ddc91;
+        border: 1px solid rgba(61, 220, 145, 0.48);
+      }
+      .mcp-wrap {
+        height: 100%;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 52px;
+        align-items: center;
+      }
+      .agent-card,
+      .json-card {
+        border: 1px solid #273040;
+        background: rgba(16, 19, 25, 0.92);
+        box-shadow: 0 22px 80px rgba(0, 0, 0, 0.28);
+      }
+      .agent-card {
+        padding: 42px;
+      }
+      .agent-title {
+        font-size: 64px;
+        line-height: 0.98;
+        font-weight: 900;
+        max-width: 660px;
+      }
+      .agent-copy {
+        margin-top: 26px;
+        color: #c6ccd7;
+        font-size: 30px;
+        line-height: 1.34;
+      }
+      .tool-pill-row {
+        margin-top: 34px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+      }
+      .tool-pill {
+        padding: 13px 17px;
+        color: #dce3ef;
+        border: 1px solid #273040;
+        background: #0b0e14;
+        font-size: 20px;
+      }
+      .json-card {
+        padding: 28px 32px;
+        font-size: 25px;
+        line-height: 1.56;
+        color: #dce3ef;
+      }
+      .json-card .key {
+        color: #3b9eff;
+      }
+      .json-card .str {
+        color: #3ddc91;
+      }
+      .json-card .num {
+        color: #f5b544;
+      }
+      .final-layout {
+        height: 100%;
+        display: grid;
+        grid-template-columns: 1.2fr 0.8fr;
+        gap: 64px;
+        align-items: center;
+      }
+      .brand {
+        margin-top: 38px;
+        font-size: 178px;
+        line-height: 0.86;
+        font-weight: 950;
+        letter-spacing: 0.01em;
+      }
+      .brand-copy {
+        margin-top: 34px;
+        max-width: 980px;
+        color: #c6ccd7;
+        font-size: 42px;
+        line-height: 1.18;
+        font-weight: 350;
+      }
+      .install {
+        margin-top: 46px;
+        display: inline-flex;
+        align-items: center;
+        padding: 24px 30px;
+        border: 1px solid rgba(61, 220, 145, 0.5);
+        background: rgba(61, 220, 145, 0.1);
+        color: #f5f7fb;
+        font-size: 32px;
+        box-shadow: 0 0 42px rgba(61, 220, 145, 0.1);
+      }
+      .launch-grid {
+        display: grid;
+        gap: 20px;
+      }
+      .launch-stat {
+        min-height: 128px;
+        padding: 24px;
+        border: 1px solid #273040;
+        background: #101319;
+      }
+      .launch-stat strong {
+        display: block;
+        font-size: 50px;
+        line-height: 1;
+      }
+      .launch-stat span {
+        display: block;
+        margin-top: 12px;
+        color: #9aa3b2;
+        font-size: 22px;
+      }
+      .block-transition {
+        position: absolute;
+        inset: 0;
+        z-index: 50;
+        display: grid;
+        grid-template-columns: repeat(8, 1fr);
+        pointer-events: none;
+      }
+      .block-transition i {
+        display: block;
+        background: #3b9eff;
+        transform-origin: top;
+        transform: scaleY(0);
+      }
+      .wipe-line {
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 10px;
+        z-index: 51;
+        background: #3ddc91;
+        box-shadow: 0 0 40px rgba(61, 220, 145, 0.8);
+        opacity: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div data-hf-id="hf-dcwt" id="root" data-composition-id="main" data-start="0" data-duration="18" data-width="1920" data-height="1080">
+      <audio data-hf-id="hf-yc7k" id="solarflex-melodic-type-beat-trap-type-beats-541553" class="clip" src="solarflex-melodic-type-beat-trap-type-beats-541553.mp3" data-start="0" data-duration="18" data-track-index="28" style="z-index: 29" data-media-start="0"></audio>
+      <div data-hf-id="hf-psdp" id="scene1" class="scene" data-layout-allow-overlap="">
+        <div data-hf-id="hf-ng0h" class="grid-bg" data-layout-ignore=""></div>
+        <div data-hf-id="hf-0yt6" class="glow glow-blue" data-layout-ignore=""></div>
+        <div data-hf-id="hf-wayh" class="glow glow-green" data-layout-ignore=""></div>
+        <div data-hf-id="hf-6esc" class="scanline" data-layout-ignore=""></div>
+        <div data-hf-id="hf-cn5c" class="scene-content">
+          <div data-hf-id="hf-5hsy" id="s1-label" class="label">Spronta presents</div>
+          <h1 data-hf-id="hf-d4q2" id="s1-title" class="hero-title">Launch your site without the <span data-hf-id="hf-3hza" class="accent">search debt.</span></h1>
+          <p data-hf-id="hf-8b5g" id="s1-copy" class="hero-copy">Crawlie audits technical SEO and GEO readiness locally, fast, and in plain English.</p>
+          <div data-hf-id="hf-og7h" id="s1-terminal" class="command-panel">
+            <div data-hf-id="hf-4wi3" class="panel-bar mono"><span data-hf-id="hf-8bbb" class="dot red"></span><span data-hf-id="hf-y5ar" class="dot amber"></span><span data-hf-id="hf-d96z" class="dot green"></span> terminal</div>
+            <div data-hf-id="hf-9n91" class="terminal mono">
+              <div data-hf-id="hf-ekv5"><span data-hf-id="hf-99ip" class="prompt">$</span> npm i -g @spronta/crawlie</div>
+              <div data-hf-id="hf-8ooi"><span data-hf-id="hf-yo2t" class="prompt">$</span> crawlie crawl https://example.com</div>
+              <div data-hf-id="hf-6sds" class="muted">46 checks · SEO + GEO · HTML report</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div data-hf-id="hf-tqhq" id="scene2" class="scene" data-layout-allow-overlap="">
+        <div data-hf-id="hf-how5" class="grid-bg" data-layout-ignore=""></div>
+        <div data-hf-id="hf-c2tp" class="glow glow-green" data-layout-ignore=""></div>
+        <div data-hf-id="hf-y268" class="scene-content split">
+          <div data-hf-id="hf-yeow">
+            <div data-hf-id="hf-9n8v" id="s2-label" class="label">Live crawl</div>
+            <h2 data-hf-id="hf-jbk0" id="s2-title" class="bigline">Broken links. Missing metadata. GEO gaps. <span data-hf-id="hf-j6ch" class="accent">Found fast.</span></h2>
+            <p data-hf-id="hf-vrq1" id="s2-copy" class="body">Async Rust engine. Robots-aware crawling. Sitemap seeding. Structured guidance for every issue.</p>
+          </div>
+          <div data-hf-id="hf-u140" id="s2-stack" class="crawl-stack">
+            <div data-hf-id="hf-7x3m" class="crawl-row"><span data-hf-id="hf-u6iu" class="status mono" style="color:#3ddc91">200</span><span data-hf-id="hf-q4fs" class="url mono">/pricing</span><span data-hf-id="hf-tar1" class="tag ok mono">clean</span></div>
+            <div data-hf-id="hf-uvfa" class="crawl-row"><span data-hf-id="hf-dnzg" class="status mono" style="color:#ff8589">404</span><span data-hf-id="hf-2g3m" class="url mono">/docs/old-api</span><span data-hf-id="hf-9ahn" class="tag err mono">error</span></div>
+            <div data-hf-id="hf-v9qb" class="crawl-row"><span data-hf-id="hf-hb82" class="status mono" style="color:#f5b544">301</span><span data-hf-id="hf-2eh0" class="url mono">/blog/launch</span><span data-hf-id="hf-2jf6" class="tag warn mono">redirect</span></div>
+            <div data-hf-id="hf-vo1c" class="crawl-row"><span data-hf-id="hf-m2t2" class="status mono" style="color:#3b9eff">GEO</span><span data-hf-id="hf-dauh" class="url mono">answer-ready blocks</span><span data-hf-id="hf-59ud" class="tag ok mono">82%</span></div>
+            <div data-hf-id="hf-svw5" class="crawl-row"><span data-hf-id="hf-k4bp" class="status mono" style="color:#3ddc91">HTML</span><span data-hf-id="hf-6v0q" class="url mono">shareable report</span><span data-hf-id="hf-k7b3" class="tag ok mono">saved</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div data-hf-id="hf-xolr" id="scene3" class="scene" data-layout-allow-overlap="">
+        <div data-hf-id="hf-ivt8" class="grid-bg" data-layout-ignore=""></div>
+        <div data-hf-id="hf-pcda" class="glow glow-blue" data-layout-ignore=""></div>
+        <div data-hf-id="hf-f4hk" class="scene-content split">
+          <div data-hf-id="hf-y7yw">
+            <div data-hf-id="hf-qunh" id="s3-label" class="label">Desktop report</div>
+            <h2 data-hf-id="hf-w0br" id="s3-title" class="bigline">Scores that lead to <span data-hf-id="hf-rmji" class="accent">the next fix.</span></h2>
+            <p data-hf-id="hf-0qw9" id="s3-copy" class="body">Health and GEO scoring, issue prioritization, pages, exports, and human-readable explanations in one local app.</p>
+          </div>
+          <div data-hf-id="hf-x11t">
+            <div data-hf-id="hf-xb3z" id="s3-scores" class="score-board">
+              <div data-hf-id="hf-satp" class="score-card">
+                <div data-hf-id="hf-g6b2" class="score-caption mono">HEALTH</div>
+                <div data-hf-id="hf-2efr" class="score-num mono" style="color:#3ddc91">94</div>
+                <div data-hf-id="hf-epud" class="score-detail">Technical SEO across every crawled page.</div>
+              </div>
+              <div data-hf-id="hf-fwg1" class="score-card">
+                <div data-hf-id="hf-obkl" class="score-caption mono">GEO</div>
+                <div data-hf-id="hf-oz9m" class="score-num mono" style="color:#3b9eff">87</div>
+                <div data-hf-id="hf-nk2w" class="score-detail">Readiness for AI search and citations.</div>
+              </div>
+            </div>
+            <div data-hf-id="hf-285c" id="s3-fixes" class="fix-list">
+              <div data-hf-id="hf-fmpd" class="fix"><span data-hf-id="hf-rgmc" class="fix-mark mono">1</span><span data-hf-id="hf-y33u">Add answer-ready summary blocks to product pages.</span></div>
+              <div data-hf-id="hf-2v8l" class="fix"><span data-hf-id="hf-q9p9" class="fix-mark mono">2</span><span data-hf-id="hf-fofw">Repair 404 links before launch traffic arrives.</span></div>
+              <div data-hf-id="hf-425o" class="fix"><span data-hf-id="hf-qo0a" class="fix-mark mono">3</span><span data-hf-id="hf-ah4p">Export a self-contained report for the team.</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div data-hf-id="hf-1mps" id="scene4" class="scene" data-layout-allow-overlap="">
+        <div data-hf-id="hf-ihi7" class="grid-bg" data-layout-ignore=""></div>
+        <div data-hf-id="hf-d9qs" class="glow glow-green" data-layout-ignore=""></div>
+        <div data-hf-id="hf-eken" class="scene-content final-layout">
+          <div data-hf-id="hf-xfcu">
+            <div data-hf-id="hf-2rqi" id="s4-label" class="label">Free · open source · agent-native</div>
+            <h2 data-hf-id="hf-nety" id="s4-brand" class="brand">crawlie</h2>
+            <p data-hf-id="hf-eq3k" id="s4-copy" class="brand-copy">The technical SEO + GEO crawler built for humans, CI, and agents.</p>
+            <div data-hf-id="hf-sqao" id="s4-install" class="install mono">npm i -g @spronta/crawlie</div>
+          </div>
+          <div data-hf-id="hf-o8e3" id="s4-stats" class="launch-grid">
+            <div data-hf-id="hf-lj4o" class="launch-stat"><strong data-hf-id="hf-hf1y" class="mono" style="color:#3ddc91">46+</strong><span data-hf-id="hf-x7lw">SEO, performance, security, social, and GEO checks</span></div>
+            <div data-hf-id="hf-f9tc" class="launch-stat"><strong data-hf-id="hf-ui0q" class="mono" style="color:#3b9eff">MCP</strong><span data-hf-id="hf-hn8s">Agent tools for crawl_site, audit_url, and explain_issue</span></div>
+            <div data-hf-id="hf-e2w9" class="launch-stat"><strong data-hf-id="hf-2kcq" class="mono" style="color:#f5b544">local</strong><span data-hf-id="hf-ouzj">CLI, desktop app, JSON, CSV, and HTML reports</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div data-hf-id="hf-i0k5" id="transitionBlocks" class="block-transition" data-layout-ignore="">
+        <i data-hf-id="hf-wt6k"></i><i data-hf-id="hf-zeb8"></i><i data-hf-id="hf-y7e5"></i><i data-hf-id="hf-ylp6"></i><i data-hf-id="hf-0l8b"></i><i data-hf-id="hf-0zjc"></i><i data-hf-id="hf-zsm9"></i><i data-hf-id="hf-06xa"></i>
+      </div>
+      <div data-hf-id="hf-3oz4" id="wipeLine" class="wipe-line" data-layout-ignore=""></div>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      var tl = gsap.timeline({ paused: true });
+
+      function enterSceneOne() {
+        tl.from("#s1-label", { y: -34, opacity: 0, duration: 0.44, ease: "power3.out" }, 0.22);
+        tl.from("#s1-title", { x: -72, opacity: 0, duration: 0.68, ease: "expo.out" }, 0.38);
+        tl.from("#s1-copy", { y: 42, opacity: 0, duration: 0.52, ease: "back.out(1.2)" }, 0.78);
+        tl.from("#s1-terminal", { x: 70, scale: 0.96, opacity: 0, duration: 0.58, ease: "power4.out" }, 1.02);
+      }
+
+      function enterSceneTwo(at) {
+        tl.from("#s2-label", { x: -38, opacity: 0, duration: 0.34, ease: "power3.out" }, at + 0.18);
+        tl.from("#s2-title", { y: 58, opacity: 0, duration: 0.54, ease: "expo.out" }, at + 0.28);
+        tl.from("#s2-copy", { x: -44, opacity: 0, duration: 0.46, ease: "sine.out" }, at + 0.62);
+        tl.from("#s2-stack .crawl-row", { x: 84, opacity: 0, duration: 0.38, stagger: 0.085, ease: "back.out(1.45)" }, at + 0.34);
+      }
+
+      function enterSceneThree(at) {
+        tl.from("#s3-label", { y: -30, opacity: 0, duration: 0.36, ease: "power4.out" }, at + 0.18);
+        tl.from("#s3-title", { x: -58, opacity: 0, duration: 0.58, ease: "expo.out" }, at + 0.3);
+        tl.from("#s3-copy", { y: 42, opacity: 0, duration: 0.42, ease: "sine.out" }, at + 0.66);
+        tl.from("#s3-scores .score-card", { scale: 0.88, rotation: -1.5, opacity: 0, duration: 0.52, stagger: 0.12, ease: "back.out(1.35)" }, at + 0.46);
+        tl.from("#s3-fixes .fix", { x: 46, opacity: 0, duration: 0.34, stagger: 0.09, ease: "power2.out" }, at + 1.02);
+      }
+
+      function enterSceneFour(at) {
+        tl.from("#s4-label", { x: -40, opacity: 0, duration: 0.36, ease: "power3.out" }, at + 0.2);
+        tl.from("#s4-brand", { scale: 0.88, opacity: 0, duration: 0.62, ease: "expo.out" }, at + 0.34);
+        tl.from("#s4-copy", { y: 48, opacity: 0, duration: 0.48, ease: "sine.out" }, at + 0.72);
+        tl.from("#s4-install", { x: -52, opacity: 0, duration: 0.42, ease: "back.out(1.25)" }, at + 1.02);
+        tl.from("#s4-stats .launch-stat", { x: 72, opacity: 0, duration: 0.38, stagger: 0.1, ease: "power4.out" }, at + 0.54);
+      }
+
+      function blockTransition(outScene, inScene, at, accent) {
+        tl.set("#transitionBlocks i", { backgroundColor: accent, transformOrigin: "top", scaleY: 0 }, at);
+        tl.set(inScene, { opacity: 1 }, at + 0.18);
+        tl.to("#transitionBlocks i", { scaleY: 1, duration: 0.22, stagger: 0.018, ease: "power4.inOut" }, at);
+        tl.set(outScene, { opacity: 0 }, at + 0.26);
+        tl.to("#transitionBlocks i", { scaleY: 0, transformOrigin: "bottom", duration: 0.24, stagger: 0.018, ease: "power3.inOut" }, at + 0.28);
+      }
+
+      function wipeTransition(outScene, inScene, at) {
+        tl.set(inScene, { opacity: 1 }, at + 0.05);
+        tl.set("#wipeLine", { x: -20, opacity: 1 }, at);
+        tl.to(outScene, { clipPath: "inset(0 0 0 100%)", duration: 0.5, ease: "power3.inOut" }, at);
+        tl.to("#wipeLine", { x: 1940, duration: 0.5, ease: "power3.inOut" }, at);
+        tl.set(outScene, { opacity: 0, clipPath: "none" }, at + 0.51);
+        tl.set("#wipeLine", { opacity: 0 }, at + 0.54);
+      }
+
+      enterSceneOne();
+      tl.to(".scanline", { y: 760, opacity: 0.18, duration: 4.2, ease: "sine.inOut" }, 0.3);
+      tl.to(".grid-bg", { x: -36, y: -24, duration: 18, ease: "none" }, 0);
+      tl.to(".glow-blue", { scale: 1.08, x: -30, y: 24, duration: 6, ease: "sine.inOut" }, 0);
+      tl.to(".glow-green", { scale: 1.12, x: 42, y: -20, duration: 7, ease: "sine.inOut" }, 0.4);
+
+      blockTransition("#scene1", "#scene2", 4.25, "#3b9eff");
+      enterSceneTwo(4.55);
+
+      wipeTransition("#scene2", "#scene3", 8.55);
+      enterSceneThree(8.9);
+
+      blockTransition("#scene3", "#scene4", 13.05, "#3ddc91");
+      enterSceneFour(13.35);
+
+      tl.to("#scene4", { filter: "brightness(0.74)", duration: 0.65, ease: "sine.inOut" }, 17.28);
+      tl.to("#root", { backgroundColor: "#050609", duration: 0.65, ease: "sine.inOut" }, 17.28);
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>

@@ -60,10 +60,10 @@ export function ResultsView({ result, onReset }: { result: CrawlResult; onReset:
 
   return (
     <div className="section-gap">
-      <div className="row between wrap" style={{ gap: "var(--sp-3)" }}>
-        <div className="col" style={{ gap: 4 }}>
-          <h1 className="h1">{hostOf(result.config.url)}</h1>
-          <span className="mono muted" style={{ fontSize: 13 }}>
+      <div className="row between wrap" style={{ gap: "var(--sp-3)" }} data-tauri-drag-region>
+        <div className="col" style={{ gap: 4 }} data-tauri-drag-region>
+          <h1 className="h1" data-tauri-drag-region>{hostOf(result.config.url)}</h1>
+          <span className="mono muted" style={{ fontSize: 13 }} data-tauri-drag-region>
             {result.startedAt ? `${fmtWhen(result.startedAt)} · ` : ""}
             {num(s.totalPages)} pages · {ms(s.durationMs)} · {num(s.indexablePages)} indexable
             {result.robotsFound ? " · robots.txt ✓" : ""}

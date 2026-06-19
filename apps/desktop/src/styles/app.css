@@ -67,6 +67,21 @@ a:hover {
   -webkit-app-region: no-drag;
 }
 
+/* new-release banner */
+.update-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: 8px var(--sp-5);
+  background: var(--blue-bg);
+  border-bottom: 1px solid var(--blue-border);
+  font: var(--label-13);
+  color: var(--text);
+}
+.update-banner .grow {
+  flex: 1;
+}
+
 .topbar .spacer {
   flex: 1;
 }
