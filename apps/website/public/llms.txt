@@ -1,0 +1,18 @@
+# crawlie
+
+> crawlie is a fast, free, open-source technical-SEO and GEO (AI-search readiness) crawler for humans and agents. It ships a CLI and an MCP server, runs 46 checks with plain-English fixes, runs locally, and costs nothing.
+
+crawlie crawls a website for broken links, redirects, missing metadata, and 46 SEO & Generative-Engine checks, returning a Health score (technical SEO) and a GEO score (how citable your pages are by AI search like ChatGPT, Perplexity, and Google AI Overviews). Install with `npm i -g @spronta/crawlie`. Built by Spronta. MIT licensed.
+
+## Docs
+- [Getting started](https://crawlie.dev/docs/getting-started): Install crawlie and run your first audit from the CLI, an agent, or npx.
+- [CLI reference](https://crawlie.dev/docs/cli): Every command, flag, and output format (crawl, audit, explain, reports).
+- [MCP server](https://crawlie.dev/docs/mcp): Let an AI agent run a full audit and act on it via the Model Context Protocol.
+- [Skills & plugin](https://crawlie.dev/docs/skills-and-plugin): One-step Claude Code plugin and standalone Agent Skills.
+- [What it checks](https://crawlie.dev/docs/checks): The full catalogue of 46 technical-SEO and GEO rules.
+- [Scoring](https://crawlie.dev/docs/scoring): How the Health and GEO scores are calculated.
+- [CI & automation](https://crawlie.dev/docs/ci): Gate deploys on SEO/GEO health with non-zero exit codes.
+
+## Project
+- [GitHub](https://github.com/spronta/crawlie): Source, issues, and releases.
+- [npm package](https://www.npmjs.com/package/@spronta/crawlie): The `@spronta/crawlie` CLI + MCP server.

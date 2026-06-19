@@ -1,0 +1,74 @@
+---
+import BrandMark from './BrandMark.astro';
+const GITHUB = 'https://github.com/spronta/crawlie';
+const year = 2026;
+---
+<footer class="site-footer">
+  <div class="container cols">
+    <div class="about">
+      <a href="/" class="brand"><BrandMark size={22} /><span>crawlie</span></a>
+      <p>The free, open-source technical-SEO &amp; GEO crawler — built for humans and agents.</p>
+      <p class="by">by Spronta Ltd · MIT licensed</p>
+    </div>
+    <div class="group">
+      <h4>Product</h4>
+      <a href="/#features">Features</a>
+      <a href="/#agents">Agents &amp; MCP</a>
+      <a href="/#compare">Compare</a>
+      <a href="/docs/checks">What it checks</a>
+    </div>
+    <div class="group">
+      <h4>Docs</h4>
+      <a href="/docs/getting-started">Getting started</a>
+      <a href="/docs/cli">CLI</a>
+      <a href="/docs/mcp">MCP server</a>
+      <a href="/docs/skills-and-plugin">Skills &amp; plugin</a>
+    </div>
+    <div class="group">
+      <h4>Project</h4>
+      <a href={GITHUB} target="_blank" rel="noopener">GitHub</a>
+      <a href="https://www.npmjs.com/package/@spronta/crawlie" target="_blank" rel="noopener">npm</a>
+      <a href={`${GITHUB}/releases`} target="_blank" rel="noopener">Releases</a>
+      <a href="https://linkedin.com/in/sean-exe" target="_blank" rel="noopener">LinkedIn</a>
+    </div>
+  </div>
+  <div class="container baseline">
+    <span>© {year} Spronta Ltd</span>
+    <span>Built fast. Audited with crawlie.</span>
+  </div>
+</footer>
+
+<style>
+  .site-footer {
+    border-top: 1px solid var(--border-soft);
+    padding: 56px 0 40px;
+    margin-top: 40px;
+  }
+  .cols {
+    display: grid;
+    grid-template-columns: 1.6fr 1fr 1fr 1fr;
+    gap: 32px;
+  }
+  .brand {
+    display: inline-flex; align-items: center; gap: 8px;
+    color: var(--text); font-weight: 600; font-size: 16px;
+  }
+  .brand:hover { text-decoration: none; }
+  .about p { color: var(--muted); font-size: 14px; max-width: 30ch; margin: 12px 0 0; }
+  .about .by { font-size: 13px; color: var(--muted-2); }
+  .group h4 { font-size: 13px; color: var(--text); margin-bottom: 12px; }
+  .group a { display: block; color: var(--muted); font-size: 14px; padding: 4px 0; }
+  .group a:hover { color: var(--text); text-decoration: none; }
+  .baseline {
+    display: flex; justify-content: space-between;
+    margin-top: 40px; padding-top: 22px;
+    border-top: 1px solid var(--border-soft);
+    color: var(--muted-2); font-size: 13px;
+    font-family: var(--font-mono);
+  }
+  @media (max-width: 760px) {
+    .cols { grid-template-columns: 1fr 1fr; }
+    .about { grid-column: 1 / -1; }
+    .baseline { flex-direction: column; gap: 6px; }
+  }
+</style>

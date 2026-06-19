@@ -1,0 +1,76 @@
+---
+import '../styles/global.css';
+
+interface Props {
+  title?: string;
+  description?: string;
+  /** Path-only canonical, e.g. "/docs/cli". Defaults to current path. */
+  canonical?: string;
+}
+
+const {
+  title = 'crawlie — free, open-source SEO & GEO crawler',
+  description = 'crawlie is a fast, free, open-source technical-SEO and AI-search (GEO) crawler: 46 checks, plain-English fixes, a CLI and an MCP server, all local.',
+  canonical,
+} = Astro.props;
+
+const canonicalURL = new URL(canonical ?? Astro.url.pathname, Astro.site);
+const ogImage = new URL('/og.png', Astro.site).href;
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="canonical" href={canonicalURL.href} />
+    <meta name="generator" content={Astro.generator} />
+
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta name="theme-color" content="#080a0f" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="crawlie" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonicalURL.href} />
+    <meta property="og:image" content={ogImage} />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
+
+    <!-- Structured data: practice what we preach (GEO) -->
+    <script type="application/ld+json" set:html={JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'SoftwareApplication',
+      name: 'crawlie',
+      applicationCategory: 'DeveloperApplication',
+      operatingSystem: 'macOS, Linux, Windows',
+      offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+      description,
+      url: 'https://crawlie.dev',
+      author: { '@type': 'Organization', name: 'Spronta Ltd', url: 'https://crawlie.dev' },
+      license: 'https://opensource.org/licenses/MIT',
+    })} />
+  </head>
+  <body>
+    <slot />
+    <script is:inline>
+      // copy-to-clipboard for .cmd command boxes
+      document.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-copy]');
+        if (!btn) return;
+        navigator.clipboard.writeText(btn.getAttribute('data-copy')).then(() => {
+          const prev = btn.textContent;
+          btn.textContent = 'copied';
+          setTimeout(() => (btn.textContent = prev), 1400);
+        });
+      });
+    </script>
+  </body>
+</html>

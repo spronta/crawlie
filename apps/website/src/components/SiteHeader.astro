@@ -1,0 +1,116 @@
+---
+import BrandMark from './BrandMark.astro';
+const GITHUB = 'https://github.com/spronta/crawlie';
+
+// Fetch star count at build time; fall back to null if the API is unreachable.
+let stars: number | null = null;
+try {
+  const res = await fetch('https://api.github.com/repos/spronta/crawlie', {
+    headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'crawlie-site' },
+  });
+  if (res.ok) {
+    const data = await res.json();
+    if (typeof data.stargazers_count === 'number') stars = data.stargazers_count;
+  }
+} catch {
+  stars = null;
+}
+
+const starLabel =
+  stars === null
+    ? null
+    : stars >= 1000
+    ? `${(stars / 1000).toFixed(stars >= 10000 ? 0 : 1)}k`
+    : String(stars);
+---
+<header class="site-header">
+  <div class="container bar">
+    <a href="/" class="brand">
+      <BrandMark size={24} />
+      <span>crawlie</span>
+    </a>
+    <nav class="nav">
+      <a href="/docs/getting-started">Docs</a>
+      <a href="/#features">Features</a>
+      <a href="/#agents">Agents</a>
+      <a href="/#compare">Compare</a>
+      <a href={GITHUB} target="_blank" rel="noopener" class="gh" aria-label="crawlie on GitHub">
+        <svg class="gh-icon" viewBox="0 0 16 16" width="18" height="18" aria-hidden="true" fill="currentColor">
+          <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
+        </svg>
+        {starLabel && (
+          <span class="gh-stars">
+            <svg class="gh-star" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" fill="currentColor">
+              <path d="M8 .25l2.06 4.18 4.61.67-3.34 3.25.79 4.6L8 11.6l-4.12 2.17.79-4.6L1.33 5.1l4.61-.67L8 .25z"/>
+            </svg>
+            {starLabel}
+          </span>
+        )}
+      </a>
+      <a href="/docs/getting-started" class="btn btn-primary header-cta">Get started</a>
+    </nav>
+  </div>
+</header>
+
+<style>
+  .site-header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    backdrop-filter: saturate(140%) blur(12px);
+    background: color-mix(in srgb, var(--bg) 78%, transparent);
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 60px;
+  }
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    color: var(--text);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    font-size: 17px;
+  }
+  .brand:hover { text-decoration: none; }
+  .nav {
+    display: flex;
+    align-items: center;
+    gap: 22px;
+  }
+  .nav a {
+    color: var(--muted);
+    font-size: 14.5px;
+    font-weight: 500;
+  }
+  .nav a:hover { color: var(--text); text-decoration: none; }
+  .nav a.header-cta { color: #fff; padding: 7px 14px; }
+  .nav a.header-cta:hover { color: #fff; }
+  .nav a.gh {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--text);
+  }
+  .gh-stars {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 13px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    padding: 2px 7px;
+    border: 1px solid var(--border-soft);
+    border-radius: 999px;
+    color: var(--muted);
+  }
+  .nav a.gh:hover .gh-stars { color: var(--text); }
+  @media (max-width: 760px) {
+    .nav a:not(.header-cta):not([href*='github']) { display: none; }
+    .nav { gap: 14px; }
+  }
+</style>

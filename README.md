@@ -22,7 +22,7 @@ Crawl any site for broken links, redirects, missing metadata, and 40+ SEO & Gene
   <a href="#architecture">Architecture</a>
 </p>
 
-*by [Spronta](https://spronta.com)*
+*by [Spronta](https://crawlie.dev)*
 
 </div>
 
@@ -174,7 +174,7 @@ The agent calls `crawl_site`, reads the structured issues, and uses `explain_iss
 
 ## Why I built this
 
-I'm **Sean Ryan**. I've spent 6+ years as a Lead Marketing Engineer, and on the side I'm building **[Spronta](https://spronta.com)** — AI for marketers.
+I'm **Sean Ryan**. I've spent 6+ years as a Lead Marketing Engineer, and on the side I'm building **[Spronta](https://crawlie.dev)** — AI for marketers.
 
 With AI, it's faster than ever to ship a marketing site — but most of what gets generated is slop that was never built to be found. And the tools meant to catch that fall short: most SEO auditors cost money, don't play nicely with your agents, or tell you *what's* wrong without telling you *how to actually rank* for SEO **and** GEO (Generative Engine Optimization — being cited by AI search like ChatGPT, Perplexity, and Google AI Overviews).
 
@@ -258,7 +258,7 @@ apps/
 
 ## License & author
 
-MIT © **Sean Ryan** / [Spronta](https://spronta.com).
+MIT © **Sean Ryan** / [Spronta Ltd](https://crawlie.dev).
 
 Built by Sean Ryan — Lead Marketing Engineer at Pendo.io, building AI for marketers at Spronta on the side. **[Connect on LinkedIn →](https://linkedin.com/in/sean-exe)**
 

@@ -1,0 +1,18 @@
+{
+  "name": "crawlie-website",
+  "type": "module",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Marketing site + docs for crawlie (crawlie.dev).",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview"
+  },
+  "dependencies": {
+    "@astrojs/sitemap": "^3.2.1",
+    "@fontsource-variable/geist": "^5.1.0",
+    "@fontsource-variable/geist-mono": "^5.1.0",
+    "astro": "^5.2.0"
+  }
+}

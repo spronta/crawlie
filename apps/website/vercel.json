@@ -1,0 +1,29 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "redirects": [
+    {
+      "source": "/(.*)",
+      "has": [{ "type": "host", "value": "crawlie.app" }],
+      "destination": "https://crawlie.dev/$1",
+      "permanent": true
+    },
+    {
+      "source": "/(.*)",
+      "has": [{ "type": "host", "value": "www.crawlie.app" }],
+      "destination": "https://crawlie.dev/$1",
+      "permanent": true
+    },
+    {
+      "source": "/(.*)",
+      "has": [{ "type": "host", "value": "crawlie.co" }],
+      "destination": "https://crawlie.dev/$1",
+      "permanent": true
+    },
+    {
+      "source": "/(.*)",
+      "has": [{ "type": "host", "value": "www.crawlie.co" }],
+      "destination": "https://crawlie.dev/$1",
+      "permanent": true
+    }
+  ]
+}

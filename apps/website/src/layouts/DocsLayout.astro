@@ -1,0 +1,161 @@
+---
+import BaseLayout from './BaseLayout.astro';
+import SiteHeader from '../components/SiteHeader.astro';
+import type { MarkdownHeading } from 'astro';
+
+interface NavItem { slug: string; title: string; section: string; order: number; }
+
+interface Props {
+  title: string;
+  description: string;
+  currentSlug: string;
+  nav: NavItem[];
+  headings: MarkdownHeading[];
+}
+
+const { title, description, currentSlug, nav, headings } = Astro.props;
+
+// group nav by section, preserving first-seen order
+const sections: { name: string; items: NavItem[] }[] = [];
+for (const item of [...nav].sort((a, b) => a.order - b.order)) {
+  let s = sections.find((x) => x.name === item.section);
+  if (!s) { s = { name: item.section, items: [] }; sections.push(s); }
+  s.items.push(item);
+}
+
+const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
+---
+
+<BaseLayout title={`${title} · crawlie — SEO & GEO crawler docs`} description={description} canonical={`/docs/${currentSlug}`}>
+  <SiteHeader />
+  <div class="docs container">
+    <aside class="sidebar">
+      <nav>
+        {sections.map((s) => (
+          <div class="group">
+            <p class="group-title">{s.name}</p>
+            <ul>
+              {s.items.map((item) => (
+                <li>
+                  <a href={`/docs/${item.slug}`} class={item.slug === currentSlug ? 'active' : ''}>
+                    {item.title}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </nav>
+    </aside>
+
+    <article class="content">
+      <p class="eyebrow">Docs</p>
+      <h1>{title}</h1>
+      <p class="lede">{description}</p>
+      <div class="prose">
+        <slot />
+      </div>
+    </article>
+
+    <aside class="toc">
+      {toc.length > 0 && (
+        <div class="toc-inner">
+          <p class="toc-title">On this page</p>
+          <ul>
+            {toc.map((h) => (
+              <li class={h.depth === 3 ? 'sub' : ''}>
+                <a href={`#${h.slug}`}>{h.text}</a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </aside>
+  </div>
+</BaseLayout>
+
+<style>
+  .docs {
+    display: grid;
+    grid-template-columns: 220px minmax(0, 1fr) 200px;
+    gap: 40px;
+    align-items: start;
+    padding-top: 40px;
+    padding-bottom: 80px;
+  }
+  .sidebar, .toc { position: sticky; top: 84px; }
+  .sidebar nav { font-size: 14px; }
+  .group { margin-bottom: 22px; }
+  .group-title {
+    font-family: var(--font-mono); font-size: 11px; text-transform: uppercase;
+    letter-spacing: 0.07em; color: var(--muted-2); margin: 0 0 8px;
+  }
+  .sidebar ul, .toc ul { list-style: none; margin: 0; padding: 0; }
+  .sidebar li a {
+    display: block; padding: 5px 10px; margin: 1px 0;
+    color: var(--muted); border-radius: 6px; border-left: 2px solid transparent;
+  }
+  .sidebar li a:hover { color: var(--text); background: var(--panel); text-decoration: none; }
+  .sidebar li a.active {
+    color: var(--blue); background: rgba(59,158,255,0.08);
+    border-left-color: var(--blue);
+  }
+
+  .content { min-width: 0; }
+  .content > h1 { font-size: clamp(28px, 4vw, 38px); margin: 4px 0 12px; }
+  .content > .lede { color: var(--muted); font-size: 18px; margin: 0 0 32px; }
+
+  .toc-inner { font-size: 13px; }
+  .toc-title {
+    font-family: var(--font-mono); font-size: 11px; text-transform: uppercase;
+    letter-spacing: 0.07em; color: var(--muted-2); margin: 0 0 8px;
+  }
+  .toc li a { display: block; padding: 4px 0; color: var(--muted); }
+  .toc li.sub a { padding-left: 12px; font-size: 12.5px; }
+  .toc li a:hover { color: var(--text); text-decoration: none; }
+
+  @media (max-width: 1080px) {
+    .docs { grid-template-columns: 200px minmax(0, 1fr); }
+    .toc { display: none; }
+  }
+  @media (max-width: 760px) {
+    .docs { grid-template-columns: 1fr; }
+    .sidebar {
+      position: static; border-bottom: 1px solid var(--border-soft);
+      padding-bottom: 16px; margin-bottom: 8px;
+    }
+  }
+</style>
+
+<style is:global>
+  /* ── prose (markdown) ─────────────────────────────────────────────── */
+  .prose { font-size: 15.5px; color: #d6dde7; }
+  .prose h2 {
+    font-size: 23px; margin: 44px 0 14px; padding-top: 8px;
+    border-top: 1px solid var(--border-soft); color: var(--text);
+  }
+  .prose h2:first-child { border-top: 0; margin-top: 0; }
+  .prose h3 { font-size: 17.5px; margin: 28px 0 10px; color: var(--text); }
+  .prose p { margin: 0 0 14px; }
+  .prose ul, .prose ol { margin: 0 0 16px; padding-left: 22px; }
+  .prose li { margin: 5px 0; }
+  .prose li::marker { color: var(--muted-2); }
+  .prose a { color: var(--blue); }
+  .prose strong { color: var(--text); }
+  .prose pre { margin: 0 0 18px; }
+  .prose table {
+    width: 100%; border-collapse: collapse; font-size: 14px; margin: 0 0 18px;
+    border: 1px solid var(--border-soft); border-radius: 8px; overflow: hidden;
+  }
+  .prose th, .prose td {
+    text-align: left; padding: 9px 13px; border-bottom: 1px solid var(--border-soft);
+  }
+  .prose th { background: var(--panel); color: var(--text); font-weight: 600; }
+  .prose tr:last-child td { border-bottom: 0; }
+  .prose blockquote {
+    margin: 0 0 16px; padding: 2px 16px; border-left: 3px solid var(--blue);
+    color: var(--muted); background: var(--panel); border-radius: 0 8px 8px 0;
+  }
+  .prose h2 a, .prose h3 a { color: inherit; }
+  .prose :where(h2, h3) { scroll-margin-top: 84px; }
+</style>

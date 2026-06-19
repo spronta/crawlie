@@ -1,0 +1,398 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import SiteHeader from '../components/SiteHeader.astro';
+import SiteFooter from '../components/SiteFooter.astro';
+
+const GITHUB = 'https://github.com/spronta/crawlie';
+
+const features = [
+  {
+    color: 'var(--blue)',
+    title: 'Agent-native',
+    body: 'A first-class CLI and MCP server. The same AI agent that built your page can crawl it, read the issues, and ship the fixes — no human in the loop.',
+  },
+  {
+    color: 'var(--green)',
+    title: 'GEO / AI-search readiness',
+    body: 'A dedicated GEO score for being cited by ChatGPT, Perplexity, and Google AI Overviews: structured data, semantic HTML, answer-ready content, authorship.',
+  },
+  {
+    color: 'var(--amber)',
+    title: 'Plain-English fixes',
+    body: 'Every finding tells you why it matters, how to fix it, and what happens if you ignore it — not just a cryptic error code.',
+  },
+  {
+    color: 'var(--blue)',
+    title: 'Local-first & fast',
+    body: 'A tiny async Rust binary that runs on your machine. No accounts, no cloud, no per-crawl billing. Your data never leaves your laptop.',
+  },
+  {
+    color: 'var(--green)',
+    title: '46 checks & counting',
+    body: 'Broken links, redirects, 4xx/5xx, titles & meta, canonicals, robots, hreflang, structured data, mixed content, thin content, and more.',
+  },
+  {
+    color: 'var(--amber)',
+    title: 'Free & open source',
+    body: 'MIT licensed. Read it, fork it, extend it. SEO shouldn’t be locked behind a $259/year license.',
+  },
+];
+
+const compare = [
+  ['Price', 'Free & open-source', '£259/yr to unlock', 'from £13.50/mo'],
+  ['Engine', 'Rust, async, tiny binary', 'Java (JVM)', '.NET'],
+  ['CLI with JSON output', 'yes', 'partial', 'no'],
+  ['MCP server (agent-native)', 'yes', 'no', 'no'],
+  ['GEO / AI-search audit', 'yes', 'no', 'no'],
+  ['“Why it matters” built in', 'every issue', 'no', 'partial'],
+  ['Shareable HTML report', 'yes', 'paid', 'yes'],
+  ['Source you can read & extend', 'yes', 'no', 'no'],
+];
+
+const cell = (v: string) =>
+  v === 'yes' ? '✓' : v === 'no' ? '—' : v;
+---
+
+<BaseLayout>
+  <SiteHeader />
+
+  <!-- ── Hero ──────────────────────────────────────────────────────── -->
+  <main>
+    <section class="hero">
+      <div class="container">
+        <a class="badge" href={`${GITHUB}`} target="_blank" rel="noopener">
+          <span class="dot"></span> #4 on Hacker News · the most-upvoted open-source SEO crawler
+        </a>
+        <h1>Technical SEO that<br /><span class="grad">works with your agents.</span></h1>
+        <p class="lede">
+          Free, open-source crawler for SEO <em>and</em> AI-search readiness. 46 checks,
+          plain-English fixes, a CLI and an MCP server. Runs locally. Costs nothing.
+        </p>
+
+        <div class="cmd hero-cmd">
+          <span class="prompt">$</span>
+          <code>npm i -g @spronta/crawlie</code>
+          <button data-copy="npm i -g @spronta/crawlie">copy</button>
+        </div>
+
+        <div class="hero-actions">
+          <a href="/docs/getting-started" class="btn btn-primary">Read the docs →</a>
+          <a href={GITHUB} class="btn btn-ghost" target="_blank" rel="noopener">★ Star on GitHub</a>
+        </div>
+
+        <p class="trust">Rust · MIT · macOS / Linux / Windows · CLI + MCP · 46 checks</p>
+      </div>
+    </section>
+
+    <!-- ── Problem ────────────────────────────────────────────────────── -->
+    <section class="problem">
+      <div class="container narrow">
+        <p class="eyebrow">The problem</p>
+        <h2>You can vibe-code a landing page in an afternoon. But is it built to be found?</h2>
+        <p>
+          AI made shipping a marketing site trivial — gorgeous, live, fast. The catch:
+          most of what gets generated was never built for search. Missing metadata, broken
+          links, no structured data, nothing for AI search to read. You don’t find out until
+          the traffic never shows up — and the tools that catch it cost real money and can’t
+          talk to your agents. crawlie fixes that.
+        </p>
+      </div>
+    </section>
+
+    <!-- ── Features ───────────────────────────────────────────────────── -->
+    <section id="features">
+      <div class="container">
+        <div class="section-head">
+          <p class="eyebrow">Why crawlie</p>
+          <h2>Everything you need to ship findable sites</h2>
+          <p>Built for the way sites get made now — fast, AI-assisted, and audited by agents.</p>
+        </div>
+        <div class="grid">
+          {features.map((f) => (
+            <article class="card">
+              <span class="tick" style={`--c:${f.color}`}></span>
+              <h3>{f.title}</h3>
+              <p>{f.body}</p>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Agents / MCP ───────────────────────────────────────────────── -->
+    <section id="agents" class="agents">
+      <div class="container two">
+        <div>
+          <p class="eyebrow">Agent-native</p>
+          <h2>Hand the audit to your agent</h2>
+          <p class="muted">
+            crawlie ships an MCP server, so any MCP-compatible agent — Claude, Cursor, your
+            own — can crawl a site, read structured issues, and propose exact fixes. Wire it
+            up once:
+          </p>
+          <div class="cmd block">
+            <span class="prompt">$</span>
+            <code>claude mcp add crawlie crawlie-mcp</code>
+            <button data-copy="claude mcp add crawlie crawlie-mcp">copy</button>
+          </div>
+          <p class="muted small">
+            Or install the one-step <a href="/docs/skills-and-plugin">Claude Code plugin</a> —
+            it bundles the MCP server and ready-made audit skills.
+          </p>
+        </div>
+        <div class="term">
+          <div class="term-bar"><span></span><span></span><span></span> agent · crawlie-mcp</div>
+          <pre class="term-body"><span class="u">You</span> &gt; Audit crawlie.dev and give me the top fixes for AI search.
+
+<span class="t">crawlie</span> · crawl_site → 28 pages, Health 86, <span class="g">GEO 62</span>
+<span class="t">crawlie</span> · explain_issue → geo-no-structured-data
+
+<span class="b">Top fixes (GEO):</span>
+  <span class="a">1</span> Add Article + FAQ schema to /blog/*      <span class="r">12 pages</span>
+  <span class="a">2</span> Add an llms.txt at the root              <span class="y">site-wide</span>
+  <span class="a">3</span> Author bylines on guides (E-E-A-T)       <span class="r">7 pages</span>
+  <span class="a">4</span> Fix 2 redirect chains on /docs           <span class="y">2 pages</span></pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Two scores ─────────────────────────────────────────────────── -->
+    <section class="scores">
+      <div class="container">
+        <div class="section-head">
+          <p class="eyebrow">Two scores, one crawl</p>
+          <h2>Health for search engines. GEO for AI.</h2>
+        </div>
+        <div class="score-row">
+          <div class="score-card">
+            <div class="ring" style="--v:86; --c:var(--green)"><b>86</b><small>Health</small></div>
+            <div>
+              <h3>Health score</h3>
+              <p>Classic technical SEO: links, status codes, metadata, canonicals, robots,
+                 performance, security, mobile &amp; international signals.</p>
+            </div>
+          </div>
+          <div class="score-card">
+            <div class="ring" style="--v:62; --c:var(--blue)"><b>62</b><small>GEO</small></div>
+            <div>
+              <h3>GEO score</h3>
+              <p>How citable you are by AI search: structured data, semantic HTML,
+                 answer-ready blocks, dated content, authorship and E-E-A-T.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Compare ────────────────────────────────────────────────────── -->
+    <section id="compare">
+      <div class="container">
+        <div class="section-head">
+          <p class="eyebrow">How it compares</p>
+          <h2>Screaming Frog energy, none of the price tag</h2>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th></th><th class="us">crawlie</th><th>Screaming Frog</th><th>Sitebulb</th></tr>
+            </thead>
+            <tbody>
+              {compare.map((row) => (
+                <tr>
+                  <td class="label">{row[0]}</td>
+                  <td class="us" data-v={row[1]}>{cell(row[1])}</td>
+                  <td data-v={row[2]}>{cell(row[2])}</td>
+                  <td data-v={row[3]}>{cell(row[3])}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Final CTA ──────────────────────────────────────────────────── -->
+    <section class="cta">
+      <div class="container narrow center">
+        <h2>Audit your site in 30 seconds — free.</h2>
+        <p class="muted">One command. No account. No cloud. No catch.</p>
+        <div class="cmd block centered">
+          <span class="prompt">$</span>
+          <code>npx -y -p @spronta/crawlie crawlie crawl https://your-site.com</code>
+          <button data-copy="npx -y -p @spronta/crawlie crawlie crawl https://your-site.com">copy</button>
+        </div>
+        <div class="hero-actions center-actions">
+          <a href="/docs/getting-started" class="btn btn-primary">Get started →</a>
+          <a href={GITHUB} class="btn btn-ghost" target="_blank" rel="noopener">★ Star on GitHub</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <SiteFooter />
+</BaseLayout>
+
+<style>
+  .narrow { max-width: 760px; }
+  .center { text-align: center; margin-inline: auto; }
+  .muted { color: var(--muted); }
+  .small { font-size: 14px; }
+
+  /* hero */
+  .hero {
+    padding: 96px 0 64px;
+    background:
+      radial-gradient(900px 420px at 50% -120px, rgba(59,158,255,0.13), transparent 70%),
+      var(--bg);
+    text-align: center;
+  }
+  .hero .badge { margin-bottom: 28px; }
+  .hero h1 {
+    font-size: clamp(38px, 6.2vw, 66px);
+    letter-spacing: -0.035em;
+    margin: 0 0 20px;
+  }
+  .grad {
+    background: linear-gradient(100deg, var(--blue), var(--green));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .lede {
+    max-width: 600px;
+    margin: 0 auto 30px;
+    font-size: clamp(17px, 2.2vw, 20px);
+    color: var(--muted);
+  }
+  .lede em { color: var(--text); font-style: normal; }
+  .hero-cmd { margin: 0 auto; }
+  .hero-actions {
+    display: flex; gap: 12px; justify-content: center;
+    margin-top: 26px; flex-wrap: wrap;
+  }
+  .trust {
+    margin-top: 34px;
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    color: var(--muted-2);
+    letter-spacing: 0.02em;
+  }
+
+  /* problem */
+  .problem { padding-top: 24px; }
+  .problem h2 { font-size: clamp(24px, 3.2vw, 32px); margin-bottom: 16px; }
+  .problem p { color: var(--muted); font-size: 17px; margin: 0; }
+
+  /* features grid */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius);
+    padding: 24px 22px;
+    transition: border-color 0.15s ease, transform 0.15s ease;
+  }
+  .card:hover { border-color: var(--border); transform: translateY(-2px); }
+  .card .tick {
+    display: block; width: 26px; height: 4px; border-radius: 99px;
+    background: var(--c); margin-bottom: 16px;
+  }
+  .card h3 { font-size: 17px; margin-bottom: 8px; }
+  .card p { color: var(--muted); font-size: 14.5px; margin: 0; }
+
+  /* agents */
+  .agents { background: var(--bg-soft); border-block: 1px solid var(--border-soft); }
+  .two { display: grid; grid-template-columns: 1fr 1.05fr; gap: 44px; align-items: center; }
+  .two h2 { font-size: clamp(26px, 3.4vw, 34px); }
+  .cmd.block { display: flex; margin-top: 18px; }
+  .cmd.block.centered { max-width: 620px; margin-inline: auto; }
+  .term {
+    background: #06080c;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: 0 30px 60px -30px rgba(0,0,0,0.7);
+  }
+  .term-bar {
+    display: flex; align-items: center; gap: 7px;
+    padding: 11px 14px;
+    border-bottom: 1px solid var(--border-soft);
+    font-family: var(--font-mono); font-size: 12px; color: var(--muted-2);
+  }
+  .term-bar span:nth-child(-n+3) {
+    width: 11px; height: 11px; border-radius: 50%; background: #2a323f;
+  }
+  .term-bar { padding-left: 14px; }
+  .term-body {
+    margin: 0; border: 0; background: transparent !important;
+    font-size: 13px; line-height: 1.85; padding: 18px;
+    color: #c2cad6;
+  }
+  .term-body .u { color: var(--muted); }
+  .term-body .t { color: var(--blue); }
+  .term-body .b { color: var(--text); font-weight: 600; }
+  .term-body .g { color: var(--green); }
+  .term-body .a { color: var(--blue); }
+  .term-body .r { color: var(--red); }
+  .term-body .y { color: var(--amber); }
+
+  /* scores */
+  .score-row { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .score-card {
+    display: flex; gap: 22px; align-items: center;
+    background: var(--panel); border: 1px solid var(--border-soft);
+    border-radius: var(--radius); padding: 24px;
+  }
+  .ring {
+    flex: none;
+    width: 96px; height: 96px; border-radius: 50%;
+    display: grid; place-content: center; text-align: center;
+    background:
+      radial-gradient(closest-side, var(--panel) 79%, transparent 80% 100%),
+      conic-gradient(var(--c) calc(var(--v) * 1%), var(--border) 0);
+  }
+  .ring b { font-size: 26px; font-family: var(--font-mono); }
+  .ring small { display: block; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+  .score-card h3 { font-size: 17px; margin-bottom: 6px; }
+  .score-card p { color: var(--muted); font-size: 14.5px; margin: 0; }
+
+  /* compare table */
+  .table-wrap { overflow-x: auto; border: 1px solid var(--border-soft); border-radius: var(--radius); }
+  table { width: 100%; border-collapse: collapse; font-size: 14.5px; min-width: 560px; }
+  th, td { padding: 13px 18px; text-align: center; border-bottom: 1px solid var(--border-soft); }
+  thead th { color: var(--muted); font-weight: 500; font-size: 13px; }
+  tbody tr:last-child td { border-bottom: 0; }
+  td.label, th:first-child { text-align: left; color: var(--text); font-weight: 500; }
+  .us { background: rgba(59,158,255,0.06); }
+  th.us { color: var(--blue); font-weight: 600; }
+  td.us { color: var(--text); font-weight: 560; }
+  /* color the yes/no glyphs */
+  td[data-v='yes']::before, td[data-v='every issue']::before { color: var(--green); }
+  td:not(.label) { color: var(--muted); }
+  td.us[data-v='yes'], td.us[data-v='every issue'] { color: var(--green); }
+
+  /* cta */
+  .cta {
+    background:
+      radial-gradient(700px 300px at 50% 120%, rgba(61,220,145,0.10), transparent 70%),
+      var(--bg-soft);
+    border-top: 1px solid var(--border-soft);
+  }
+  .cta h2 { font-size: clamp(28px, 4vw, 40px); }
+  .center-actions { margin-top: 24px; }
+
+  @media (max-width: 880px) {
+    .grid { grid-template-columns: 1fr 1fr; }
+    .two { grid-template-columns: 1fr; }
+    .score-row { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 560px) {
+    .grid { grid-template-columns: 1fr; }
+    .hero-cmd { width: 100%; }
+    .score-card { flex-direction: column; text-align: center; }
+  }
+</style>
