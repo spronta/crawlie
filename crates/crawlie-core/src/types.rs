@@ -170,9 +170,11 @@ pub struct Page {
     pub external_links: Vec<String>,
     pub inlinks: usize,
     /// Internal PageRank authority, 0–100 (the most-linked page = 100).
+    #[serde(default)]
     pub link_score: f32,
     /// Per-page SEO score, 0–100 (Yoast-style): 100 minus this page's own
     /// technical-SEO issues. 0 for non-200 pages.
+    #[serde(default)]
     pub seo_score: u8,
 
     // --- social / structured data ---
@@ -359,6 +361,7 @@ pub struct CrawlResult {
     /// URLs skipped because robots.txt disallowed them.
     pub robots_blocked: Vec<String>,
     /// Whether the site publishes an `/llms.txt` (AI-engine guidance file).
+    #[serde(default)]
     pub llms_txt_found: bool,
     /// Unix-ms timestamp the crawl started.
     pub started_at: u64,

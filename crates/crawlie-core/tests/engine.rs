@@ -251,6 +251,27 @@ fn top_fixes_rank_errors_first() {
 }
 
 #[test]
+fn old_reports_without_new_score_fields_still_deserialize() {
+    // A page JSON saved before link_score/seo_score existed must still load.
+    let json = r#"{
+        "url":"https://example.com/","finalUrl":"https://example.com/","status":200,
+        "redirectChain":[],"contentType":"text/html","responseTimeMs":100,"sizeBytes":1000,
+        "depth":0,"server":null,"contentEncoding":"gzip","cacheControl":null,"xRobotsTag":null,
+        "hsts":true,"title":"Home","metaDescription":null,"h1":["Home"],"h2Count":0,"h3Count":0,
+        "wordCount":300,"textRatio":0.4,"canonical":null,"metaRobots":null,"lang":"en",
+        "hasViewport":true,"indexable":true,"indexability":null,"canonicalized":false,
+        "imagesTotal":0,"imagesMissingAlt":0,"internalLinks":[],"externalLinks":[],"inlinks":1,
+        "ogTitle":null,"ogImage":null,"twitterCard":null,"schemaTypes":[],"hreflang":[],
+        "mixedContent":0,"geo":{"semanticHtml":false,"structuredData":false,"hasAuthor":false,
+        "hasDate":false,"faqSchema":false,"questionHeadings":0,"structuredBlocks":0,
+        "answerable":false,"score":0},"contentHash":null,"duplicateOf":null,"error":null
+    }"#;
+    let page: Page = serde_json::from_str(json).expect("old page JSON should deserialize");
+    assert_eq!(page.link_score, 0.0);
+    assert_eq!(page.seo_score, 0);
+}
+
+#[test]
 fn audit_is_quiet_on_a_clean_page() {
     let seed = Url::parse("https://example.com/").unwrap();
     let page = ok_page("https://example.com/clean");
