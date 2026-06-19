@@ -70,11 +70,14 @@ impl ReportStore {
             .unwrap_or_default()
     }
 
-    /// Load a full saved report by id.
+    /// Load a full saved report by id. Derived scores are recomputed from the
+    /// stored signals so reports saved before a scoring fix self-heal.
     pub fn load(&self, id: &str) -> Option<CrawlResult> {
-        fs::read(self.report_path(id))
+        let mut result: CrawlResult = fs::read(self.report_path(id))
             .ok()
-            .and_then(|b| serde_json::from_slice(&b).ok())
+            .and_then(|b| serde_json::from_slice(&b).ok())?;
+        crate::scoring::recompute(&mut result);
+        Some(result)
     }
 
     /// Delete a saved report by id.

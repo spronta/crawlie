@@ -1,7 +1,7 @@
 //! Scoring: a per-page GEO (Generative Engine Optimization) readiness score and
 //! an overall site health score. Both are 0–100 and intentionally explainable.
 
-use crate::types::{Category, GeoGaps, Issue, Page, Severity};
+use crate::types::{Category, CrawlResult, GeoGaps, Issue, Page, Severity};
 use std::collections::{HashMap, HashSet};
 use url::Url;
 
@@ -134,6 +134,24 @@ pub fn health_score(pages: &[Page], issues: &[Issue]) -> u8 {
     let per_page = weight / n;
     let penalty = (per_page * 12.0).min(100.0);
     (100.0 - penalty).round().clamp(0.0, 100.0) as u8
+}
+
+/// Recompute every derived score (per-page GEO/SEO/link scores and the site
+/// scores) from the stored signals and issues. Used when loading a saved report
+/// so older reports — whose scores predate a scoring fix — self-heal without a
+/// re-crawl. Cheap and idempotent.
+pub fn recompute(result: &mut CrawlResult) {
+    let link = link_scores(&result.pages);
+    for (i, p) in result.pages.iter_mut().enumerate() {
+        p.link_score = link.get(i).copied().unwrap_or(0.0);
+        p.geo.score = geo_score(p);
+    }
+    let seo = page_seo_scores(&result.pages, &result.issues);
+    for (i, p) in result.pages.iter_mut().enumerate() {
+        p.seo_score = seo.get(i).copied().unwrap_or(0);
+    }
+    result.summary.geo_score = site_geo_score(&result.pages);
+    result.summary.health_score = health_score(&result.pages, &result.issues);
 }
 
 /// Count how many indexable HTML pages lack each GEO signal, so agents get the

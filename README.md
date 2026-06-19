@@ -124,6 +124,20 @@ claude mcp add crawlie crawlie-mcp
 
 (Any MCP-compatible client works — Cursor, Cline, your own agent. It speaks JSON-RPC over stdio.)
 
+### One-step install: the Claude Code plugin
+
+The fastest path. The [`crawlie` plugin](.claude-plugin/plugin.json) bundles the MCP server **and** a set of skills (audit playbooks) in a single install — the MCP server auto-runs via `npx`, so you don't even pre-install the binary:
+
+```bash
+# add this repo as a marketplace, then install the plugin
+claude plugin marketplace add spronta/crawlie
+claude plugin install crawlie@spronta
+```
+
+### Skills (works with *any* agent, even without the MCP)
+
+The [`skills/`](skills/) folder holds standalone [Agent Skills](https://agentskills.io) that teach an agent how to run real audits — full-site SEO + GEO, broken-link fixes, pre-launch gates, and AI-search readiness. Each is **self-contained**: it needs neither this repo nor a pre-installed crawlie. Missing the binary? The skill runs it on demand via `npx -y -p @spronta/crawlie …` (the install *is* the run), and automatically uses the MCP tools when they're present. See [skills/README.md](skills/README.md).
+
 ### Tools exposed
 
 | Tool | Purpose |

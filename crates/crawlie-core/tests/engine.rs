@@ -221,6 +221,53 @@ fn page_seo_score_drops_with_issues() {
 }
 
 #[test]
+fn recompute_heals_stale_scores_from_signals() {
+    // A report saved with the old stuck-8 GEO score but intact signals should
+    // self-heal when reloaded (recompute).
+    let mut page = ok_page("https://example.com/rich"); // good geo signals
+    page.geo.score = 8;
+    page.seo_score = 0;
+    page.link_score = 0.0;
+    let mut result = CrawlResult {
+        config: CrawlConfig::new("https://example.com"),
+        pages: vec![page],
+        issues: vec![],
+        summary: Summary {
+            total_pages: 1,
+            errors: 0,
+            warnings: 0,
+            notices: 0,
+            good: 0,
+            health_score: 0,
+            geo_score: 8,
+            avg_response_ms: 0,
+            indexable_pages: 1,
+            duplicate_pages: 0,
+            by_status: Default::default(),
+            by_category: Default::default(),
+            by_depth: Default::default(),
+            duration_ms: 0,
+        },
+        robots_found: false,
+        sitemap_urls: 0,
+        robots_blocked: vec![],
+        llms_txt_found: false,
+        started_at: 0,
+    };
+    crawlie_core::scoring::recompute(&mut result);
+    assert!(
+        result.pages[0].geo.score > 8,
+        "page geo should heal, got {}",
+        result.pages[0].geo.score
+    );
+    assert!(
+        result.summary.geo_score > 8,
+        "site geo should heal, got {}",
+        result.summary.geo_score
+    );
+}
+
+#[test]
 fn geo_score_reads_real_signals_not_defaults() {
     // Regression: geo_score must reflect the page's actual GeoSignals.
     let p = ok_page("https://example.com/rich"); // has structured data, author, answerable…

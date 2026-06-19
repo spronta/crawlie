@@ -1,0 +1,20 @@
+{
+  "name": "crawlie",
+  "displayName": "crawlie — SEO & GEO crawler",
+  "description": "Run fast technical-SEO and AI-search (GEO) audits from your agent. Bundles the crawlie MCP server (auto-installed via npx) plus skills for full-site audits, broken-link fixes, pre-launch gates, and GEO readiness.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Spronta",
+    "url": "https://spronta.com"
+  },
+  "homepage": "https://github.com/spronta/crawlie",
+  "repository": "https://github.com/spronta/crawlie",
+  "license": "MIT",
+  "keywords": ["seo", "geo", "crawler", "audit", "broken-links", "ai-search", "mcp"],
+  "mcpServers": {
+    "crawlie": {
+      "command": "npx",
+      "args": ["-y", "-p", "@spronta/crawlie", "crawlie-mcp"]
+    }
+  }
+}
