@@ -5,7 +5,8 @@
   "private": true,
   "description": "Marketing site + docs for crawlie (crawlie.dev).",
   "scripts": {
-    "dev": "astro dev",
+    "dev": "node scripts/sync-changelog.mjs && astro dev",
+    "prebuild": "node scripts/sync-changelog.mjs",
     "build": "astro build",
     "preview": "astro preview"
   },

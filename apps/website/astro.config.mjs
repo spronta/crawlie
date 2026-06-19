@@ -7,6 +7,7 @@ export default defineConfig({
   integrations: [sitemap()],
   redirects: {
     '/docs': '/docs/getting-started',
+    '/changelog': '/docs/changelog',
   },
   markdown: {
     shikiConfig: {
