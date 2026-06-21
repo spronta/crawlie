@@ -251,6 +251,7 @@ fn recompute_heals_stale_scores_from_signals() {
         },
         robots_found: false,
         sitemap_urls: 0,
+        sitemap_found: false,
         robots_blocked: vec![],
         llms_txt_found: false,
         started_at: 0,

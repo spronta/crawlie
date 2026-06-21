@@ -128,6 +128,14 @@ entries! {
         "robots.txt is preventing crawlers from fetching this URL. Blocked pages can't be crawled, and if linked, may show up in results with no snippet.",
         "If the page should be crawled, remove or narrow the Disallow rule. Use noindex (not robots.txt) to keep a page out of the index.",
         "The page's content is invisible to search engines.";
+    "no-robots-txt" => "No robots.txt", Indexability, Notice,
+        "The site has no /robots.txt. Crawling still works without one, but you lose the ability to steer crawlers, exclude private or low-value paths, and — most usefully — to declare your sitemap location. Some servers also return a stray HTML page for the missing file, which can confuse crawlers.",
+        "Add a /robots.txt at the site root. A minimal file allowing everything and pointing at your sitemap is enough: \"User-agent: *\\nAllow: /\\nSitemap: https://example.com/sitemap.xml\".",
+        "No crawl control and search engines aren't told where your sitemap lives.";
+    "no-sitemap" => "No XML sitemap", Indexability, Warning,
+        "No XML sitemap was found — neither declared in robots.txt nor at the conventional /sitemap.xml. Sitemaps give search engines an explicit, complete list of your indexable URLs with last-modified hints, which speeds up discovery of new and deep pages that internal links alone may reach slowly.",
+        "Generate an XML sitemap listing your canonical, indexable URLs, publish it at /sitemap.xml, and reference it from robots.txt with a \"Sitemap:\" line. Most frameworks and CMSs can produce one automatically.",
+        "Slower and less reliable discovery and indexation, especially for new or deep pages.";
 
     // ---- Canonicals ----
     "canonical-missing" => "Missing Canonical", Canonical, Notice,

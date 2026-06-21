@@ -1,0 +1,7 @@
+# crawlie — https://crawlie.dev
+# Crawl everything; the API route is request-only, not content.
+User-agent: *
+Allow: /
+Disallow: /api/
+
+Sitemap: https://crawlie.dev/sitemap.xml

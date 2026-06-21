@@ -362,6 +362,9 @@ pub struct CrawlResult {
     pub robots_found: bool,
     /// Number of URLs discovered from sitemaps.
     pub sitemap_urls: usize,
+    /// An XML sitemap was found (declared in robots.txt or at `/sitemap.xml`).
+    #[serde(default)]
+    pub sitemap_found: bool,
     /// URLs skipped because robots.txt disallowed them.
     pub robots_blocked: Vec<String>,
     /// Whether the site publishes an `/llms.txt` (AI-engine guidance file).

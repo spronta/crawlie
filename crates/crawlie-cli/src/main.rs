@@ -753,7 +753,7 @@ fn render_json(r: &CrawlResult, min: Option<u8>) -> String {
     let issues = filtered(r, min);
     let value = serde_json::json!({
         "config": r.config, "pages": r.pages, "issues": issues, "summary": r.summary,
-        "robotsFound": r.robots_found, "sitemapUrls": r.sitemap_urls, "startedAt": r.started_at,
+        "robotsFound": r.robots_found, "sitemapUrls": r.sitemap_urls, "sitemapFound": r.sitemap_found, "startedAt": r.started_at,
     });
     serde_json::to_string_pretty(&value).unwrap_or_default()
 }
@@ -793,9 +793,17 @@ fn render_pretty(r: &CrawlResult, min: Option<u8>) -> String {
         s.errors, s.warnings, s.notices
     ));
     out.push_str(&format!(
-        "  robots.txt: {} · sitemap URLs: {} · llms.txt: {}\n",
+        "  robots.txt: {} · sitemap: {} · llms.txt: {}\n",
         if r.robots_found { "found" } else { "none" },
-        r.sitemap_urls,
+        if r.sitemap_found {
+            if r.sitemap_urls > 0 {
+                format!("{} URLs", r.sitemap_urls)
+            } else {
+                "found".to_string()
+            }
+        } else {
+            "none".to_string()
+        },
         if r.llms_txt_found { "found" } else { "none" }
     ));
     out.push('\n');

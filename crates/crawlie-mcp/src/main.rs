@@ -364,6 +364,7 @@ fn result_payload(
         "issuesByRule": group_issues(&result.issues, 15),
         "robotsFound": result.robots_found,
         "sitemapUrls": result.sitemap_urls,
+        "sitemapFound": result.sitemap_found,
         "llmsTxtFound": result.llms_txt_found,
         "pageCount": result.pages.len(),
     });

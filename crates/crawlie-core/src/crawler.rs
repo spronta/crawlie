@@ -190,7 +190,16 @@ where
     } else {
         Robots::default()
     };
-    let robots_found = robots.found;
+    // `robots.found` is only set when we actually fetched (respect_robots). When
+    // we didn't, do a cheap existence check so the audit signal is still accurate.
+    let robots_found = if config.respect_robots {
+        robots.found
+    } else {
+        match seed.join("/robots.txt") {
+            Ok(u) => check_status(&client, &u).await == 200,
+            Err(_) => false,
+        }
+    };
 
     // Detect /llms.txt — the emerging AI-engine guidance file.
     let llms_txt_found = match seed.join("/llms.txt") {
@@ -402,7 +411,39 @@ where
         }
     }
 
+    // A sitemap exists if we already discovered URLs from one, robots.txt
+    // declares one, or the conventional `/sitemap.xml` responds 200. The explicit
+    // check covers single-page/list audits where sitemap discovery never ran.
+    let sitemap_found = if sitemap_urls > 0 || !robots.sitemaps.is_empty() {
+        true
+    } else {
+        match seed.join("/sitemap.xml") {
+            Ok(u) => check_status(&client, &u).await == 200,
+            Err(_) => false,
+        }
+    };
+
     let mut issues = audit(&pages, &status_map, &robots_blocked, &seed);
+    if !robots_found {
+        issues.push(Issue {
+            rule: "no-robots-txt".into(),
+            title: "No robots.txt".into(),
+            category: Category::Indexability,
+            severity: Severity::Notice,
+            url: seed.to_string(),
+            detail: None,
+        });
+    }
+    if !sitemap_found {
+        issues.push(Issue {
+            rule: "no-sitemap".into(),
+            title: "No XML sitemap".into(),
+            category: Category::Indexability,
+            severity: Severity::Warning,
+            url: seed.to_string(),
+            detail: None,
+        });
+    }
     if !llms_txt_found {
         issues.push(Issue {
             rule: "geo-no-llms-txt".into(),
@@ -431,6 +472,7 @@ where
         summary,
         robots_found,
         sitemap_urls,
+        sitemap_found,
         robots_blocked,
         llms_txt_found,
         started_at,
