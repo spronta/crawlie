@@ -67,6 +67,23 @@ crawlie explain redirect-chain
 
 See the full list in [What it checks](/docs/checks).
 
+## slop, init & pack
+
+Run a deterministic content [rule pack](/docs/rules) over a site or local text, and manage
+installed packs.
+
+```bash
+crawlie slop https://example.com               # score with the resolved pack
+crawlie slop --file draft.md                   # score local text
+crawlie slop https://example.com --fail-on-score 8   # CI gate
+
+crawlie init                                   # scaffold .crawlie/ in the repo
+crawlie pack list                              # list packs and where they resolve from
+crawlie pack new brand                         # scaffold a new pack to edit
+```
+
+See [Rule packs](/docs/rules) for the `.crawlie` language, metrics, and examples.
+
 ## reports
 
 crawls saved with `--save` go to a local report store.
