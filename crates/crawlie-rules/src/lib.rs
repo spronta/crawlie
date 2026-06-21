@@ -37,7 +37,7 @@ pub mod text;
 
 pub use pack::{Ledger, RulePack};
 pub use parse::{load, ParseError};
-pub use resolve::{Origin, PackEntry, Resolved, ResolveError, Resolver};
+pub use resolve::{Origin, PackEntry, ResolveError, Resolved, Resolver};
 pub use rule::{Comparator, Hit, Metric, Rule, RuleKind};
 pub use slop::{default_pack, SLOP_DEFAULT_SRC};
 
@@ -92,7 +92,10 @@ mod tests {
             .find(|h| h.rule == "ai-cliches")
             .expect("the cliché rule should fire");
         assert!(!cliches.evidence.is_empty());
-        assert!(cliches.evidence.iter().any(|e| e.contains("fast-paced world")));
+        assert!(cliches
+            .evidence
+            .iter()
+            .any(|e| e.contains("fast-paced world")));
     }
 
     #[test]
@@ -109,8 +112,11 @@ mod tests {
 
     #[test]
     fn parse_errors_report_location() {
-        let err = load("bad", "phrase_rule(\"x\", weight = 1, phrases = [\n  \"oops\"")
-            .unwrap_err();
+        let err = load(
+            "bad",
+            "phrase_rule(\"x\", weight = 1, phrases = [\n  \"oops\"",
+        )
+        .unwrap_err();
         assert!(err.line >= 1);
         // serializable for agents
         let json = serde_json::to_string(&err).unwrap();

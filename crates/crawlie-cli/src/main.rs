@@ -350,7 +350,10 @@ fn run_init() -> ExitCode {
     }
     let dest = dir.join("slop-default.crawlie");
     if dest.exists() {
-        eprintln!("crawlie: {} already exists — leaving it untouched", dest.display());
+        eprintln!(
+            "crawlie: {} already exists — leaving it untouched",
+            dest.display()
+        );
     } else if let Err(e) = std::fs::write(&dest, SLOP_DEFAULT_SRC) {
         eprintln!("crawlie: {e}");
         return ExitCode::from(2);
@@ -546,8 +549,17 @@ async fn run_slop(a: SlopArgs) -> ExitCode {
         if quiet {
             return;
         }
-        if let crawlie_core::CrawlEvent::Progress { crawled, queued, current, .. } = evt {
-            eprint!("\r\x1b[2K  crawled {crawled} · queued {queued} · {}", truncate(&current, 56));
+        if let crawlie_core::CrawlEvent::Progress {
+            crawled,
+            queued,
+            current,
+            ..
+        } = evt
+        {
+            eprint!(
+                "\r\x1b[2K  crawled {crawled} · queued {queued} · {}",
+                truncate(&current, 56)
+            );
             let _ = std::io::stderr().flush();
         }
     };
@@ -568,7 +580,11 @@ async fn run_slop(a: SlopArgs) -> ExitCode {
         .iter()
         .filter_map(|p| p.text.as_ref().map(|t| (p.url.clone(), pack.evaluate(t))))
         .collect();
-    scored.sort_by(|a, b| b.1.score.partial_cmp(&a.1.score).unwrap_or(std::cmp::Ordering::Equal));
+    scored.sort_by(|a, b| {
+        b.1.score
+            .partial_cmp(&a.1.score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
 
     let scores: Vec<f64> = scored.iter().map(|(_, l)| l.score).collect();
 
@@ -588,7 +604,10 @@ async fn run_slop(a: SlopArgs) -> ExitCode {
             };
             println!(
                 "\nslop report · pack `{}` · {} pages · avg {:.1} · worst {:.1}",
-                scored.first().map(|(_, l)| l.pack.as_str()).unwrap_or("slop-default"),
+                scored
+                    .first()
+                    .map(|(_, l)| l.pack.as_str())
+                    .unwrap_or("slop-default"),
                 scored.len(),
                 avg,
                 scores.first().copied().unwrap_or(0.0),

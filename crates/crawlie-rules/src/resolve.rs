@@ -182,7 +182,8 @@ mod tests {
     use super::*;
 
     fn tmp(tag: &str) -> PathBuf {
-        let p = std::env::temp_dir().join(format!("crawlie-rules-test-{}-{tag}", std::process::id()));
+        let p =
+            std::env::temp_dir().join(format!("crawlie-rules-test-{}-{tag}", std::process::id()));
         let _ = std::fs::remove_dir_all(&p);
         std::fs::create_dir_all(&p).unwrap();
         p
@@ -190,7 +191,10 @@ mod tests {
 
     #[test]
     fn builtin_resolves_with_no_dirs() {
-        let r = Resolver { repo_dir: None, global_dir: None };
+        let r = Resolver {
+            repo_dir: None,
+            global_dir: None,
+        };
         let got = r.resolve("slop-default").unwrap();
         assert_eq!(got.origin, Origin::Builtin);
     }
@@ -209,7 +213,10 @@ mod tests {
             "phrase_rule(\"g\", weight = 1, phrases = [\"y\"])",
         )
         .unwrap();
-        let r = Resolver { repo_dir: Some(repo.clone()), global_dir: Some(global) };
+        let r = Resolver {
+            repo_dir: Some(repo.clone()),
+            global_dir: Some(global),
+        };
         let got = r.resolve("slop-default").unwrap();
         assert!(matches!(got.origin, Origin::Repo(_)));
         assert_eq!(got.pack.rules.len(), 1);
@@ -218,13 +225,19 @@ mod tests {
 
     #[test]
     fn unknown_name_errors() {
-        let r = Resolver { repo_dir: None, global_dir: None };
+        let r = Resolver {
+            repo_dir: None,
+            global_dir: None,
+        };
         assert!(matches!(r.resolve("nope"), Err(ResolveError::NotFound(_))));
     }
 
     #[test]
     fn available_lists_builtin() {
-        let r = Resolver { repo_dir: None, global_dir: None };
+        let r = Resolver {
+            repo_dir: None,
+            global_dir: None,
+        };
         let names: Vec<_> = r.available().into_iter().map(|e| e.name).collect();
         assert!(names.contains(&"slop-default".to_string()));
     }

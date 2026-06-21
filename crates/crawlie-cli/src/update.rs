@@ -27,7 +27,9 @@ fn cache_path() -> PathBuf {
     let home = std::env::var("HOME")
         .or_else(|_| std::env::var("USERPROFILE"))
         .unwrap_or_else(|_| ".".into());
-    PathBuf::from(home).join(".crawlie").join("update-check.json")
+    PathBuf::from(home)
+        .join(".crawlie")
+        .join("update-check.json")
 }
 
 fn now_secs() -> u64 {

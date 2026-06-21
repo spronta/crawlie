@@ -90,32 +90,56 @@ fn lex(src: &str) -> Result<Vec<Spanned>, ParseError> {
                 }
             }
             '(' => {
-                out.push(Spanned { tok: Tok::LParen, line, col });
+                out.push(Spanned {
+                    tok: Tok::LParen,
+                    line,
+                    col,
+                });
                 col += 1;
                 i += 1;
             }
             ')' => {
-                out.push(Spanned { tok: Tok::RParen, line, col });
+                out.push(Spanned {
+                    tok: Tok::RParen,
+                    line,
+                    col,
+                });
                 col += 1;
                 i += 1;
             }
             '[' => {
-                out.push(Spanned { tok: Tok::LBracket, line, col });
+                out.push(Spanned {
+                    tok: Tok::LBracket,
+                    line,
+                    col,
+                });
                 col += 1;
                 i += 1;
             }
             ']' => {
-                out.push(Spanned { tok: Tok::RBracket, line, col });
+                out.push(Spanned {
+                    tok: Tok::RBracket,
+                    line,
+                    col,
+                });
                 col += 1;
                 i += 1;
             }
             ',' => {
-                out.push(Spanned { tok: Tok::Comma, line, col });
+                out.push(Spanned {
+                    tok: Tok::Comma,
+                    line,
+                    col,
+                });
                 col += 1;
                 i += 1;
             }
             '=' => {
-                out.push(Spanned { tok: Tok::Eq, line, col });
+                out.push(Spanned {
+                    tok: Tok::Eq,
+                    line,
+                    col,
+                });
                 col += 1;
                 i += 1;
             }
@@ -159,9 +183,15 @@ fn lex(src: &str) -> Result<Vec<Spanned>, ParseError> {
                 if !closed {
                     return Err(err(start_line, start_col, "unterminated string".into()));
                 }
-                out.push(Spanned { tok: Tok::Str(s), line: start_line, col: start_col });
+                out.push(Spanned {
+                    tok: Tok::Str(s),
+                    line: start_line,
+                    col: start_col,
+                });
             }
-            c if c.is_ascii_digit() || (c == '-' && i + 1 < chars.len() && chars[i + 1].is_ascii_digit()) => {
+            c if c.is_ascii_digit()
+                || (c == '-' && i + 1 < chars.len() && chars[i + 1].is_ascii_digit()) =>
+            {
                 let start_col = col;
                 let mut num = String::new();
                 if c == '-' {
@@ -177,19 +207,25 @@ fn lex(src: &str) -> Result<Vec<Spanned>, ParseError> {
                 let val: f64 = num
                     .parse()
                     .map_err(|_| err(line, start_col, format!("invalid number `{num}`")))?;
-                out.push(Spanned { tok: Tok::Num(val), line, col: start_col });
+                out.push(Spanned {
+                    tok: Tok::Num(val),
+                    line,
+                    col: start_col,
+                });
             }
             c if c.is_alphabetic() || c == '_' => {
                 let start_col = col;
                 let mut id = String::new();
-                while i < chars.len()
-                    && (chars[i].is_alphanumeric() || chars[i] == '_')
-                {
+                while i < chars.len() && (chars[i].is_alphanumeric() || chars[i] == '_') {
                     id.push(chars[i]);
                     i += 1;
                     col += 1;
                 }
-                out.push(Spanned { tok: Tok::Ident(id), line, col: start_col });
+                out.push(Spanned {
+                    tok: Tok::Ident(id),
+                    line,
+                    col: start_col,
+                });
             }
             other => {
                 return Err(err(line, col, format!("unexpected character `{other}`")));
@@ -231,17 +267,17 @@ impl Parser {
         match self.toks.get(self.pos) {
             Some(s) => (s.line, s.col),
             // At EOF, point at the last token we saw (or the start of the file).
-            None => self
-                .toks
-                .last()
-                .map(|s| (s.line, s.col))
-                .unwrap_or((1, 1)),
+            None => self.toks.last().map(|s| (s.line, s.col)).unwrap_or((1, 1)),
         }
     }
 
     fn err(&self, message: impl Into<String>) -> ParseError {
         let (line, col) = self.loc();
-        ParseError { line, col, message: message.into() }
+        ParseError {
+            line,
+            col,
+            message: message.into(),
+        }
     }
 
     fn bump(&mut self) -> Option<Spanned> {
@@ -265,19 +301,36 @@ impl Parser {
     /// Parse a call: `IDENT ( args? )`. Assumes the next token is the IDENT.
     fn parse_call(&mut self) -> Result<Value, ParseError> {
         let name = match self.bump() {
-            Some(Spanned { tok: Tok::Ident(id), .. }) => id,
+            Some(Spanned {
+                tok: Tok::Ident(id),
+                ..
+            }) => id,
             _ => return Err(self.err("expected an identifier")),
         };
         self.expect(&Tok::LParen)?;
         let mut args = Vec::new();
-        if !matches!(self.peek(), Some(Spanned { tok: Tok::RParen, .. })) {
+        if !matches!(
+            self.peek(),
+            Some(Spanned {
+                tok: Tok::RParen,
+                ..
+            })
+        ) {
             loop {
                 args.push(self.parse_arg()?);
                 match self.peek() {
-                    Some(Spanned { tok: Tok::Comma, .. }) => {
+                    Some(Spanned {
+                        tok: Tok::Comma, ..
+                    }) => {
                         self.pos += 1;
                         // allow trailing comma
-                        if matches!(self.peek(), Some(Spanned { tok: Tok::RParen, .. })) {
+                        if matches!(
+                            self.peek(),
+                            Some(Spanned {
+                                tok: Tok::RParen,
+                                ..
+                            })
+                        ) {
                             break;
                         }
                     }
@@ -291,11 +344,21 @@ impl Parser {
 
     fn parse_arg(&mut self) -> Result<Arg, ParseError> {
         // keyword arg?  IDENT '=' value
-        if let Some(Spanned { tok: Tok::Ident(id), .. }) = self.peek().cloned() {
-            if matches!(self.toks.get(self.pos + 1), Some(Spanned { tok: Tok::Eq, .. })) {
+        if let Some(Spanned {
+            tok: Tok::Ident(id),
+            ..
+        }) = self.peek().cloned()
+        {
+            if matches!(
+                self.toks.get(self.pos + 1),
+                Some(Spanned { tok: Tok::Eq, .. })
+            ) {
                 self.pos += 2; // consume IDENT and '='
                 let value = self.parse_value()?;
-                return Ok(Arg { name: Some(id), value });
+                return Ok(Arg {
+                    name: Some(id),
+                    value,
+                });
             }
         }
         let value = self.parse_value()?;
@@ -304,16 +367,24 @@ impl Parser {
 
     fn parse_value(&mut self) -> Result<Value, ParseError> {
         match self.peek().cloned() {
-            Some(Spanned { tok: Tok::Str(s), .. }) => {
+            Some(Spanned {
+                tok: Tok::Str(s), ..
+            }) => {
                 self.pos += 1;
                 Ok(Value::Str(s))
             }
-            Some(Spanned { tok: Tok::Num(n), .. }) => {
+            Some(Spanned {
+                tok: Tok::Num(n), ..
+            }) => {
                 self.pos += 1;
                 Ok(Value::Num(n))
             }
-            Some(Spanned { tok: Tok::LBracket, .. }) => self.parse_list(),
-            Some(Spanned { tok: Tok::Ident(_), .. }) => self.parse_call(),
+            Some(Spanned {
+                tok: Tok::LBracket, ..
+            }) => self.parse_list(),
+            Some(Spanned {
+                tok: Tok::Ident(_), ..
+            }) => self.parse_call(),
             _ => Err(self.err("expected a string, number, list, or call")),
         }
     }
@@ -321,13 +392,27 @@ impl Parser {
     fn parse_list(&mut self) -> Result<Value, ParseError> {
         self.expect(&Tok::LBracket)?;
         let mut items = Vec::new();
-        if !matches!(self.peek(), Some(Spanned { tok: Tok::RBracket, .. })) {
+        if !matches!(
+            self.peek(),
+            Some(Spanned {
+                tok: Tok::RBracket,
+                ..
+            })
+        ) {
             loop {
                 items.push(self.parse_value()?);
                 match self.peek() {
-                    Some(Spanned { tok: Tok::Comma, .. }) => {
+                    Some(Spanned {
+                        tok: Tok::Comma, ..
+                    }) => {
                         self.pos += 1;
-                        if matches!(self.peek(), Some(Spanned { tok: Tok::RBracket, .. })) {
+                        if matches!(
+                            self.peek(),
+                            Some(Spanned {
+                                tok: Tok::RBracket,
+                                ..
+                            })
+                        ) {
                             break;
                         }
                     }
@@ -390,8 +475,7 @@ fn build_metric(v: &Value) -> Result<Metric, String> {
         "lexical_diversity" => Metric::LexicalDiversity,
         "adverb_density" => Metric::AdverbDensity,
         "ngram_repetition" => {
-            let n = arg(args, "n", Some(0))
-                .ok_or("ngram_repetition(n) needs an argument")?;
+            let n = arg(args, "n", Some(0)).ok_or("ngram_repetition(n) needs an argument")?;
             Metric::NgramRepetition(as_num(n)? as usize)
         }
         other => return Err(format!("unknown metric `{other}`")),
@@ -403,8 +487,12 @@ fn build_comparator(v: &Value) -> Result<Comparator, String> {
         return Err("expected a comparator like `below(15)`".into());
     };
     Ok(match name.as_str() {
-        "below" => Comparator::Below(as_num(arg(args, "x", Some(0)).ok_or("below(x) needs a value")?)?),
-        "above" => Comparator::Above(as_num(arg(args, "x", Some(0)).ok_or("above(x) needs a value")?)?),
+        "below" => Comparator::Below(as_num(
+            arg(args, "x", Some(0)).ok_or("below(x) needs a value")?,
+        )?),
+        "above" => Comparator::Above(as_num(
+            arg(args, "x", Some(0)).ok_or("above(x) needs a value")?,
+        )?),
         "between" => {
             let lo = as_num(arg(args, "lo", Some(0)).ok_or("between(lo, hi) needs two values")?)?;
             let hi = as_num(arg(args, "hi", Some(1)).ok_or("between(lo, hi) needs two values")?)?;
@@ -422,11 +510,14 @@ fn build_rule(name: &str, args: &[Arg]) -> Result<Rule, String> {
     };
     let kind = match name {
         "phrase_rule" => {
-            let phrases = as_str_list(arg(args, "phrases", None).ok_or("phrase_rule needs `phrases = [...]`")?)?;
+            let phrases = as_str_list(
+                arg(args, "phrases", None).ok_or("phrase_rule needs `phrases = [...]`")?,
+            )?;
             RuleKind::Phrase(phrases)
         }
         "regex_rule" => {
-            let pattern = as_str(arg(args, "pattern", None).ok_or("regex_rule needs `pattern = \"...\"`")?)?;
+            let pattern =
+                as_str(arg(args, "pattern", None).ok_or("regex_rule needs `pattern = \"...\"`")?)?;
             let re = regex::RegexBuilder::new(&pattern)
                 .case_insensitive(true)
                 .build()
@@ -434,13 +525,19 @@ fn build_rule(name: &str, args: &[Arg]) -> Result<Rule, String> {
             RuleKind::Regex(re)
         }
         "metric_rule" => {
-            let metric = build_metric(arg(args, "metric", None).ok_or("metric_rule needs `metric = ...`")?)?;
-            let when = build_comparator(arg(args, "when", None).ok_or("metric_rule needs `when = ...`")?)?;
+            let metric =
+                build_metric(arg(args, "metric", None).ok_or("metric_rule needs `metric = ...`")?)?;
+            let when =
+                build_comparator(arg(args, "when", None).ok_or("metric_rule needs `when = ...`")?)?;
             RuleKind::Metric { metric, when }
         }
         other => return Err(format!("unknown rule constructor `{other}`")),
     };
-    Ok(Rule { name: rule_name, weight, kind })
+    Ok(Rule {
+        name: rule_name,
+        weight,
+        kind,
+    })
 }
 
 /// Parse `.crawlie` source into a [`RulePack`]. `pack_name` labels the result
@@ -452,10 +549,13 @@ pub fn load(pack_name: impl Into<String>, src: &str) -> Result<RulePack, ParseEr
     while p.peek().is_some() {
         let (line, col) = p.loc();
         let Value::Call { name, args } = p.parse_call()? else {
-            return Err(ParseError { line, col, message: "expected a rule constructor".into() });
+            return Err(ParseError {
+                line,
+                col,
+                message: "expected a rule constructor".into(),
+            });
         };
-        let rule = build_rule(&name, &args)
-            .map_err(|message| ParseError { line, col, message })?;
+        let rule = build_rule(&name, &args).map_err(|message| ParseError { line, col, message })?;
         rules.push(rule);
     }
     Ok(RulePack::new(pack_name, rules))
