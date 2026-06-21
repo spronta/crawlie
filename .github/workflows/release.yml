@@ -137,9 +137,6 @@ jobs:
       - name: Build signed desktop app
         uses: tauri-apps/tauri-action@v0
         env:
-          # Required because tagName below makes tauri-action upload bundles +
-          # latest.json to the GitHub release.
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
@@ -153,17 +150,28 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
+          # Build only — produces the signed .dmg and the signed updater bundle
+          # (.app.tar.gz + .sig). The next step publishes them and writes
+          # latest.json; tauri-action's own publish can't target the draft
+          # release the create-release job makes.
           projectPath: apps/desktop
           args: --target universal-apple-darwin
-          # Publish bundles AND latest.json to this release so the in-app updater
-          # (endpoint: releases/latest/download/latest.json) can find them.
-          tagName: ${{ github.ref_name }}
-          includeUpdaterJson: true
       - name: Upload installer + publish release
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           base=apps/desktop/src-tauri/target/universal-apple-darwin/release/bundle
-          gh release upload "${GITHUB_REF_NAME}" "$base"/dmg/*.dmg --clobber
+          ver="${GITHUB_REF_NAME#v}"
+          tarball="$base/macos/crawlie.app.tar.gz"
+          sig=$(cat "$tarball.sig")
+          url="https://github.com/spronta/crawlie/releases/download/${GITHUB_REF_NAME}/crawlie.app.tar.gz"
+          # latest.json is what the in-app updater fetches (endpoint:
+          # releases/latest/download/latest.json). Universal build → both arches
+          # point at the same signed tarball. Built with jq to avoid quoting bugs.
+          jq -n --arg ver "$ver" --arg sig "$sig" --arg url "$url" \
+            --arg date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            '{version:$ver, pub_date:$date, platforms:{"darwin-aarch64":{signature:$sig,url:$url},"darwin-x86_64":{signature:$sig,url:$url}}}' \
+            > latest.json
+          gh release upload "${GITHUB_REF_NAME}" "$base"/dmg/*.dmg "$tarball" latest.json --clobber
           gh release edit "${GITHUB_REF_NAME}" --draft=false --latest
