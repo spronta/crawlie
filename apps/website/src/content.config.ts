@@ -13,4 +13,16 @@ const docs = defineCollection({
   }),
 });
 
-export const collections = { docs };
+const changelog = defineCollection({
+  loader: glob({ pattern: '*.md', base: './src/content/changelog' }),
+  schema: z.object({
+    // Release version, e.g. "0.2.0" — also the URL slug (/changelog/0.2.0).
+    version: z.string(),
+    // Release date (newest sorts first).
+    date: z.coerce.date(),
+    title: z.string(),
+    description: z.string(),
+  }),
+});
+
+export const collections = { docs, changelog };

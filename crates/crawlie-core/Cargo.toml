@@ -10,6 +10,8 @@ repository.workspace = true
 [dependencies]
 tokio = { workspace = true }
 reqwest = { workspace = true }
+flate2 = { workspace = true }
+brotli = { workspace = true }
 scraper = { workspace = true }
 url = { workspace = true }
 serde = { workspace = true }

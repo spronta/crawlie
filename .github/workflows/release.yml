@@ -143,9 +143,19 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # Updater signing — set these repo secrets from `pnpm tauri signer generate`.
+          # The matching public key must be in apps/desktop/src-tauri/tauri.conf.json
+          # (plugins.updater.pubkey). With these present, tauri-action emits the
+          # signed update bundle (.app.tar.gz + .sig) and a latest.json manifest.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           projectPath: apps/desktop
           args: --target universal-apple-darwin
+          # Publish bundles AND latest.json to this release so the in-app updater
+          # (endpoint: releases/latest/download/latest.json) can find them.
+          tagName: ${{ github.ref_name }}
+          includeUpdaterJson: true
       - name: Upload installer + publish release
         shell: bash
         env:

@@ -1,0 +1,77 @@
+# slop-default.crawlie — crawlie's built-in AI-slop detector.
+#
+# Deterministic, editable, agent-writable. Copy this file, tune the weights and
+# thresholds to your own voice, and run it on a laptop, in CI, or in a Worker —
+# the result is byte-identical everywhere. A clean marketing page scores ~0–2;
+# slop piles up fast past ~6.
+#
+# Calibrate with:  crawlie slop baseline --pack slop-default.crawlie --url <site>
+
+# ---- Phrase rules: the AI-cliché dictionary --------------------------------
+phrase_rule("ai-cliches", weight = 3, phrases = [
+    "in today's fast-paced world",
+    "in today's digital age",
+    "in the ever-evolving",
+    "unlock the power of",
+    "unlock the potential",
+    "elevate your",
+    "take your", "to the next level",
+    "look no further",
+    "when it comes to",
+    "it's important to note",
+    "it's worth noting",
+    "at the end of the day",
+    "navigate the landscape",
+    "navigate the complexities",
+    "a testament to",
+    "in conclusion",
+    "the world of",
+    "dive into", "delve into",
+    "embark on a journey",
+    "game changer", "game-changer",
+    "best-in-class",
+    "cutting-edge",
+    "seamless integration",
+    "robust solution",
+    "in this article, we will",
+    "whether you're",
+])
+
+# Buzzword soup that signals zero-information marketing filler.
+phrase_rule("empty-buzzwords", weight = 2, phrases = [
+    "synergy", "leverage", "paradigm", "holistic", "turnkey",
+    "frictionless", "bleeding-edge", "world-class", "revolutionary",
+    "disruptive", "next-generation", "mission-critical", "hyper-scale",
+])
+
+# ---- Regex rules: structural tells -----------------------------------------
+# The LLM "rule of three": "fast, reliable, and scalable".
+regex_rule("rule-of-three", weight = 2, pattern = "\\w+, \\w+,? and \\w+")
+
+# "Not only ... but also" / "Whether you ... or" scaffolding.
+regex_rule("not-only-but-also", weight = 2, pattern = "not only .* but also")
+
+# ---- Metric rules: deterministic statistics + thresholds -------------------
+# Uniform sentence length = robotic prose (humans are bursty).
+metric_rule("low-burstiness", weight = 3,
+    metric = sentence_variance(), when = below(12))
+
+# Em-dash over-use — a notorious LLM fingerprint.
+metric_rule("em-dash-spam", weight = 2,
+    metric = em_dash_density(), when = above(0.012))
+
+# Too many low-information filler words.
+metric_rule("filler-heavy", weight = 2,
+    metric = filler_ratio(), when = above(0.04))
+
+# Front-loaded connectives ("Moreover, ... Furthermore, ...").
+metric_rule("transition-heavy", weight = 2,
+    metric = transition_ratio(), when = above(0.03))
+
+# Repetitive, padded vocabulary.
+metric_rule("low-lexical-diversity", weight = 2,
+    metric = lexical_diversity(), when = below(0.38))
+
+# Repeated 3-word phrases — templated / spun copy.
+metric_rule("repeated-phrasing", weight = 2,
+    metric = ngram_repetition(3), when = above(0.06))

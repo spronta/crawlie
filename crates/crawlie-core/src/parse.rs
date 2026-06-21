@@ -22,6 +22,7 @@ pub struct Parsed {
     pub has_viewport: bool,
     pub word_count: usize,
     pub text_ratio: f32,
+    pub text: Option<String>,
     pub images_total: usize,
     pub images_missing_alt: usize,
     pub internal_links: Vec<String>,
@@ -277,6 +278,12 @@ pub fn parse_html(body: &str, final_url: &Url, host: &str) -> Parsed {
         score: 0, // filled by scoring::geo_score
     };
 
+    let text = if normalized.is_empty() {
+        None
+    } else {
+        Some(normalized.clone())
+    };
+
     Parsed {
         title,
         meta_description,
@@ -289,6 +296,7 @@ pub fn parse_html(body: &str, final_url: &Url, host: &str) -> Parsed {
         has_viewport,
         word_count,
         text_ratio,
+        text,
         images_total,
         images_missing_alt,
         internal_links,

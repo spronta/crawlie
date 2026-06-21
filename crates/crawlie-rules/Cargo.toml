@@ -1,0 +1,13 @@
+[package]
+name = "crawlie-rules"
+description = "Deterministic, editable, agent-writable content rule packs (slop, brand, tone) for crawlie. Pure Rust, no async, no I/O — the same .crawlie pack runs identically on a laptop, in CI, and in a Cloudflare Worker (wasm32)."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+regex = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }

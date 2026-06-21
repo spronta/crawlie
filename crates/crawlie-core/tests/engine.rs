@@ -99,6 +99,7 @@ fn ok_page(url: &str) -> Page {
         h3_count: 1,
         word_count: 500,
         text_ratio: 0.4,
+        text: None,
         canonical: Some(url.into()),
         meta_robots: None,
         lang: Some("en".into()),

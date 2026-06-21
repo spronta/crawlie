@@ -1,8 +1,13 @@
 import { useEffect, useState } from "react";
-import { isTauri } from "../lib/api";
-import { IconExternal, IconX } from "./ui";
-
-const REPO = "spronta/crawlie";
+import {
+  appVersion,
+  checkForUpdate,
+  getSettings,
+  latestGithubRelease,
+  relaunchApp,
+  type UpdateInfo,
+} from "../lib/api";
+import { IconExternal, IconX, IconRefresh } from "./ui";
 
 function newer(latest: string, current: string): boolean {
   const a = latest.split(".").map((n) => parseInt(n, 10) || 0);
@@ -14,49 +19,142 @@ function newer(latest: string, current: string): boolean {
   return false;
 }
 
-/** Checks GitHub for a newer release on launch and shows a dismissible banner.
- *  Local-first: a single unauthenticated version check, no backend, no account. */
+type State =
+  | { kind: "hidden" }
+  | { kind: "available"; update: UpdateInfo }
+  | { kind: "installing"; version: string; pct: number }
+  | { kind: "ready"; version: string }
+  | { kind: "link"; version: string; url: string }
+  | { kind: "error"; message: string };
+
+/** New-version prompt with in-app install. Respects user settings: honors
+ *  "check on launch", and auto-installs when "auto-update" is on. Falls back to
+ *  a download link if the updater plugin isn't configured. */
 export function UpdateBanner() {
-  const [info, setInfo] = useState<{ version: string; url: string } | null>(null);
+  const [state, setState] = useState<State>({ kind: "hidden" });
   const [dismissed, setDismissed] = useState(false);
 
+  async function install(update: UpdateInfo) {
+    setState({ kind: "installing", version: update.version, pct: 0 });
+    try {
+      await update.install((pct) =>
+        setState({ kind: "installing", version: update.version, pct })
+      );
+      setState({ kind: "ready", version: update.version });
+    } catch (e) {
+      setState({ kind: "error", message: String(e) });
+    }
+  }
+
   useEffect(() => {
-    if (!isTauri()) return;
     let cancelled = false;
     (async () => {
       try {
-        const { getVersion } = await import("@tauri-apps/api/app");
-        const current = await getVersion();
-        const res = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
-          headers: { Accept: "application/vnd.github+json" },
-        });
-        if (!res.ok) return;
-        const data = await res.json();
-        const latest = String(data.tag_name || "").replace(/^v/, "");
-        if (!cancelled && latest && newer(latest, current)) {
-          setInfo({ version: latest, url: data.html_url });
+        const settings = await getSettings();
+        if (!settings.checkOnLaunch) return;
+
+        const update = await checkForUpdate();
+        if (cancelled) return;
+
+        if (update) {
+          if (settings.autoUpdate) {
+            void install(update);
+          } else {
+            setState({ kind: "available", update });
+          }
+          return;
+        }
+
+        // Updater not configured / no update — try a plain GitHub lookup.
+        const current = await appVersion();
+        const rel = await latestGithubRelease();
+        if (!cancelled && rel && newer(rel.version, current)) {
+          setState({ kind: "link", version: rel.version, url: rel.url });
         }
       } catch {
-        // offline or rate-limited — silently skip
+        // offline or rate-limited — stay silent
       }
     })();
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (!info || dismissed) return null;
+  if (state.kind === "hidden" || dismissed) return null;
+
+  const close = (
+    <button
+      className="icon-btn"
+      style={{ width: 28, height: 28 }}
+      aria-label="Dismiss"
+      onClick={() => setDismissed(true)}
+    >
+      <IconX size={14} />
+    </button>
+  );
+
   return (
     <div className="update-banner">
-      <span className="grow">
-        <strong style={{ fontWeight: 500 }}>crawlie v{info.version}</strong> is available.
-      </span>
-      <a className="btn btn-sm btn-secondary" href={info.url} target="_blank" rel="noreferrer">
-        Download <IconExternal size={13} />
-      </a>
-      <button className="icon-btn" style={{ width: 28, height: 28 }} aria-label="Dismiss" onClick={() => setDismissed(true)}>
-        <IconX size={14} />
-      </button>
+      {state.kind === "available" && (
+        <>
+          <span className="grow">
+            <strong style={{ fontWeight: 500 }}>crawlie v{state.update.version}</strong> is
+            available.
+          </span>
+          <button className="btn btn-sm btn-primary" onClick={() => install(state.update)}>
+            Install &amp; Restart
+          </button>
+          {close}
+        </>
+      )}
+
+      {state.kind === "installing" && (
+        <>
+          <span className="grow">
+            Downloading v{state.version}… <strong style={{ fontWeight: 500 }}>{state.pct}%</strong>
+          </span>
+          <div className="update-progress" aria-hidden>
+            <div className="update-progress-bar" style={{ width: `${state.pct}%` }} />
+          </div>
+        </>
+      )}
+
+      {state.kind === "ready" && (
+        <>
+          <span className="grow">v{state.version} installed. Restart to finish.</span>
+          <button className="btn btn-sm btn-primary" onClick={() => void relaunchApp()}>
+            <IconRefresh size={13} /> Restart now
+          </button>
+          {close}
+        </>
+      )}
+
+      {state.kind === "link" && (
+        <>
+          <span className="grow">
+            <strong style={{ fontWeight: 500 }}>crawlie v{state.version}</strong> is available.
+          </span>
+          <a
+            className="btn btn-sm btn-secondary"
+            href={state.url}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Download <IconExternal size={13} />
+          </a>
+          {close}
+        </>
+      )}
+
+      {state.kind === "error" && (
+        <>
+          <span className="grow" style={{ color: "var(--red-text)" }}>
+            Update failed: {state.message}
+          </span>
+          {close}
+        </>
+      )}
     </div>
   );
 }

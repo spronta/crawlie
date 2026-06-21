@@ -22,7 +22,7 @@ Crawl any site for broken links, redirects, missing metadata, and 40+ SEO & Gene
   <a href="#architecture">Architecture</a>
 </p>
 
-*by [Spronta](https://crawlie.dev)*
+*[Read the docs → crawlie.dev](https://crawlie.dev/docs)*
 
 </div>
 
@@ -53,7 +53,7 @@ cargo install --path crates/crawlie-cli      # installs `crawlie`
 cargo install --path crates/crawlie-mcp      # installs `crawlie-mcp`
 ```
 
-> **How it ships:** the **CLI + MCP** come *only* through npm — the right native binary installs automatically as a platform package (nothing to download or unblock). The **desktop app** is the only direct download: a Spronta-signed, notarized `.dmg` on [Releases](https://github.com/spronta/crawlie/releases).
+> **How it ships:** the **CLI + MCP** come *only* through npm — the right native binary installs automatically as a platform package (nothing to download or unblock). The **desktop app** is the only direct download: a signed, notarized `.dmg` on [Releases](https://github.com/spronta/crawlie/releases).
 
 ---
 
@@ -151,7 +151,7 @@ The [`skills/`](skills/) folder holds standalone [Agent Skills](https://agentski
 
 ### Example agent prompts
 
-> *"Crawl spronta.com, then give me the top 5 fixes that would most improve my GEO score, with the exact change for each."*
+> *"Crawl crawlie.dev, then give me the top 5 fixes that would most improve my GEO score, with the exact change for each."*
 
 > *"Audit these three landing pages and tell me which is least ready to be cited by AI search, and why."*
 
@@ -174,7 +174,7 @@ The agent calls `crawl_site`, reads the structured issues, and uses `explain_iss
 
 ## Why I built this
 
-I'm **Sean Ryan**. I've spent 6+ years as a Lead Marketing Engineer, and on the side I'm building **[Spronta](https://crawlie.dev)** — AI for marketers.
+I'm **Sean Ryan**. I've spent 6+ years as a Lead Marketing Engineer, and on the side I build AI tooling for marketers.
 
 With AI, it's faster than ever to ship a marketing site — but most of what gets generated is slop that was never built to be found. And the tools meant to catch that fall short: most SEO auditors cost money, don't play nicely with your agents, or tell you *what's* wrong without telling you *how to actually rank* for SEO **and** GEO (Generative Engine Optimization — being cited by AI search like ChatGPT, Perplexity, and Google AI Overviews).
 
@@ -258,8 +258,8 @@ apps/
 
 ## License & author
 
-MIT © **Sean Ryan** / [Spronta Ltd](https://crawlie.dev).
+MIT © **[Spronta Ltd](https://crawlie.dev)**.
 
-Built by Sean Ryan — Lead Marketing Engineer at Pendo.io, building AI for marketers at Spronta on the side. **[Connect on LinkedIn →](https://linkedin.com/in/sean-exe)**
+Built by Sean Ryan — Lead Marketing Engineer at Pendo.io, building AI for marketers on the side. **[Connect on LinkedIn →](https://linkedin.com/in/sean-exe)**
 
 If crawlie saves you time, a ⭐ on the repo and a hello on LinkedIn mean a lot.

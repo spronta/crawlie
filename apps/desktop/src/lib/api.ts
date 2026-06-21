@@ -71,6 +71,104 @@ const DEMO_REPORTS: ReportMeta[] = [
   },
 ];
 
+// ===== Settings =====
+
+export type Settings = { checkOnLaunch: boolean; autoUpdate: boolean };
+const DEFAULT_SETTINGS: Settings = { checkOnLaunch: true, autoUpdate: false };
+const SETTINGS_KEY = "crawlie:settings";
+
+export async function getSettings(): Promise<Settings> {
+  if (isTauri()) return invoke<Settings>("get_settings");
+  try {
+    return { ...DEFAULT_SETTINGS, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}") };
+  } catch {
+    return DEFAULT_SETTINGS;
+  }
+}
+
+export async function saveSettings(s: Settings): Promise<void> {
+  if (isTauri()) {
+    await invoke("set_settings", { settings: s });
+    return;
+  }
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
+}
+
+// ===== Updates =====
+
+/** The current app version (Tauri build version, or "dev" in the browser). */
+export async function appVersion(): Promise<string> {
+  if (!isTauri()) return "dev";
+  try {
+    const { getVersion } = await import("@tauri-apps/api/app");
+    return await getVersion();
+  } catch {
+    return "dev";
+  }
+}
+
+export type UpdateInfo = {
+  version: string;
+  notes?: string;
+  /** Download + install the update, reporting 0–100% progress. */
+  install: (onProgress?: (pct: number) => void) => Promise<void>;
+};
+
+/** Check for an update via the Tauri updater plugin. Returns null when no update
+ *  is available, when not in Tauri, or when the updater isn't configured yet
+ *  (e.g. dev builds with no signing key) — callers can fall back to a link. */
+export async function checkForUpdate(): Promise<UpdateInfo | null> {
+  if (!isTauri()) return null;
+  try {
+    const { check } = await import("@tauri-apps/plugin-updater");
+    const update = await check();
+    if (!update) return null;
+    return {
+      version: update.version,
+      notes: update.body ?? undefined,
+      install: async (onProgress) => {
+        let total = 0;
+        let got = 0;
+        await update.downloadAndInstall((ev) => {
+          if (ev.event === "Started") {
+            total = ev.data.contentLength ?? 0;
+          } else if (ev.event === "Progress") {
+            got += ev.data.chunkLength;
+            if (total && onProgress) onProgress(Math.min(100, Math.round((got / total) * 100)));
+          } else if (ev.event === "Finished") {
+            onProgress?.(100);
+          }
+        });
+      },
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Relaunch the app to finish applying an installed update. */
+export async function relaunchApp(): Promise<void> {
+  if (!isTauri()) return;
+  const { relaunch } = await import("@tauri-apps/plugin-process");
+  await relaunch();
+}
+
+/** Fallback used when the updater plugin isn't configured: a plain GitHub
+ *  release lookup so users still get a download link. */
+export async function latestGithubRelease(): Promise<{ version: string; url: string } | null> {
+  try {
+    const res = await fetch("https://api.github.com/repos/spronta/crawlie/releases/latest", {
+      headers: { Accept: "application/vnd.github+json" },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const version = String(data.tag_name || "").replace(/^v/, "");
+    return version ? { version, url: data.html_url } : null;
+  } catch {
+    return null;
+  }
+}
+
 // ----- Browser demo (no backend) -----
 async function runDemo(config: CrawlConfig, onEvent: (e: CrawlEvent) => void): Promise<CrawlResult> {
   const result: CrawlResult = {

@@ -26,6 +26,40 @@ export const IconGlobe = ({ size }: IconProps) => I("M12 2a10 10 0 1 0 0 20 10 1
 export const IconSpark = ({ size }: IconProps) => I("M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 15l.9 2.4L22 18l-2.1.6L19 21l-.9-2.4L16 18l2.1-.6z", size);
 export const IconBack = ({ size }: IconProps) => I("M19 12H5M12 19l-7-7 7-7", size);
 export const IconShare = ({ size }: IconProps) => I("M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v13", size);
+export const IconSettings = ({ size }: IconProps) =>
+  I("M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6", size);
+
+/* ---------- Toggle switch ---------- */
+export function Toggle({
+  on,
+  onChange,
+  label,
+  hint,
+}: {
+  on: boolean;
+  onChange: (v: boolean) => void;
+  label: string;
+  hint?: string;
+}) {
+  return (
+    <div className="toggle-row">
+      <span className="toggle-text">
+        <span className="toggle-label">{label}</span>
+        {hint && <span className="toggle-hint">{hint}</span>}
+      </span>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={on}
+        aria-label={label}
+        className={`switch${on ? " on" : ""}`}
+        onClick={() => onChange(!on)}
+      >
+        <span className="knob" />
+      </button>
+    </div>
+  );
+}
 
 /** A circular score gauge (0–100) coloured by band. */
 export function ScoreRing({ value, size = 116, stroke = 10, caption }: { value: number; size?: number; stroke?: number; caption?: string }) {
@@ -61,9 +95,19 @@ export function Logo() {
   return (
     <div className="logo">
       <span className="mark">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="11" cy="11" r="7" />
-          <path d="m20 20-3.5-3.5" />
+        {/* crawl-graph brand mark — matches the site favicon + app icon */}
+        <svg width="26" height="26" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+          <g stroke="#3b9eff" strokeWidth="2" strokeLinecap="round">
+            <path d="M16 16 L8 8" />
+            <path d="M16 16 L24 9" />
+            <path d="M16 16 L9 24" />
+            <path d="M16 16 L24 23" />
+          </g>
+          <circle cx="16" cy="16" r="3.6" fill="#3b9eff" />
+          <circle cx="8" cy="8" r="2.4" fill="#3ddc91" />
+          <circle cx="24" cy="9" r="2.4" fill="#f5b544" />
+          <circle cx="9" cy="24" r="2.4" fill="#f5f7fb" />
+          <circle cx="24" cy="23" r="2.4" fill="#ff6166" />
         </svg>
       </span>
       <span>crawlie</span>

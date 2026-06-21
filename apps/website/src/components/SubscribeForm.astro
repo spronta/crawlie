@@ -1,0 +1,89 @@
+---
+// Email subscribe form. Posts JSON to the /api/subscribe serverless function,
+// which adds the contact to a Resend audience. Enhanced inline; shows feedback.
+---
+<form class="subscribe" id="subscribe-form">
+  <input
+    type="email"
+    name="email"
+    required
+    placeholder="you@example.com"
+    aria-label="Email address"
+    autocomplete="email"
+  />
+  <button type="submit" class="btn btn-primary">Subscribe</button>
+  <p class="subscribe-msg" data-msg role="status" aria-live="polite"></p>
+</form>
+
+<script is:inline>
+  (() => {
+    const form = document.getElementById('subscribe-form');
+    if (!form) return;
+    const msg = form.querySelector('[data-msg]');
+    const btn = form.querySelector('button');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = new FormData(form).get('email');
+      btn.disabled = true;
+      msg.textContent = '';
+      delete msg.dataset.ok;
+      try {
+        const res = await fetch('/api/subscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok) {
+          form.reset();
+          msg.dataset.ok = 'true';
+          msg.textContent = "You're subscribed — we'll email you when crawlie ships.";
+        } else {
+          msg.dataset.ok = 'false';
+          msg.textContent = data.error || 'Something went wrong. Please try again.';
+        }
+      } catch {
+        msg.dataset.ok = 'false';
+        msg.textContent = 'Network error. Please try again.';
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  })();
+</script>
+
+<style>
+  .subscribe {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .subscribe input {
+    flex: 1;
+    min-width: 220px;
+    padding: 10px 13px;
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-sm);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14.5px;
+  }
+  .subscribe input:focus {
+    outline: none;
+    border-color: var(--blue);
+  }
+  .subscribe-msg {
+    width: 100%;
+    margin: 4px 0 0;
+    font-size: 13.5px;
+    color: var(--muted);
+    min-height: 1em;
+  }
+  .subscribe-msg[data-ok='true'] {
+    color: var(--green);
+  }
+  .subscribe-msg[data-ok='false'] {
+    color: var(--red);
+  }
+</style>

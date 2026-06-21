@@ -2,12 +2,13 @@
 resolver = "2"
 members = [
     "crates/crawlie-core",
+    "crates/crawlie-rules",
     "crates/crawlie-cli",
     "crates/crawlie-mcp",
 ]
 
 [workspace.package]
-version = "0.2.1"
+version = "0.3.0"
 edition = "2021"
 license = "MIT"
 authors = ["Spronta <hello@spronta.com>"]
@@ -15,8 +16,12 @@ repository = "https://github.com/spronta/crawlie"
 
 [workspace.dependencies]
 crawlie-core = { path = "crates/crawlie-core" }
+crawlie-rules = { path = "crates/crawlie-rules" }
+regex = "1"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time", "io-std", "io-util"] }
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "gzip", "brotli"] }
+flate2 = "1"
+brotli = "8"
 scraper = "0.21"
 url = "2"
 serde = { version = "1", features = ["derive"] }

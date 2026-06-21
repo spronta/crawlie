@@ -1,11 +1,12 @@
 import { useCallback, useState } from "react";
 import type { CrawlConfig, CrawlResult } from "./lib/types";
 import { cancelCrawl, startCrawl } from "./lib/api";
-import { Logo, ThemeToggle, IconExternal, IconHistory } from "./components/ui";
+import { Logo, ThemeToggle, IconExternal, IconHistory, IconSettings } from "./components/ui";
 import { StartView } from "./views/StartView";
 import { CrawlingView, type Progress } from "./views/CrawlingView";
 import { ResultsView } from "./views/ResultsView";
 import { ReportsView } from "./views/ReportsView";
+import { SettingsView } from "./views/SettingsView";
 import { UpdateBanner } from "./components/UpdateBanner";
 
 type Phase =
@@ -13,6 +14,7 @@ type Phase =
   | { name: "crawling"; config: CrawlConfig; progress: Progress }
   | { name: "done"; result: CrawlResult }
   | { name: "reports" }
+  | { name: "settings" }
   | { name: "error"; message: string };
 
 export function App() {
@@ -52,6 +54,9 @@ export function App() {
         <a className="btn btn-ghost btn-sm" href="https://github.com/spronta/crawlie" target="_blank" rel="noreferrer">
           GitHub <IconExternal size={14} />
         </a>
+        <button className="icon-btn" aria-label="Settings" onClick={() => setPhase({ name: "settings" })}>
+          <IconSettings size={16} />
+        </button>
         <ThemeToggle />
       </header>
 
@@ -62,6 +67,7 @@ export function App() {
         {phase.name === "crawling" && <CrawlingView config={phase.config} progress={phase.progress} onCancel={cancel} />}
         {phase.name === "done" && <ResultsView result={phase.result} onReset={reset} />}
         {phase.name === "reports" && <ReportsView onBack={reset} onOpen={(r) => setPhase({ name: "done", result: r })} />}
+        {phase.name === "settings" && <SettingsView onBack={reset} />}
         {phase.name === "error" && (
           <div className="hero">
             <h1 style={{ fontSize: 28 }}>Crawl failed</h1>

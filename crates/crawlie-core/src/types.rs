@@ -151,6 +151,10 @@ pub struct Page {
     pub h3_count: usize,
     pub word_count: usize,
     pub text_ratio: f32,
+    /// Normalized visible body text — the input for content/slop/brand rule
+    /// packs (`crawlie-rules`). `None` for non-HTML or error responses.
+    #[serde(default)]
+    pub text: Option<String>,
     pub canonical: Option<String>,
     pub meta_robots: Option<String>,
     pub lang: Option<String>,

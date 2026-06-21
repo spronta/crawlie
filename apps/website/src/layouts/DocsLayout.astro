@@ -1,6 +1,7 @@
 ---
 import BaseLayout from './BaseLayout.astro';
 import SiteHeader from '../components/SiteHeader.astro';
+import '../styles/prose.css';
 import type { MarkdownHeading } from 'astro';
 
 interface NavItem { slug: string; title: string; section: string; order: number; }
@@ -127,35 +128,7 @@ const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
   }
 </style>
 
-<style is:global>
-  /* ── prose (markdown) ─────────────────────────────────────────────── */
-  .prose { font-size: 15.5px; color: #d6dde7; }
-  .prose h2 {
-    font-size: 23px; margin: 44px 0 14px; padding-top: 8px;
-    border-top: 1px solid var(--border-soft); color: var(--text);
-  }
-  .prose h2:first-child { border-top: 0; margin-top: 0; }
-  .prose h3 { font-size: 17.5px; margin: 28px 0 10px; color: var(--text); }
-  .prose p { margin: 0 0 14px; }
-  .prose ul, .prose ol { margin: 0 0 16px; padding-left: 22px; }
-  .prose li { margin: 5px 0; }
-  .prose li::marker { color: var(--muted-2); }
-  .prose a { color: var(--blue); }
-  .prose strong { color: var(--text); }
-  .prose pre { margin: 0 0 18px; }
-  .prose table {
-    width: 100%; border-collapse: collapse; font-size: 14px; margin: 0 0 18px;
-    border: 1px solid var(--border-soft); border-radius: 8px; overflow: hidden;
-  }
-  .prose th, .prose td {
-    text-align: left; padding: 9px 13px; border-bottom: 1px solid var(--border-soft);
-  }
-  .prose th { background: var(--panel); color: var(--text); font-weight: 600; }
-  .prose tr:last-child td { border-bottom: 0; }
-  .prose blockquote {
-    margin: 0 0 16px; padding: 2px 16px; border-left: 3px solid var(--blue);
-    color: var(--muted); background: var(--panel); border-radius: 0 8px 8px 0;
-  }
-  .prose h2 a, .prose h3 a { color: inherit; }
-  .prose :where(h2, h3) { scroll-margin-top: 84px; }
+<style>
+  /* prose (markdown) styles are shared with the changelog — see prose.css,
+     imported in the frontmatter above. */
 </style>

@@ -1,0 +1,87 @@
+---
+import { getCollection, render } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import SiteHeader from '../../components/SiteHeader.astro';
+import SiteFooter from '../../components/SiteFooter.astro';
+import '../../styles/prose.css';
+
+export async function getStaticPaths() {
+  const entries = await getCollection('changelog');
+  // Use the real version (e.g. "0.2.0") as the slug — the glob loader's auto id
+  // strips the dots ("020"), which we don't want in the URL.
+  return entries.map((entry) => ({ params: { slug: entry.data.version }, props: { entry } }));
+}
+
+const { entry } = Astro.props;
+const { Content } = await render(entry);
+const { version, date, title, description } = entry.data;
+
+const fmt = (d: Date) =>
+  d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
+const url = new URL(`/changelog/${version}`, Astro.site).href;
+const articleLd = {
+  '@context': 'https://schema.org',
+  '@type': 'TechArticle',
+  headline: title,
+  description,
+  datePublished: date.toISOString(),
+  dateModified: date.toISOString(),
+  author: { '@type': 'Organization', name: 'Spronta Ltd', url: 'https://crawlie.dev' },
+  publisher: { '@type': 'Organization', name: 'crawlie', url: 'https://crawlie.dev' },
+  mainEntityOfPage: url,
+  url,
+};
+---
+
+<BaseLayout
+  title={`${title} · Changelog`}
+  description={description}
+  canonical={`/changelog/${version}`}
+>
+  <SiteHeader />
+
+  <main class="container cl-entry">
+    <a class="cl-back" href="/changelog">← Changelog</a>
+    <article>
+      <p class="eyebrow">Release</p>
+      <h1>{title}</h1>
+      <p class="cl-date"><time datetime={date.toISOString()}>{fmt(date)}</time></p>
+      <div class="prose">
+        <Content />
+      </div>
+    </article>
+  </main>
+
+  <SiteFooter />
+
+  <script type="application/ld+json" set:html={JSON.stringify(articleLd)} />
+</BaseLayout>
+
+<style>
+  .cl-entry {
+    padding: 40px 0 80px;
+    max-width: 760px;
+  }
+  .cl-back {
+    display: inline-block;
+    margin-bottom: 24px;
+    font-size: 14px;
+    color: var(--muted);
+  }
+  .cl-back:hover {
+    color: var(--text);
+    text-decoration: none;
+  }
+  .cl-entry h1 {
+    font-size: clamp(28px, 5vw, 38px);
+    letter-spacing: -0.03em;
+    margin: 6px 0 6px;
+  }
+  .cl-date {
+    color: var(--muted);
+    font-size: 14.5px;
+    font-variant-numeric: tabular-nums;
+    margin: 0 0 28px;
+  }
+</style>

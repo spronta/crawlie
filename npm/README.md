@@ -1,6 +1,6 @@
 # crawlie
 
-The fast, free, open-source technical **SEO + GEO** crawler — CLI and MCP server. By [Spronta](https://spronta.com).
+The fast, free, open-source technical **SEO + GEO** crawler — CLI and MCP server. [Read the docs →](https://crawlie.dev/docs)
 
 ```bash
 npm i -g crawlie
@@ -33,4 +33,4 @@ Tools: `crawl_site`, `audit_url`, `audit_urls`, `explain_issue`, `list_rules`, `
 
 Supported: macOS (arm64/x64), Linux (x64), Windows (x64). Other platforms: [build from source](https://github.com/spronta/crawlie). The **desktop app** (signed `.dmg`) is a separate download on [Releases](https://github.com/spronta/crawlie/releases).
 
-Full docs & source: **https://github.com/spronta/crawlie** · by [Sean Ryan](https://linkedin.com/in/sean-exe). MIT.
+Docs: **[crawlie.dev/docs](https://crawlie.dev/docs)** · Source: [GitHub](https://github.com/spronta/crawlie) · by [Sean Ryan](https://linkedin.com/in/sean-exe). MIT.

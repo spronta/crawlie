@@ -1,0 +1,132 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import SiteHeader from '../../components/SiteHeader.astro';
+import SiteFooter from '../../components/SiteFooter.astro';
+import SubscribeForm from '../../components/SubscribeForm.astro';
+
+const entries = (await getCollection('changelog')).sort(
+  (a, b) => b.data.date.valueOf() - a.data.date.valueOf()
+);
+
+const fmt = (d: Date) =>
+  d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+---
+
+<BaseLayout
+  title="Changelog · crawlie — SEO & GEO crawler"
+  description="Every notable change to crawlie — new checks, MCP improvements, and fixes, newest first. Subscribe to get an email on each release."
+  canonical="/changelog"
+>
+  <SiteHeader />
+
+  <main class="container changelog">
+    <header class="cl-head">
+      <p class="eyebrow">Changelog</p>
+      <h1>What's new in crawlie</h1>
+      <p class="lede">New checks, MCP improvements, and fixes — newest first.</p>
+
+      <div class="cl-subscribe">
+        <p class="cl-subscribe-label">Get an email when crawlie ships a release:</p>
+        <SubscribeForm />
+      </div>
+    </header>
+
+    <ol class="cl-list">
+      {entries.map((e) => (
+        <li class="cl-item">
+          <div class="cl-meta">
+            <time datetime={e.data.date.toISOString()}>{fmt(e.data.date)}</time>
+          </div>
+          <div class="cl-body">
+            <h2><a href={`/changelog/${e.data.version}`}>crawlie v{e.data.version}</a></h2>
+            <p class="cl-desc">{e.data.description}</p>
+            <a class="cl-read" href={`/changelog/${e.data.version}`}>Read release notes →</a>
+          </div>
+        </li>
+      ))}
+    </ol>
+  </main>
+
+  <SiteFooter />
+</BaseLayout>
+
+<style>
+  .changelog {
+    padding: 56px 0 80px;
+  }
+  .cl-head {
+    max-width: 720px;
+    margin-bottom: 48px;
+  }
+  .cl-head h1 {
+    font-size: clamp(30px, 5vw, 42px);
+    letter-spacing: -0.03em;
+    margin: 6px 0 10px;
+  }
+  .cl-head .lede {
+    color: var(--muted);
+    font-size: 17px;
+    margin: 0 0 28px;
+  }
+  .cl-subscribe {
+    padding: 18px 20px;
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius);
+    background: var(--bg-soft);
+  }
+  .cl-subscribe-label {
+    margin: 0 0 10px;
+    font-size: 14.5px;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .cl-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-width: 820px;
+  }
+  .cl-item {
+    display: grid;
+    grid-template-columns: 160px 1fr;
+    gap: 24px;
+    padding: 28px 0;
+    border-top: 1px solid var(--border-soft);
+  }
+  .cl-meta time {
+    color: var(--muted);
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+  }
+  .cl-body h2 {
+    font-size: 20px;
+    letter-spacing: -0.02em;
+    margin: 0 0 6px;
+  }
+  .cl-body h2 a {
+    color: var(--text);
+  }
+  .cl-body h2 a:hover {
+    color: var(--blue);
+    text-decoration: none;
+  }
+  .cl-desc {
+    color: var(--muted);
+    margin: 0 0 12px;
+    font-size: 15px;
+  }
+  .cl-read {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--blue);
+  }
+
+  @media (max-width: 680px) {
+    .cl-item {
+      grid-template-columns: 1fr;
+      gap: 6px;
+    }
+  }
+</style>

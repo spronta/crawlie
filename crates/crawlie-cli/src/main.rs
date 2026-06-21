@@ -9,7 +9,10 @@ use crawlie_core::{
     all_rules, crawl, report_html, rule_info, top_fixes, CancelToken, CrawlConfig, CrawlMode,
     CrawlResult, ReportStore, Severity,
 };
-use std::io::Write;
+mod update;
+
+use crawlie_rules::{Ledger, Resolver, SLOP_DEFAULT_SRC};
+use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::process::ExitCode;
 
@@ -30,6 +33,14 @@ enum Command {
     Crawl(CrawlArgs),
     /// Audit one or more specific URLs (no crawling).
     Audit(AuditArgs),
+    /// Run a deterministic content rule pack (slop / brand) over a site or text.
+    Slop(SlopArgs),
+    /// Scaffold a repo-level `.crawlie/` directory with a starter slop pack.
+    Init,
+    /// Manage installed `.crawlie` rule packs (list / add / new / which / remove).
+    Pack(PackArgs),
+    /// Check for a newer crawlie release and install it.
+    Update(UpdateArgs),
     /// Explain why a rule matters and how to fix it (or list all rules).
     Explain { rule: Option<String> },
     /// List saved reports.
@@ -96,6 +107,79 @@ struct AuditArgs {
 }
 
 #[derive(Parser)]
+struct UpdateArgs {
+    /// Only check for a newer version; don't install.
+    #[arg(long)]
+    check: bool,
+    /// Skip the confirmation prompt.
+    #[arg(long, short = 'y')]
+    yes: bool,
+}
+
+#[derive(Parser)]
+struct PackArgs {
+    #[command(subcommand)]
+    cmd: PackCmd,
+}
+
+#[derive(Subcommand)]
+enum PackCmd {
+    /// List every pack visible here and where each resolves from.
+    List,
+    /// Install a `.crawlie` file into the repo (default) or globally.
+    Add {
+        /// Path to the .crawlie file to install.
+        path: String,
+        /// Install into `~/.crawlie/packs` instead of the repo.
+        #[arg(long)]
+        global: bool,
+        /// Override the installed pack name (defaults to the file stem).
+        #[arg(long)]
+        name: Option<String>,
+    },
+    /// Scaffold a new empty pack to edit.
+    New {
+        name: String,
+        #[arg(long)]
+        global: bool,
+    },
+    /// Show which file a pack name resolves to.
+    Which { name: String },
+    /// Remove an installed pack (repo by default, or --global).
+    Remove {
+        name: String,
+        #[arg(long)]
+        global: bool,
+    },
+}
+
+#[derive(Parser)]
+struct SlopArgs {
+    /// URL to crawl and score. Omit when using --file or --stdin.
+    url: Option<String>,
+    /// Score a local text file instead of crawling.
+    #[arg(long)]
+    file: Option<String>,
+    /// Score text read from stdin instead of crawling.
+    #[arg(long)]
+    stdin: bool,
+    /// Rule pack (.crawlie file). Defaults to the built-in slop pack.
+    #[arg(long)]
+    pack: Option<String>,
+    /// Max pages to crawl (URL mode).
+    #[arg(long, default_value_t = 100)]
+    max_pages: usize,
+    /// Output format.
+    #[arg(long, value_enum, default_value_t = Format::Pretty)]
+    format: Format,
+    /// Exit non-zero if any page/text scores at or above this threshold (CI gate).
+    #[arg(long)]
+    fail_on_score: Option<f64>,
+    #[arg(long, short = 'q')]
+    quiet: bool,
+}
+
+#[derive(Parser)]
 struct ReportArgs {
     /// Report id (see `crawlie reports`).
     id: String,
@@ -149,13 +233,24 @@ fn reports_dir() -> PathBuf {
 #[tokio::main]
 async fn main() -> ExitCode {
     let cli = Cli::parse();
-    match cli.command {
+    // `crawlie update` is the explicit flow; it doesn't also get a passive nudge.
+    if let Command::Update(a) = &cli.command {
+        return ExitCode::from(update::run_update(a.check, a.yes).await);
+    }
+    let code = match cli.command {
         Command::Crawl(a) => run_crawl(a).await,
         Command::Audit(a) => run_audit(a).await,
+        Command::Slop(a) => run_slop(a).await,
+        Command::Init => run_init(),
+        Command::Pack(a) => run_pack(a),
         Command::Explain { rule } => explain(rule),
         Command::Reports => list_reports(),
         Command::Report(a) => show_report(a),
-    }
+        Command::Update(_) => unreachable!("handled above"),
+    };
+    // Best-effort, interactive-human-only nudge. Never touches stdout.
+    update::maybe_notify().await;
+    code
 }
 
 async fn run_crawl(a: CrawlArgs) -> ExitCode {
@@ -202,6 +297,322 @@ async fn run_audit(a: AuditArgs) -> ExitCode {
 }
 
 #[allow(clippy::too_many_arguments)]
+/// `~/.crawlie`.
+fn crawlie_home() -> PathBuf {
+    let home = std::env::var("HOME")
+        .or_else(|_| std::env::var("USERPROFILE"))
+        .unwrap_or_else(|_| ".".into());
+    PathBuf::from(home).join(".crawlie")
+}
+
+/// `~/.crawlie/packs` — where globally-installed packs live.
+fn global_packs_dir() -> PathBuf {
+    crawlie_home().join("packs")
+}
+
+/// Walk up from the cwd looking for a `.crawlie/` directory (the repo packs).
+fn find_repo_crawlie_dir() -> Option<PathBuf> {
+    let mut cur = std::env::current_dir().ok()?;
+    loop {
+        let cand = cur.join(".crawlie");
+        if cand.is_dir() {
+            return Some(cand);
+        }
+        if !cur.pop() {
+            return None;
+        }
+    }
+}
+
+fn make_resolver() -> Resolver {
+    Resolver {
+        repo_dir: find_repo_crawlie_dir(),
+        global_dir: Some(global_packs_dir()),
+    }
+}
+
+/// Resolve the pack named by `--pack` (a name or a path), or `slop-default`
+/// (which a repo can shadow with its own `.crawlie/slop-default.crawlie`).
+fn load_pack(reference: Option<&str>) -> Result<crawlie_rules::RulePack, String> {
+    let resolver = make_resolver();
+    let reference = reference.unwrap_or("slop-default");
+    resolver
+        .resolve(reference)
+        .map(|r| r.pack)
+        .map_err(|e| e.to_string())
+}
+
+fn run_init() -> ExitCode {
+    let dir = PathBuf::from(".crawlie");
+    if let Err(e) = std::fs::create_dir_all(&dir) {
+        eprintln!("crawlie: {e}");
+        return ExitCode::from(2);
+    }
+    let dest = dir.join("slop-default.crawlie");
+    if dest.exists() {
+        eprintln!("crawlie: {} already exists — leaving it untouched", dest.display());
+    } else if let Err(e) = std::fs::write(&dest, SLOP_DEFAULT_SRC) {
+        eprintln!("crawlie: {e}");
+        return ExitCode::from(2);
+    } else {
+        eprintln!("  created {}", dest.display());
+    }
+    eprintln!(
+        "\nrepo packs live in .crawlie/ and override the built-ins. Edit them, commit them,\n\
+         and run:  crawlie slop <url>            (uses .crawlie/slop-default.crawlie)\n\
+         in CI:    crawlie slop <url> --fail-on-score 8"
+    );
+    ExitCode::SUCCESS
+}
+
+fn run_pack(a: PackArgs) -> ExitCode {
+    match a.cmd {
+        PackCmd::List => {
+            let resolver = make_resolver();
+            let entries = resolver.available();
+            if entries.is_empty() {
+                println!("no packs found");
+            }
+            for e in entries {
+                println!("  {:<20} {}", e.name, e.origin.label());
+            }
+            ExitCode::SUCCESS
+        }
+        PackCmd::Which { name } => match make_resolver().resolve(&name) {
+            Ok(r) => {
+                println!("{}", r.origin.label());
+                ExitCode::SUCCESS
+            }
+            Err(e) => {
+                eprintln!("crawlie: {e}");
+                ExitCode::from(1)
+            }
+        },
+        PackCmd::Add { path, global, name } => {
+            let src = match std::fs::read_to_string(&path) {
+                Ok(s) => s,
+                Err(e) => {
+                    eprintln!("crawlie: {path}: {e}");
+                    return ExitCode::from(2);
+                }
+            };
+            let stem = name.unwrap_or_else(|| {
+                std::path::Path::new(&path)
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("pack")
+                    .to_string()
+            });
+            // Validate before installing — never install a broken pack.
+            if let Err(e) = crawlie_rules::load(&stem, &src) {
+                eprintln!("crawlie: {path}:{e}");
+                return ExitCode::from(2);
+            }
+            let dir = if global {
+                global_packs_dir()
+            } else {
+                find_repo_crawlie_dir().unwrap_or_else(|| PathBuf::from(".crawlie"))
+            };
+            if let Err(e) = std::fs::create_dir_all(&dir) {
+                eprintln!("crawlie: {e}");
+                return ExitCode::from(2);
+            }
+            let dest = dir.join(format!("{stem}.crawlie"));
+            if let Err(e) = std::fs::write(&dest, src) {
+                eprintln!("crawlie: {e}");
+                return ExitCode::from(2);
+            }
+            eprintln!("  installed `{stem}` → {}", dest.display());
+            ExitCode::SUCCESS
+        }
+        PackCmd::New { name, global } => {
+            let dir = if global {
+                global_packs_dir()
+            } else {
+                find_repo_crawlie_dir().unwrap_or_else(|| PathBuf::from(".crawlie"))
+            };
+            if let Err(e) = std::fs::create_dir_all(&dir) {
+                eprintln!("crawlie: {e}");
+                return ExitCode::from(2);
+            }
+            let dest = dir.join(format!("{name}.crawlie"));
+            if dest.exists() {
+                eprintln!("crawlie: {} already exists", dest.display());
+                return ExitCode::from(1);
+            }
+            let template = format!(
+                "# {name}.crawlie — edit these rules to match your voice.\n\n\
+                 phrase_rule(\"banned-terms\", weight = 5, phrases = [\n\
+                 \x20   \"disrupt\", \"revolutionary\", \"synergy\",\n\
+                 ])\n\n\
+                 metric_rule(\"too-uniform\", weight = 3,\n\
+                 \x20   metric = sentence_variance(), when = below(12))\n"
+            );
+            if let Err(e) = std::fs::write(&dest, template) {
+                eprintln!("crawlie: {e}");
+                return ExitCode::from(2);
+            }
+            eprintln!("  created {}", dest.display());
+            ExitCode::SUCCESS
+        }
+        PackCmd::Remove { name, global } => {
+            let dir = if global {
+                global_packs_dir()
+            } else {
+                match find_repo_crawlie_dir() {
+                    Some(d) => d,
+                    None => {
+                        eprintln!("crawlie: no repo .crawlie/ directory found");
+                        return ExitCode::from(1);
+                    }
+                }
+            };
+            let target = dir.join(format!("{name}.crawlie"));
+            match std::fs::remove_file(&target) {
+                Ok(_) => {
+                    eprintln!("  removed {}", target.display());
+                    ExitCode::SUCCESS
+                }
+                Err(e) => {
+                    eprintln!("crawlie: {}: {e}", target.display());
+                    ExitCode::from(1)
+                }
+            }
+        }
+    }
+}
+
+fn print_ledger_pretty(label: &str, ledger: &Ledger) {
+    println!("\n{label}  ·  slop score {:.1}", ledger.score);
+    if ledger.hits.is_empty() {
+        println!("  clean — no rules fired");
+        return;
+    }
+    for hit in &ledger.hits {
+        println!("  +{:<4.1} {}", hit.points, hit.rule);
+        for ev in &hit.evidence {
+            println!("        {ev}");
+        }
+    }
+}
+
+async fn run_slop(a: SlopArgs) -> ExitCode {
+    let pack = match load_pack(a.pack.as_deref()) {
+        Ok(p) => p,
+        Err(e) => {
+            eprintln!("crawlie: {e}");
+            return ExitCode::from(2);
+        }
+    };
+
+    // ---- text modes: --file / --stdin ----
+    if a.stdin || a.file.is_some() {
+        let text = if a.stdin {
+            let mut s = String::new();
+            if std::io::stdin().read_to_string(&mut s).is_err() {
+                eprintln!("crawlie: could not read stdin");
+                return ExitCode::from(2);
+            }
+            s
+        } else {
+            match std::fs::read_to_string(a.file.as_deref().unwrap()) {
+                Ok(s) => s,
+                Err(e) => {
+                    eprintln!("crawlie: {e}");
+                    return ExitCode::from(2);
+                }
+            }
+        };
+        let ledger = pack.evaluate(&text);
+        match a.format {
+            Format::Json => println!("{}", serde_json::to_string_pretty(&ledger).unwrap()),
+            _ => print_ledger_pretty("(input)", &ledger),
+        }
+        return slop_exit(&[ledger.score], a.fail_on_score);
+    }
+
+    // ---- URL mode: crawl, then score each page's text ----
+    let Some(url) = a.url.clone() else {
+        eprintln!("crawlie: provide a URL, or use --file / --stdin");
+        return ExitCode::from(2);
+    };
+    let config = CrawlConfig {
+        mode: CrawlMode::Site,
+        max_pages: a.max_pages,
+        ..CrawlConfig::new(&url)
+    };
+    let quiet = a.quiet;
+    let on_event = move |evt: crawlie_core::CrawlEvent| {
+        if quiet {
+            return;
+        }
+        if let crawlie_core::CrawlEvent::Progress { crawled, queued, current, .. } = evt {
+            eprint!("\r\x1b[2K  crawled {crawled} · queued {queued} · {}", truncate(&current, 56));
+            let _ = std::io::stderr().flush();
+        }
+    };
+    let result = match crawl(config, on_event, CancelToken::new()).await {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("\rcrawlie: {e}");
+            return ExitCode::from(2);
+        }
+    };
+    if !quiet {
+        eprintln!("\r\x1b[2K  done · {} pages", result.summary.total_pages);
+    }
+
+    // Evaluate every page that has body text, score-descending.
+    let mut scored: Vec<(String, Ledger)> = result
+        .pages
+        .iter()
+        .filter_map(|p| p.text.as_ref().map(|t| (p.url.clone(), pack.evaluate(t))))
+        .collect();
+    scored.sort_by(|a, b| b.1.score.partial_cmp(&a.1.score).unwrap_or(std::cmp::Ordering::Equal));
+
+    let scores: Vec<f64> = scored.iter().map(|(_, l)| l.score).collect();
+
+    match a.format {
+        Format::Json => {
+            let arr: Vec<_> = scored
+                .iter()
+                .map(|(u, l)| serde_json::json!({"url": u, "score": l.score, "hits": l.hits}))
+                .collect();
+            println!("{}", serde_json::to_string_pretty(&arr).unwrap());
+        }
+        _ => {
+            let avg = if scores.is_empty() {
+                0.0
+            } else {
+                scores.iter().sum::<f64>() / scores.len() as f64
+            };
+            println!(
+                "\nslop report · pack `{}` · {} pages · avg {:.1} · worst {:.1}",
+                scored.first().map(|(_, l)| l.pack.as_str()).unwrap_or("slop-default"),
+                scored.len(),
+                avg,
+                scores.first().copied().unwrap_or(0.0),
+            );
+            for (u, l) in scored.iter().take(20) {
+                let rules: Vec<&str> = l.hits.iter().map(|h| h.rule.as_str()).collect();
+                println!("  {:>5.1}  {}", l.score, truncate(u, 64));
+                if !rules.is_empty() {
+                    println!("         {}", rules.join(", "));
+                }
+            }
+        }
+    }
+    slop_exit(&scores, a.fail_on_score)
+}
+
+/// Apply the `--fail-on-score` CI gate.
+fn slop_exit(scores: &[f64], threshold: Option<f64>) -> ExitCode {
+    match threshold {
+        Some(t) if scores.iter().any(|&s| s >= t) => ExitCode::from(1),
+        _ => ExitCode::SUCCESS,
+    }
+}
+
 async fn execute(
     config: CrawlConfig,
     format: Format,
