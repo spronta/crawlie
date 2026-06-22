@@ -1018,7 +1018,10 @@ fn diff_reports(a: DiffArgs) -> ExitCode {
     };
     match a.format {
         Format::Json => {
-            println!("{}", serde_json::to_string_pretty(&diff).unwrap_or_default());
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&diff).unwrap_or_default()
+            );
         }
         _ => print_diff_pretty(&diff),
     }

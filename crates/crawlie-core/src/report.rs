@@ -183,9 +183,11 @@ impl ReportStore {
     pub fn load(&self, id: &str) -> Option<CrawlResult> {
         let conn = self.open().ok()?;
         let blob: String = conn
-            .query_row("SELECT result FROM crawls WHERE id = ?1", params![id], |r| {
-                r.get(0)
-            })
+            .query_row(
+                "SELECT result FROM crawls WHERE id = ?1",
+                params![id],
+                |r| r.get(0),
+            )
             .optional()
             .ok()
             .flatten()?;
@@ -558,7 +560,10 @@ mod tests {
         assert_eq!(diff.pages_added, vec!["https://b.example/new".to_string()]);
         assert!(diff.pages_removed.is_empty());
         // title-missing was fixed between the two crawls.
-        assert!(diff.resolved_issues.iter().any(|d| d.rule == "title-missing"));
+        assert!(diff
+            .resolved_issues
+            .iter()
+            .any(|d| d.rule == "title-missing"));
         // nothing new appeared.
         assert!(diff.new_issues.is_empty());
 

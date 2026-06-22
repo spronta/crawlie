@@ -32,8 +32,8 @@ pub mod timefmt;
 pub mod types;
 
 pub use crawler::{crawl, crawl_to_store, CancelToken};
-pub use pagestore::PageStore;
 pub use knowledge::{all_rules, rule_info};
+pub use pagestore::PageStore;
 pub use priority::{group_issues, top_fixes, top_fixes_filtered};
 pub use report::ReportStore;
 pub use scoring::geo_gaps;

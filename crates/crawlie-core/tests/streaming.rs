@@ -118,7 +118,10 @@ async fn streaming_crawl_matches_in_memory() {
     // Same pages crawled, stored on disk not in the returned result.
     assert!(stream.pages.is_empty(), "streaming result holds no pages");
     assert_eq!(store.count().unwrap(), mem.pages.len());
-    assert!(mem.pages.len() >= 3, "fixture should yield home + a + b + 404");
+    assert!(
+        mem.pages.len() >= 3,
+        "fixture should yield home + a + b + 404"
+    );
 
     // Identical audit findings (order-independent).
     assert_eq!(

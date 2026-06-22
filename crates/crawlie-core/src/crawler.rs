@@ -737,12 +737,10 @@ where
                 .get(&normalize_str(&p.final_url))
                 .copied()
                 .unwrap_or(0);
-            p.duplicate_of = p.content_hash.as_ref().and_then(|h| {
-                hash_canon
-                    .get(h)
-                    .filter(|canon| *canon != &p.url)
-                    .cloned()
-            });
+            p.duplicate_of = p
+                .content_hash
+                .as_ref()
+                .and_then(|h| hash_canon.get(h).filter(|canon| *canon != &p.url).cloned());
             acc.add(&p);
             audit_one(&p, &cross, &status_map, &mut issues);
         })
@@ -804,14 +802,15 @@ where
                 .copied()
                 .unwrap_or(0);
             p.link_score = link_scores.get(id).copied().unwrap_or(0.0);
-            p.duplicate_of = p.content_hash.as_ref().and_then(|h| {
-                hash_canon
-                    .get(h)
-                    .filter(|canon| *canon != &p.url)
-                    .cloned()
-            });
+            p.duplicate_of = p
+                .content_hash
+                .as_ref()
+                .and_then(|h| hash_canon.get(h).filter(|canon| *canon != &p.url).cloned());
             p.seo_score = if p.status == 200 {
-                let pen = seo_penalty.get(&normalize_str(&p.url)).copied().unwrap_or(0.0);
+                let pen = seo_penalty
+                    .get(&normalize_str(&p.url))
+                    .copied()
+                    .unwrap_or(0.0);
                 (100.0 - pen).clamp(0.0, 100.0).round() as u8
             } else {
                 0

@@ -66,7 +66,14 @@ const SPECS: &[Spec] = &[
     Spec {
         type_name: "Product",
         required: &["name", "image"],
-        recommended: &["description", "brand", "sku", "offers", "aggregateRating", "review"],
+        recommended: &[
+            "description",
+            "brand",
+            "sku",
+            "offers",
+            "aggregateRating",
+            "review",
+        ],
     },
     Spec {
         type_name: "Offer",
@@ -90,11 +97,24 @@ const SPECS: &[Spec] = &[
     Spec {
         type_name: "Event",
         required: &["name", "startDate", "location"],
-        recommended: &["endDate", "image", "description", "offers", "performer", "organizer"],
+        recommended: &[
+            "endDate",
+            "image",
+            "description",
+            "offers",
+            "performer",
+            "organizer",
+        ],
     },
     Spec {
         type_name: "JobPosting",
-        required: &["title", "description", "datePosted", "hiringOrganization", "jobLocation"],
+        required: &[
+            "title",
+            "description",
+            "datePosted",
+            "hiringOrganization",
+            "jobLocation",
+        ],
         recommended: &["baseSalary", "employmentType", "validThrough"],
     },
     Spec {
@@ -130,7 +150,14 @@ const SPECS: &[Spec] = &[
     Spec {
         type_name: "LocalBusiness",
         required: &["name", "address"],
-        recommended: &["telephone", "openingHours", "geo", "priceRange", "image", "url"],
+        recommended: &[
+            "telephone",
+            "openingHours",
+            "geo",
+            "priceRange",
+            "image",
+            "url",
+        ],
     },
     Spec {
         type_name: "Review",
@@ -156,7 +183,9 @@ const SPECS: &[Spec] = &[
 ];
 
 fn spec_for(type_name: &str) -> Option<&'static Spec> {
-    SPECS.iter().find(|s| s.type_name.eq_ignore_ascii_case(type_name))
+    SPECS
+        .iter()
+        .find(|s| s.type_name.eq_ignore_ascii_case(type_name))
 }
 
 /// A property "counts as present" only if it carries real content: a non-empty
@@ -213,7 +242,10 @@ fn collect_nodes<'a>(v: &'a Value, out: &mut Vec<&'a serde_json::Map<String, Val
 
 /// Validate one typed node against its spec, returning the gaps. Returns `None`
 /// for types we don't have a spec for (so we don't penalise unknown markup).
-fn validate_node(obj: &serde_json::Map<String, Value>, type_name: &str) -> Option<SchemaValidation> {
+fn validate_node(
+    obj: &serde_json::Map<String, Value>,
+    type_name: &str,
+) -> Option<SchemaValidation> {
     let spec = spec_for(type_name)?;
     let mut missing_required: Vec<String> = spec
         .required
@@ -335,16 +367,22 @@ mod tests {
             r#"{"@graph":[{"@type":["Organization","LocalBusiness"],"name":"Acme"}]}"#,
         ));
         assert!(r.types.contains(&"LocalBusiness".to_string()));
-        let lb = r.items.iter().find(|i| i.type_name == "LocalBusiness").unwrap();
+        let lb = r
+            .items
+            .iter()
+            .find(|i| i.type_name == "LocalBusiness")
+            .unwrap();
         assert!(lb.missing_required.contains(&"address".to_string()));
     }
 
     #[test]
     fn aggregate_rating_needs_a_count() {
-        let r = validate(&block(
-            r#"{"@type":"AggregateRating","ratingValue":"4.5"}"#,
-        ));
-        let ar = r.items.iter().find(|i| i.type_name == "AggregateRating").unwrap();
+        let r = validate(&block(r#"{"@type":"AggregateRating","ratingValue":"4.5"}"#));
+        let ar = r
+            .items
+            .iter()
+            .find(|i| i.type_name == "AggregateRating")
+            .unwrap();
         assert!(ar
             .missing_required
             .iter()

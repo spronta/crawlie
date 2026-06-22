@@ -345,9 +345,7 @@ async fn tools_call(params: Value) -> Result<Value, String> {
                     .ok_or("no saved reports to diff against")?,
             };
             match store.diff(old_id, &new_id).map_err(|e| e.to_string())? {
-                Some(diff) => {
-                    text_result(serde_json::to_string_pretty(&diff).unwrap_or_default())
-                }
+                Some(diff) => text_result(serde_json::to_string_pretty(&diff).unwrap_or_default()),
                 None => Err(format!(
                     "one or both reports not found ('{old_id}', '{new_id}')"
                 )),

@@ -95,7 +95,9 @@ impl PageStore {
         let conn = Connection::open(path).map_err(ioerr)?;
         conn.execute_batch(SCHEMA).map_err(ioerr)?;
         let next: i64 = conn
-            .query_row("SELECT COALESCE(MAX(id) + 1, 0) FROM page", [], |r| r.get(0))
+            .query_row("SELECT COALESCE(MAX(id) + 1, 0) FROM page", [], |r| {
+                r.get(0)
+            })
             .map_err(ioerr)?;
         Ok(Self {
             conn,
@@ -233,7 +235,9 @@ impl PageStore {
     pub fn hash_canon(&self) -> io::Result<HashMap<String, String>> {
         let mut stmt = self
             .conn
-            .prepare("SELECT content_hash, url FROM page WHERE content_hash IS NOT NULL ORDER BY id")
+            .prepare(
+                "SELECT content_hash, url FROM page WHERE content_hash IS NOT NULL ORDER BY id",
+            )
             .map_err(ioerr)?;
         let rows = stmt
             .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))
@@ -256,7 +260,9 @@ impl PageStore {
                  GROUP BY {col} HAVING COUNT(*) > 1"
             );
             let mut stmt = self.conn.prepare(&sql).map_err(ioerr)?;
-            let rows = stmt.query_map([], |r| r.get::<_, String>(0)).map_err(ioerr)?;
+            let rows = stmt
+                .query_map([], |r| r.get::<_, String>(0))
+                .map_err(ioerr)?;
             let mut set = HashSet::new();
             for row in rows {
                 set.insert(row.map_err(ioerr)?);
@@ -302,7 +308,9 @@ impl PageStore {
             .prepare("SELECT id, blob FROM page ORDER BY id")
             .map_err(ioerr)?;
         let rows = stmt
-            .query_map([], |r| Ok((r.get::<_, i64>(0)? as usize, r.get::<_, String>(1)?)))
+            .query_map([], |r| {
+                Ok((r.get::<_, i64>(0)? as usize, r.get::<_, String>(1)?))
+            })
             .map_err(ioerr)?;
         for row in rows {
             let (id, blob) = row.map_err(ioerr)?;
