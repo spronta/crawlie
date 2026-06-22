@@ -32,6 +32,12 @@ const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
   <div class="docs container">
     <aside class="sidebar">
       <nav>
+        <a class="sidebar-download" href="https://github.com/spronta/crawlie/releases/latest">
+          <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" fill="currentColor">
+            <path d="M8 1.5a.75.75 0 0 1 .75.75v6.69l2.22-2.22a.75.75 0 1 1 1.06 1.06l-3.5 3.5a.75.75 0 0 1-1.06 0l-3.5-3.5a.75.75 0 0 1 1.06-1.06l2.22 2.22V2.25A.75.75 0 0 1 8 1.5ZM2.75 12.5a.75.75 0 0 1 .75.75v.25h9v-.25a.75.75 0 0 1 1.5 0v.5A1.25 1.25 0 0 1 12.75 15h-9.5A1.25 1.25 0 0 1 2 13.75v-.5a.75.75 0 0 1 .75-.75Z"/>
+          </svg>
+          Download for macOS
+        </a>
         {sections.map((s) => (
           <div class="group">
             <p class="group-title">{s.name}</p>
@@ -86,6 +92,21 @@ const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
   }
   .sidebar, .toc { position: sticky; top: 84px; }
   .sidebar nav { font-size: 14px; }
+  .sidebar-download {
+    display: flex; align-items: center; justify-content: center; gap: 7px;
+    margin-bottom: 22px; padding: 9px 12px;
+    font-size: 13.5px; font-weight: 600;
+    color: var(--blue); border-radius: 7px;
+    border: 1px solid color-mix(in srgb, var(--blue) 40%, transparent);
+    background: color-mix(in srgb, var(--blue) 8%, transparent);
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+  .sidebar-download:hover {
+    text-decoration: none;
+    color: var(--blue);
+    background: color-mix(in srgb, var(--blue) 14%, transparent);
+    border-color: color-mix(in srgb, var(--blue) 60%, transparent);
+  }
   .group { margin-bottom: 22px; }
   .group-title {
     font-family: var(--font-mono); font-size: 11px; text-transform: uppercase;

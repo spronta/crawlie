@@ -29,3 +29,27 @@
 }
 .prose h2 a, .prose h3 a { color: inherit; }
 .prose :where(h2, h3) { scroll-margin-top: 84px; }
+
+/* In-doc download CTA (e.g. the desktop app installer link). */
+.prose a.download-btn {
+  display: inline-flex;
+  align-items: center;
+  font-weight: 600;
+  font-size: 15px;
+  padding: 11px 20px;
+  border-radius: var(--radius-sm);
+  background: var(--blue);
+  color: #fff;
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--blue) 20%, transparent),
+    0 2px 14px color-mix(in srgb, var(--blue) 26%, transparent);
+  transition: box-shadow 0.2s ease, background 0.15s ease, transform 0.05s ease;
+}
+.prose a.download-btn:hover {
+  text-decoration: none;
+  background: color-mix(in srgb, var(--blue) 86%, #fff);
+  box-shadow:
+    0 0 0 5px color-mix(in srgb, var(--blue) 30%, transparent),
+    0 2px 20px color-mix(in srgb, var(--blue) 40%, transparent);
+}
+.prose a.download-btn:active { transform: translateY(1px); }
