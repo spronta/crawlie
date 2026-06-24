@@ -2,7 +2,9 @@
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import SiteHeader from "../../components/SiteHeader.astro";
 import SiteFooter from "../../components/SiteFooter.astro";
+import AuthorBio from "../../components/AuthorBio.astro";
 import { COMPETITORS } from "../../data/compare";
+import { AUTHOR, authorLd } from "../../data/author";
 
 export function getStaticPaths() {
   return COMPETITORS.map((c) => ({ params: { slug: c.slug }, props: { c } }));
@@ -38,7 +40,7 @@ const articleLd = {
   description: c.description,
   datePublished: c.updated,
   dateModified: c.updated,
-  author: { "@type": "Organization", name: "Spronta Ltd", url: SITE },
+  author: authorLd(),
   publisher: { "@type": "Organization", name: "Spronta Ltd", url: SITE },
   mainEntityOfPage: url,
 };
@@ -73,7 +75,7 @@ const others = COMPETITORS.filter((x) => x.slug !== c.slug);
         <p class="eyebrow">crawlie vs {c.name}</p>
         <h1>The free, open-source {c.name} alternative</h1>
         <p class="tagline">{c.tagline}</p>
-        <p class="byline">By Spronta Ltd · Updated {updatedLabel}</p>
+        <p class="byline">By <a href={AUTHOR.url} target="_blank" rel="noopener author">{AUTHOR.name}</a> · Updated {updatedLabel}</p>
       </header>
 
       <!-- Answer-first summary: the citable TL;DR. -->
@@ -150,6 +152,8 @@ const others = COMPETITORS.filter((x) => x.slug !== c.slug);
           </p>
         )}
       </section>
+
+      <AuthorBio />
     </article>
   </main>
 
@@ -175,6 +179,9 @@ const others = COMPETITORS.filter((x) => x.slug !== c.slug);
   .cta-row { display: flex; gap: 12px; flex-wrap: wrap; }
 
   .cmp section { margin-top: 40px; }
+  /* Neutralise the global `section { padding: 72px 0 }` that otherwise stacks
+     huge gaps between sections here (the TL;DR box keeps its own padding). */
+  .cmp section:not(.tldr) { padding: 0; }
   .cmp section > h2 {
     font-size: 23px; margin: 0 0 12px; padding-top: 18px;
     border-top: 1px solid var(--border-soft); color: var(--text);

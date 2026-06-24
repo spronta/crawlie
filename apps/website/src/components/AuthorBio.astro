@@ -1,0 +1,59 @@
+---
+import { AUTHOR } from '../data/author';
+---
+<aside class="author-bio">
+  <img class="ab-avatar" src={AUTHOR.image} alt={AUTHOR.name} width="52" height="52" loading="lazy" />
+  <div class="ab-text">
+    <p class="ab-name">
+      {AUTHOR.name}
+      <span class="ab-role">{AUTHOR.tagline}</span>
+    </p>
+    <p class="ab-bio">{AUTHOR.bio}</p>
+    <a class="ab-link" href={AUTHOR.url} target="_blank" rel="noopener author">Connect on LinkedIn →</a>
+  </div>
+</aside>
+
+<style>
+  .author-bio {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+    margin-top: 48px;
+    padding-top: 28px;
+    border-top: 1px solid var(--border-soft);
+  }
+  .ab-avatar {
+    flex: none;
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid var(--border-soft);
+  }
+  .ab-text { min-width: 0; }
+  .ab-name {
+    margin: 0 0 6px;
+    font-weight: 600;
+    color: var(--text);
+    font-size: 15.5px;
+  }
+  .ab-role {
+    display: block;
+    font-weight: 400;
+    color: var(--muted-2);
+    font-size: 13px;
+    margin-top: 2px;
+  }
+  .ab-bio {
+    margin: 0 0 8px;
+    color: var(--muted);
+    font-size: 14.5px;
+    line-height: 1.55;
+    max-width: 62ch;
+  }
+  .ab-link {
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--link);
+  }
+</style>

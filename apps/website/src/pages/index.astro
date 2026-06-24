@@ -6,9 +6,22 @@ import GitHubStarButton from '../components/GitHubStarButton.astro';
 import AsciiBackground from '../components/AsciiBackground.astro';
 import PixelGridBackground from '../components/PixelGridBackground.astro';
 import { fetchStars } from '../lib/github';
+import { getCollection } from 'astro:content';
 
 const GITHUB = 'https://github.com/spronta/crawlie';
 const stars = await fetchStars();
+
+// Latest releases for the "shipping fast" section (newest first, by version).
+const vkey = (v: string) => v.split('.').map((n) => parseInt(n, 10) || 0);
+const releases = (await getCollection('changelog'))
+  .sort((a, b) => {
+    const x = vkey(a.data.version);
+    const y = vkey(b.data.version);
+    return y[0] - x[0] || y[1] - x[1] || y[2] - x[2];
+  })
+  .slice(0, 4)
+  .map((e) => e.data);
+const fmtShort = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
 const features = [
   {
@@ -260,6 +273,30 @@ const cell = (v: string) =>
       </div>
     </section>
 
+    <!-- ── Shipping fast ──────────────────────────────────────────────── -->
+    <section id="ship" class="ship">
+      <div class="container">
+        <div class="section-head">
+          <p class="eyebrow">Shipping fast</p>
+          <h2>New here — and moving quick</h2>
+          <p>crawlie is days old and we ship features almost daily. A few of the latest:</p>
+        </div>
+        <div class="ship-grid">
+          {releases.map((r) => (
+            <a class="ship-card" href={`/changelog/${r.version}`}>
+              <div class="ship-top">
+                <span class="ship-ver">v{r.version}</span>
+                <span class="ship-date">{fmtShort(r.date)}</span>
+              </div>
+              <p class="ship-desc">{r.description}</p>
+              <span class="ship-read">Read notes →</span>
+            </a>
+          ))}
+        </div>
+        <a class="ship-all" href="/changelog">View the full changelog →</a>
+      </div>
+    </section>
+
     <!-- ── Final CTA ──────────────────────────────────────────────────── -->
     <section class="cta">
       <AsciiBackground />
@@ -471,6 +508,44 @@ const cell = (v: string) =>
   td:not(.label) { color: var(--muted); }
   td.us[data-v='yes'], td.us[data-v='every issue'] { color: var(--green); }
   .compare-more { text-align: center; margin-top: 20px; color: var(--muted); font-size: 14.5px; }
+
+  /* shipping fast */
+  .ship .section-head p:not(.eyebrow) { color: var(--muted); font-size: 17px; margin: 0; }
+  .ship-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 16px;
+    margin-top: 8px;
+  }
+  .ship-card {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 20px;
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius);
+    background: var(--panel);
+    color: var(--text);
+    transition: border-color 0.15s ease, background 0.15s ease, transform 0.08s ease;
+  }
+  .ship-card:hover {
+    text-decoration: none;
+    border-color: var(--border);
+    background: var(--panel-2);
+    transform: translateY(-2px);
+  }
+  .ship-top { display: flex; align-items: center; gap: 10px; }
+  .ship-ver {
+    font-family: var(--font-mono); font-size: 13px; font-weight: 600;
+    color: var(--link); padding: 3px 10px; border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--link) 35%, transparent);
+    background: color-mix(in srgb, var(--link) 8%, transparent);
+  }
+  .ship-date { color: var(--muted-2); font-size: 13px; font-variant-numeric: tabular-nums; }
+  .ship-desc { color: var(--muted); font-size: 14.5px; line-height: 1.55; margin: 0; flex: 1; }
+  .ship-read { color: var(--link); font-size: 13.5px; font-weight: 500; }
+  .ship-all { display: inline-block; margin-top: 22px; color: var(--muted); font-size: 14.5px; }
+  .ship-all:hover { color: var(--text); }
 
   /* cta */
   .cta {

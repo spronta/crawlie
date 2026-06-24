@@ -3,6 +3,8 @@ import { getCollection, render } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import SiteHeader from '../../components/SiteHeader.astro';
 import SiteFooter from '../../components/SiteFooter.astro';
+import AuthorBio from '../../components/AuthorBio.astro';
+import { AUTHOR, authorLd } from '../../data/author';
 import '../../styles/prose.css';
 
 export async function getStaticPaths() {
@@ -27,7 +29,7 @@ const articleLd = {
   description,
   datePublished: date.toISOString(),
   dateModified: date.toISOString(),
-  author: { '@type': 'Organization', name: 'Spronta Ltd', url: 'https://crawlie.dev' },
+  author: authorLd(),
   publisher: { '@type': 'Organization', name: 'crawlie', url: 'https://crawlie.dev' },
   mainEntityOfPage: url,
   url,
@@ -46,10 +48,14 @@ const articleLd = {
     <article>
       <p class="eyebrow">Release</p>
       <h1>{title}</h1>
-      <p class="cl-date"><time datetime={date.toISOString()}>{fmt(date)}</time></p>
+      <p class="cl-date">
+        <time datetime={date.toISOString()}>{fmt(date)}</time>
+        · by <a href={AUTHOR.url} target="_blank" rel="noopener author">{AUTHOR.name}</a>
+      </p>
       <div class="prose">
         <Content />
       </div>
+      <AuthorBio />
     </article>
   </main>
 
@@ -74,9 +80,13 @@ const articleLd = {
     text-decoration: none;
   }
   .cl-entry h1 {
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-feature-settings: 'calt' 1;
     font-size: clamp(28px, 5vw, 38px);
-    letter-spacing: -0.03em;
+    letter-spacing: -0.01em;
     margin: 6px 0 6px;
+    color: #fff;
   }
   .cl-date {
     color: var(--muted);

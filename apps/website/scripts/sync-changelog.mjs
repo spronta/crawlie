@@ -44,11 +44,18 @@ for (const f of readdirSync(OUT_DIR)) {
 const esc = (s) => s.replace(/"/g, '\\"');
 
 for (const { version, date, body } of entries) {
-  // A unique, descriptive meta line for SEO: the change categories in this release.
+  // Prefer the release's own intro line as the description (best for SEO + the
+  // changelog/home cards); fall back to the change categories.
+  const intro = body
+    .split('\n')
+    .map((l) => l.trim())
+    .find((l) => l && !l.startsWith('#') && !l.startsWith('-') && !l.startsWith('[') && !l.startsWith('*'));
   const sections = [...body.matchAll(/^### (.+)$/gm)].map((x) => x[1].trim());
-  const summary = sections.length
-    ? `What's new in crawlie v${version}: ${sections.join(', ').toLowerCase()}.`
-    : `crawlie v${version} release notes.`;
+  const summary =
+    (intro && intro.length <= 240 ? intro : null) ??
+    (sections.length
+      ? `What's new in crawlie v${version}: ${sections.join(', ').toLowerCase()}.`
+      : `crawlie v${version} release notes.`);
 
   const frontmatter =
     `---\n` +
