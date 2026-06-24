@@ -1,4 +1,5 @@
 ---
+import Analytics from '@vercel/analytics/astro';
 import '../styles/global.css';
 
 interface Props {
@@ -23,6 +24,7 @@ const ogImage = new URL('/og.png', Astro.site).href;
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="canonical" href={canonicalURL.href} />
     <meta name="generator" content={Astro.generator} />
 
@@ -72,5 +74,19 @@ const ogImage = new URL('/og.png', Astro.site).href;
         });
       });
     </script>
+    <script>
+      // Send a Vercel Analytics custom event for any element tagged with
+      // data-track (and optional data-track-location).
+      import { track } from '@vercel/analytics';
+      document.addEventListener('click', (e) => {
+        const start = e.target instanceof Element ? e.target : null;
+        const el = start && start.closest('[data-track]');
+        if (!el) return;
+        const name = el.getAttribute('data-track');
+        const loc = el.getAttribute('data-track-location');
+        if (name) track(name, loc ? { location: loc } : undefined);
+      });
+    </script>
+    <Analytics />
   </body>
 </html>

@@ -1,15 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <rect width="32" height="32" rx="7" fill="#080a0f"/>
-  <!-- crawl graph: a seed node linking out to crawled pages -->
-  <g stroke="#0055ee" stroke-width="2" fill="none" stroke-linecap="round">
-    <path d="M16 16 L8 8"/>
-    <path d="M16 16 L24 9"/>
-    <path d="M16 16 L9 24"/>
-    <path d="M16 16 L24 23"/>
-  </g>
-  <circle cx="16" cy="16" r="3.6" fill="#0055ee"/>
-  <circle cx="8" cy="8" r="2.4" fill="#0055ee"/>
-  <circle cx="24" cy="9" r="2.4" fill="#0055ee"/>
-  <circle cx="9" cy="24" r="2.4" fill="#0055ee"/>
-  <circle cx="24" cy="23" r="2.4" fill="#0055ee"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 480">
+  <style>
+    /* Dark mark on light browser UI; light mark on dark browser UI. */
+    path { fill: #0a0e14; }
+    @media (prefers-color-scheme: dark) { path { fill: #f5f7fb; } }
+  </style>
+  <path transform="translate(39.5 25)" d="M174.795 364.538H304.606V430H0V125.791H174.795V364.538ZM401 304.209H226.205V65.4623H96.3943V0H401V304.209Z"/>
 </svg>

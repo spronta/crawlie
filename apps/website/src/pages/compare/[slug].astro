@@ -81,8 +81,8 @@ const others = COMPETITORS.filter((x) => x.slug !== c.slug);
         <h2 class="sr-h">In short</h2>
         <p>{c.answer}</p>
         <div class="cta-row">
-          <a class="btn btn-primary" href="/docs/getting-started">Get started — it's free</a>
-          <a class="btn btn-ghost" href="https://github.com/spronta/crawlie" target="_blank" rel="noopener">View on GitHub</a>
+          <a class="btn btn-primary" href="/docs/getting-started" data-track="cta_get_started" data-track-location="compare">Get started — it's free</a>
+          <a class="btn btn-ghost" href="https://github.com/spronta/crawlie" target="_blank" rel="noopener" data-track="cta_github" data-track-location="compare">View on GitHub</a>
         </div>
       </section>
 
@@ -138,8 +138,8 @@ const others = COMPETITORS.filter((x) => x.slug !== c.slug);
         <p>Free, open-source, and installable in seconds. Crawl any number of URLs, get plain-English fixes, and check your AI-search readiness.</p>
         <div class="cmd"><code>npm i -g crawlie &amp;&amp; crawlie crawl https://your-site.com</code></div>
         <div class="cta-row">
-          <a class="btn btn-primary" href="/docs/getting-started">Read the docs</a>
-          <a class="btn btn-ghost" href="https://github.com/spronta/crawlie/releases/latest">Download the desktop app</a>
+          <a class="btn btn-primary" href="/docs/getting-started" data-track="cta_get_started" data-track-location="compare-footer">Read the docs</a>
+          <a class="btn btn-ghost" href="https://github.com/spronta/crawlie/releases/latest" data-track="cta_download" data-track-location="compare-footer">Download the desktop app</a>
         </div>
         {others.length > 0 && (
           <p class="more">

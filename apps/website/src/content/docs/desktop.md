@@ -14,7 +14,7 @@ uploaded anywhere.
 ## Download
 
 <p>
-  <a class="download-btn" href="https://github.com/spronta/crawlie/releases/latest">⬇&nbsp; Download crawlie for macOS</a>
+  <a class="download-btn" href="https://github.com/spronta/crawlie/releases/latest" data-track="cta_download" data-track-location="docs-desktop">⬇&nbsp; Download crawlie for macOS</a>
 </p>
 
 A **universal** build (Apple Silicon + Intel), **signed and notarized by Apple**

@@ -80,11 +80,11 @@ const cell = (v: string) =>
         <div class="cmd hero-cmd">
           <span class="prompt">$</span>
           <code>npm i -g crawlie</code>
-          <button data-copy="npm i -g crawlie">copy</button>
+          <button data-copy="npm i -g crawlie" data-track="copy_install" data-track-location="hero">copy</button>
         </div>
 
         <div class="hero-actions">
-          <a href="/docs/getting-started" class="btn btn-primary">Read the docs →</a>
+          <a href="/docs/getting-started" class="btn btn-primary" data-track="cta_get_started" data-track-location="hero">Read the docs →</a>
           <GitHubStarButton href={GITHUB} stars={stars} />
         </div>
 
@@ -178,7 +178,7 @@ const cell = (v: string) =>
           <div class="cmd block">
             <span class="prompt">$</span>
             <code>claude mcp add crawlie crawlie-mcp</code>
-            <button data-copy="claude mcp add crawlie crawlie-mcp">copy</button>
+            <button data-copy="claude mcp add crawlie crawlie-mcp" data-track="copy_mcp" data-track-location="agents">copy</button>
           </div>
           <p class="muted small">
             Or install the one-step <a href="/docs/skills-and-plugin">Claude Code plugin</a> —
@@ -269,10 +269,10 @@ const cell = (v: string) =>
         <div class="cmd block centered">
           <span class="prompt">$</span>
           <code>npx -y crawlie crawl https://your-site.com</code>
-          <button data-copy="npx -y crawlie crawl https://your-site.com">copy</button>
+          <button data-copy="npx -y crawlie crawl https://your-site.com" data-track="copy_install" data-track-location="bottom-cta">copy</button>
         </div>
         <div class="hero-actions center-actions">
-          <a href="/docs/getting-started" class="btn btn-primary">Get started →</a>
+          <a href="/docs/getting-started" class="btn btn-primary" data-track="cta_get_started" data-track-location="bottom-cta">Get started →</a>
           <GitHubStarButton href={GITHUB} stars={stars} />
         </div>
       </div>

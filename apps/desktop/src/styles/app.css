@@ -260,14 +260,22 @@ a:hover {
   font: var(--heading-16);
   letter-spacing: -0.01em;
 }
-.logo .mark {
-  display: grid;
-  place-items: center;
-  width: 26px;
-  height: 26px;
-  border-radius: var(--radius-sm);
-  background: #080a0f; /* brand dark — matches the favicon + app icon */
-  overflow: hidden;
+/* Brand: full lockup when expanded, icon-only when collapsed. Both inherit the
+   theme text colour via currentColor (light on dark, dark on light). */
+.logo .mark-only,
+.logo .lockup {
+  display: inline-flex;
+  align-items: center;
+  color: var(--text);
+}
+.logo .mark-only {
+  display: none;
+}
+.sidebar.collapsed .logo .lockup {
+  display: none;
+}
+.sidebar.collapsed .logo .mark-only {
+  display: inline-flex;
 }
 .logo .by {
   font: var(--label-12);

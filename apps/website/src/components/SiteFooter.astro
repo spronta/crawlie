@@ -1,14 +1,13 @@
 ---
-import BrandMark from './BrandMark.astro';
+import BrandLockup from './BrandLockup.astro';
 const GITHUB = 'https://github.com/spronta/crawlie';
 const year = 2026;
 ---
 <footer class="site-footer">
   <div class="container cols">
     <div class="about">
-      <a href="/" class="brand"><BrandMark size={22} /><span>crawlie</span></a>
+      <a href="/" class="brand" aria-label="crawlie home"><BrandLockup height={30} /></a>
       <p>The free, open-source technical-SEO &amp; GEO crawler — built for humans and agents.</p>
-      <p class="by">by Spronta Ltd · MIT licensed</p>
     </div>
     <div class="group">
       <h4>Product</h4>
@@ -42,33 +41,42 @@ const year = 2026;
 <style>
   .site-footer {
     border-top: 1px solid var(--border-soft);
-    padding: 56px 0 40px;
+    padding: 84px 0 52px;
   }
   .cols {
     display: grid;
-    grid-template-columns: 1.6fr 1fr 1fr 1fr;
-    gap: 32px;
+    grid-template-columns: 1.8fr 1fr 1fr 1fr;
+    gap: 48px;
   }
   .brand {
-    display: inline-flex; align-items: center; gap: 8px;
-    color: var(--text); font-weight: 600; font-size: 16px;
+    display: inline-flex; align-items: center;
+    color: var(--text);
   }
-  .brand:hover { text-decoration: none; }
-  .about p { color: var(--muted); font-size: 14px; max-width: 30ch; margin: 12px 0 0; }
-  .about .by { font-size: 13px; color: var(--muted-2); }
-  .group h4 { font-size: 13px; color: var(--text); margin-bottom: 12px; }
-  .group a { display: block; color: var(--muted); font-size: 14px; padding: 4px 0; }
+  .brand:hover { text-decoration: none; opacity: 0.85; }
+  .about p {
+    color: var(--muted); font-size: 16.5px; line-height: 1.6;
+    max-width: 34ch; margin: 22px 0 0;
+  }
+  .group h4 {
+    font-size: 14.5px; color: var(--text); font-weight: 600;
+    letter-spacing: -0.01em; margin-bottom: 16px;
+  }
+  .group a {
+    display: block; color: var(--muted); font-size: 15.5px;
+    padding: 6px 0; transition: color 0.15s ease;
+  }
   .group a:hover { color: var(--text); text-decoration: none; }
   .baseline {
     display: flex; justify-content: space-between;
-    margin-top: 40px; padding-top: 22px;
+    margin-top: 64px; padding-top: 28px;
     border-top: 1px solid var(--border-soft);
-    color: var(--muted-2); font-size: 13px;
+    color: var(--muted-2); font-size: 13.5px;
     font-family: var(--font-mono);
   }
   @media (max-width: 760px) {
-    .cols { grid-template-columns: 1fr 1fr; }
+    .site-footer { padding: 56px 0 40px; }
+    .cols { grid-template-columns: 1fr 1fr; gap: 36px; }
     .about { grid-column: 1 / -1; }
-    .baseline { flex-direction: column; gap: 6px; }
+    .baseline { flex-direction: column; gap: 6px; margin-top: 44px; }
   }
 </style>

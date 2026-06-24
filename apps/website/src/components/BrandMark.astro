@@ -1,19 +1,12 @@
 ---
+// The crawlie icon mark. Monochrome and theme-aware: it inherits `currentColor`,
+// so it's white on the dark site (and would flip on a light surface).
 interface Props {
   size?: number;
 }
 const { size = 26 } = Astro.props;
+const w = Math.round((size * 401) / 430);
 ---
-<svg width={size} height={size} viewBox="0 0 32 32" fill="none" aria-hidden="true">
-  <g stroke="var(--blue)" stroke-width="2" stroke-linecap="round">
-    <path d="M16 16 L8 8" />
-    <path d="M16 16 L24 9" />
-    <path d="M16 16 L9 24" />
-    <path d="M16 16 L24 23" />
-  </g>
-  <circle cx="16" cy="16" r="3.6" fill="var(--blue)" />
-  <circle cx="8" cy="8" r="2.4" fill="var(--blue)" />
-  <circle cx="24" cy="9" r="2.4" fill="var(--blue)" />
-  <circle cx="9" cy="24" r="2.4" fill="var(--blue)" />
-  <circle cx="24" cy="23" r="2.4" fill="var(--blue)" />
+<svg width={w} height={size} viewBox="0 0 401 430" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <path d="M174.795 364.538H304.606V430H0V125.791H174.795V364.538ZM401 304.209H226.205V65.4623H96.3943V0H401V304.209Z" fill="currentColor" />
 </svg>
