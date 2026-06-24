@@ -253,6 +253,10 @@ const cell = (v: string) =>
             </tbody>
           </table>
         </div>
+        <p class="compare-more">
+          Full breakdowns: <a href="/compare/screaming-frog">crawlie vs Screaming Frog</a> ·
+          <a href="/compare/sitebulb">crawlie vs Sitebulb</a>
+        </p>
       </div>
     </section>
 
@@ -466,6 +470,7 @@ const cell = (v: string) =>
   td[data-v='yes']::before, td[data-v='every issue']::before { color: var(--green); }
   td:not(.label) { color: var(--muted); }
   td.us[data-v='yes'], td.us[data-v='every issue'] { color: var(--green); }
+  .compare-more { text-align: center; margin-top: 20px; color: var(--muted); font-size: 14.5px; }
 
   /* cta */
   .cta {

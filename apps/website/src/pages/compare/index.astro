@@ -1,0 +1,49 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import SiteHeader from "../../components/SiteHeader.astro";
+import SiteFooter from "../../components/SiteFooter.astro";
+import { COMPETITORS } from "../../data/compare";
+---
+
+<BaseLayout
+  title="Compare crawlie — free, open-source SEO crawler vs the alternatives"
+  description="How crawlie stacks up against the popular technical-SEO crawlers — Screaming Frog and Sitebulb. Free, open-source, agent-native, with AI-search (GEO) checks."
+  canonical="/compare"
+>
+  <SiteHeader />
+  <main class="cmp-index container">
+    <header>
+      <p class="eyebrow">Compare</p>
+      <h1>crawlie vs the alternatives</h1>
+      <p class="lede">How crawlie compares to the popular technical-SEO crawlers — free and open-source, with a CLI, an MCP server for AI agents, and AI-search (GEO) checks.</p>
+    </header>
+    <div class="grid">
+      {COMPETITORS.map((c) => (
+        <a class="cmp-card" href={`/compare/${c.slug}`}>
+          <span class="vs">crawlie <em>vs</em> {c.name}</span>
+          <span class="desc">{c.tagline}</span>
+          <span class="go">Read the comparison →</span>
+        </a>
+      ))}
+    </div>
+  </main>
+  <SiteFooter />
+</BaseLayout>
+
+<style>
+  .cmp-index { padding-top: 40px; padding-bottom: 72px; max-width: 820px; }
+  .cmp-index h1 { font-size: clamp(28px, 4.4vw, 40px); margin: 6px 0 10px; }
+  .lede { color: var(--muted); font-size: 18px; margin: 0 0 32px; max-width: 60ch; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+  .cmp-card {
+    display: flex; flex-direction: column; gap: 8px;
+    padding: 22px; border: 1px solid var(--border-soft); border-radius: var(--radius);
+    background: var(--panel); color: var(--text);
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+  .cmp-card:hover { text-decoration: none; border-color: var(--border); background: var(--panel-2); }
+  .vs { font-size: 18px; font-weight: 600; }
+  .vs em { color: var(--muted-2); font-style: normal; font-weight: 400; }
+  .desc { color: var(--muted); font-size: 14.5px; }
+  .go { color: var(--link); font-size: 14px; font-weight: 500; margin-top: 4px; }
+</style>
