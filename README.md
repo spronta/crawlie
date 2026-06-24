@@ -203,13 +203,15 @@ Whole-site / single-page / URL-list modes, live progress, **Health** & **GEO** s
 
 ## What it checks
 
-*46 rules and counting.*
+*49 rules and counting.*
 
 **Technical SEO** — broken links · 4xx/5xx · redirects & chains · titles & meta descriptions (missing / duplicate / length) · H1s · canonicals · noindex / nofollow / X-Robots-Tag · robots.txt blocking · images missing alt · thin & duplicate content · orphan & deep pages
 
 **Performance & security** — slow responses · large pages · missing compression · HTTPS · mixed content · HSTS
 
 **Mobile, international & social** — viewport · `lang` · hreflang · Open Graph · Twitter cards · structured data
+
+**Structured-data validation** — parses JSON-LD and checks each item against Google's rich-result requirements: invalid markup, missing required fields, and missing recommended fields (Product, Article, Recipe, Event, FAQ, Breadcrumb, and more)
 
 **GEO — Generative Engine Optimization** — structured data, semantic HTML, answer-readiness, authorship/E-E-A-T, dated content, question-style headings, and extractable blocks, rolled into a per-page **GEO score**.
 

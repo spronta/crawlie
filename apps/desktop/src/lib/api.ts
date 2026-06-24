@@ -2,7 +2,7 @@
 // and report store; in a plain browser (`pnpm dev`) it serves demo data so the
 // UI stays fully previewable.
 
-import type { CrawlConfig, CrawlEvent, CrawlResult, ReportMeta } from "./types";
+import type { CrawlConfig, CrawlDiff, CrawlEvent, CrawlResult, ReportMeta } from "./types";
 import { DEMO_RESULT } from "./demo";
 
 export function isTauri(): boolean {
@@ -70,6 +70,13 @@ export async function deleteReport(id: string): Promise<void> {
   if (isTauri()) await invoke("delete_report", { id });
 }
 
+/** Compare two saved crawls (oldId = the earlier one). Returns null if either
+ *  report is missing. In browser preview, returns a demo diff. */
+export async function diffReports(oldId: string, newId: string): Promise<CrawlDiff | null> {
+  if (isTauri()) return invoke<CrawlDiff | null>("diff_reports", { oldId, newId });
+  return DEMO_DIFF;
+}
+
 /** Render and save a shareable HTML report. Returns the saved file path, or null
  *  in browser preview (export is a desktop-app feature). */
 export async function exportHtml(result: CrawlResult): Promise<string | null> {
@@ -77,6 +84,7 @@ export async function exportHtml(result: CrawlResult): Promise<string | null> {
   return null;
 }
 
+const DAY = 86_400_000;
 const DEMO_REPORTS: ReportMeta[] = [
   {
     id: DEMO_RESULT.startedAt + "-acme-example",
@@ -88,7 +96,43 @@ const DEMO_REPORTS: ReportMeta[] = [
     healthScore: DEMO_RESULT.summary.healthScore,
     geoScore: DEMO_RESULT.summary.geoScore,
   },
+  // An older crawl of the same site, so the compare flow has two to diff.
+  {
+    id: DEMO_RESULT.startedAt - DAY + "-acme-example",
+    url: DEMO_RESULT.config.url,
+    createdAt: DEMO_RESULT.startedAt - DAY,
+    totalPages: Math.max(0, DEMO_RESULT.summary.totalPages - 2),
+    errors: DEMO_RESULT.summary.errors + 2,
+    warnings: DEMO_RESULT.summary.warnings + 3,
+    healthScore: Math.max(0, DEMO_RESULT.summary.healthScore - 9),
+    geoScore: Math.max(0, DEMO_RESULT.summary.geoScore - 4),
+  },
 ];
+
+const DEMO_DIFF: CrawlDiff = {
+  oldId: DEMO_REPORTS[1].id,
+  newId: DEMO_REPORTS[0].id,
+  oldCreatedAt: DEMO_REPORTS[1].createdAt,
+  newCreatedAt: DEMO_REPORTS[0].createdAt,
+  healthBefore: DEMO_REPORTS[1].healthScore,
+  healthAfter: DEMO_REPORTS[0].healthScore,
+  healthDelta: DEMO_REPORTS[0].healthScore - DEMO_REPORTS[1].healthScore,
+  geoBefore: DEMO_REPORTS[1].geoScore,
+  geoAfter: DEMO_REPORTS[0].geoScore,
+  geoDelta: DEMO_REPORTS[0].geoScore - DEMO_REPORTS[1].geoScore,
+  pagesBefore: DEMO_REPORTS[1].totalPages,
+  pagesAfter: DEMO_REPORTS[0].totalPages,
+  pagesAdded: ["https://acme.example/pricing", "https://acme.example/blog/whats-new"],
+  pagesRemoved: ["https://acme.example/legacy-landing"],
+  newIssues: [
+    { rule: "broken-link", title: "Broken Link", category: "links", severity: "error", count: 1, sampleUrls: ["https://acme.example/blog/whats-new"] },
+  ],
+  resolvedIssues: [
+    { rule: "title-missing", title: "Missing Title", category: "titles-meta", severity: "error", count: 2, sampleUrls: ["https://acme.example/pricing", "https://acme.example/about"] },
+    { rule: "image-missing-alt", title: "Images Missing Alt Text", category: "images", severity: "warning", count: 4, sampleUrls: ["https://acme.example/"] },
+    { rule: "description-missing", title: "Missing Meta Description", category: "titles-meta", severity: "warning", count: 1, sampleUrls: ["https://acme.example/features"] },
+  ],
+};
 
 // ===== Settings =====
 

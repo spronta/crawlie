@@ -3,7 +3,7 @@
 //! locally; both `crawl` and `crawl_to_store` run against it and their issues +
 //! summary are compared.
 
-use crawlie_core::{crawl, crawl_to_store, CancelToken, CrawlConfig, CrawlMode, Issue};
+use crawlie_core::{crawl, crawl_to_store, CancelToken, CrawlConfig, CrawlMode, Issue, PageStore};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 
@@ -161,6 +161,20 @@ async fn streaming_crawl_matches_in_memory() {
         .unwrap();
     assert!(home_inlinks >= 2, "home should have inlinks from A and B");
     assert!(any_seo, "SEO scores should be written back to the store");
+
+    // The .db is a complete, self-contained artifact: reopening it reconstructs
+    // the same issues and summary as the live crawl.
+    let reopened = PageStore::open(&db).unwrap();
+    let restored = reopened.to_result(false).unwrap().expect("finalized store");
+    assert_eq!(
+        sorted(restored.issues.clone()),
+        sorted(stream.issues.clone())
+    );
+    assert_eq!(restored.summary.health_score, stream.summary.health_score);
+    assert_eq!(restored.summary.total_pages, stream.summary.total_pages);
+    assert!(restored.pages.is_empty(), "to_result(false) skips pages");
+    let with_pages = reopened.to_result(true).unwrap().unwrap();
+    assert_eq!(with_pages.pages.len(), store.count().unwrap());
 
     let _ = std::fs::remove_file(&db);
 }

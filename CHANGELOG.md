@@ -4,6 +4,18 @@ All notable changes to crawlie are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] - 2026-06-24
+
+Polishes 0.4.0: streamed crawls are now inspectable, and you can compare crawls right in the desktop app.
+
+### Added
+- **`crawlie store <db>`** — inspect a streamed crawl from the command line. `crawl --store` now writes a complete, self-contained database (pages, findings, and summary), and `crawlie store` renders it in any format (`pretty`, `json`, `csv`, `html`) with the same `--severity` / `--output` flags as `report`.
+- **Compare crawls in the desktop app** — a new **Compare** mode in Saved Reports: pick two crawls and see health/GEO score deltas, pages added and removed, and the issues that were resolved or newly appeared — the same crawl-over-crawl diff available via `crawlie diff` and the MCP `diff_reports` tool.
+
+### Changed
+- `crawl --store` together with `--save` no longer writes an empty entry to report history — the streamed database is the artifact (inspect it with `crawlie store`).
+- Docs: added pages for `crawlie diff`, streaming crawls / `crawlie store`, the `diff_reports` MCP tool, and structured-data validation.
+
 ## [0.4.0] - 2026-06-23
 
 Crawl bigger, see what changed, and validate your structured data — this release closes three of the biggest gaps between crawlie and the heavyweight desktop crawlers.

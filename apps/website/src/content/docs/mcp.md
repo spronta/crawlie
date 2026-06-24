@@ -46,7 +46,9 @@ over stdio. Built from source? Use the absolute path to `target/release/crawlie-
 | `audit_urls` | Audit an explicit list of pages. |
 | `explain_issue` | Why a rule matters + how to fix it. |
 | `list_rules` | The full catalogue of checks. |
+| `top_fixes` / `geo_gaps` / `affected_urls` | Slice a saved report — prioritized fixes, GEO gap breakdown, or the URLs a rule affects — without re-crawling. |
 | `list_reports` / `get_report` | Read saved crawl history. |
+| `diff_reports` | Compare two saved crawls — score deltas, pages added/removed, issues newly appeared vs resolved. |
 
 ## Example agent prompts
 

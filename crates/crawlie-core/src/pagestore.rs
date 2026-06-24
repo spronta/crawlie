@@ -11,8 +11,8 @@
 //! url→id map, an integer edge graph, and the issue list — not the corpus.
 
 use crate::audit::CrossPage;
-use crate::types::Page;
-use rusqlite::{params, Connection};
+use crate::types::{Category, CrawlResult, Issue, Page, Severity};
+use rusqlite::{params, Connection, OptionalExtension};
 use std::cell::Cell;
 use std::collections::{HashMap, HashSet};
 use std::io;
@@ -39,10 +39,41 @@ CREATE TABLE IF NOT EXISTS edge (
     dst TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_edge_dst ON edge(dst);
+-- The audit findings + crawl metadata, written once the crawl finishes, so a
+-- streamed .db is a complete, self-contained crawl artifact (queryable later).
+CREATE TABLE IF NOT EXISTS issue (
+    rule     TEXT NOT NULL,
+    title    TEXT NOT NULL,
+    category TEXT NOT NULL,
+    severity TEXT NOT NULL,
+    url      TEXT NOT NULL,
+    detail   TEXT
+);
+CREATE TABLE IF NOT EXISTS meta (
+    key   TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
 ";
 
 fn ioerr<E: std::fmt::Display>(e: E) -> io::Error {
     io::Error::other(e.to_string())
+}
+
+/// Serde token for a category/severity (`geo`, `titles-meta`, `warning`, …) so
+/// the value round-trips through the text columns.
+fn token<T: serde::Serialize>(v: &T) -> String {
+    serde_json::to_value(v)
+        .ok()
+        .and_then(|j| j.as_str().map(String::from))
+        .unwrap_or_default()
+}
+
+fn category_from(s: &str) -> Category {
+    serde_json::from_value(serde_json::Value::String(s.to_string())).unwrap_or(Category::Response)
+}
+
+fn severity_from(s: &str) -> Severity {
+    serde_json::from_value(serde_json::Value::String(s.to_string())).unwrap_or(Severity::Notice)
 }
 
 /// Normalize a URL the same way the crawler does (drop the fragment) so the
@@ -332,6 +363,94 @@ impl PageStore {
             )
             .map_err(ioerr)?;
         Ok(())
+    }
+
+    /// Write the audit findings + crawl metadata into the store, making the .db
+    /// a complete, self-contained crawl artifact that [`to_result`](Self::to_result)
+    /// can reload. Called once `crawl_to_store` has finished auditing.
+    pub fn finalize(&self, result: &CrawlResult) -> io::Result<()> {
+        self.begin()?;
+        {
+            let mut stmt = self
+                .conn
+                .prepare(
+                    "INSERT INTO issue (rule, title, category, severity, url, detail) \
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                )
+                .map_err(ioerr)?;
+            for i in &result.issues {
+                stmt.execute(params![
+                    i.rule,
+                    i.title,
+                    token(&i.category),
+                    token(&i.severity),
+                    i.url,
+                    i.detail,
+                ])
+                .map_err(ioerr)?;
+            }
+        }
+        // The meta blob is the full result minus the heavy/duplicated fields:
+        // pages live in the `page` table, issues in the `issue` table.
+        let mut slim = result.clone();
+        slim.pages = Vec::new();
+        slim.issues = Vec::new();
+        let blob = serde_json::to_string(&slim).map_err(ioerr)?;
+        self.conn
+            .execute(
+                "INSERT OR REPLACE INTO meta (key, value) VALUES ('crawl', ?1)",
+                params![blob],
+            )
+            .map_err(ioerr)?;
+        self.commit()
+    }
+
+    /// The audit findings recorded in the store.
+    pub fn issues(&self) -> io::Result<Vec<Issue>> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT rule, title, category, severity, url, detail FROM issue")
+            .map_err(ioerr)?;
+        let rows = stmt
+            .query_map([], |r| {
+                Ok(Issue {
+                    rule: r.get(0)?,
+                    title: r.get(1)?,
+                    category: category_from(&r.get::<_, String>(2)?),
+                    severity: severity_from(&r.get::<_, String>(3)?),
+                    url: r.get(4)?,
+                    detail: r.get(5)?,
+                })
+            })
+            .map_err(ioerr)?;
+        Ok(rows.filter_map(Result::ok).collect())
+    }
+
+    /// Load every stored page into memory (for rendering a small/medium crawl).
+    pub fn load_pages(&self) -> io::Result<Vec<Page>> {
+        let mut pages = Vec::new();
+        self.for_each_page(|_, p| pages.push(p))?;
+        Ok(pages)
+    }
+
+    /// Reconstruct the full [`CrawlResult`] from a finalized store. Returns
+    /// `None` if the store was never finalized (no metadata). `include_pages`
+    /// loads the full page list; leave it off for issue/summary-only views.
+    pub fn to_result(&self, include_pages: bool) -> io::Result<Option<CrawlResult>> {
+        let blob: Option<String> = self
+            .conn
+            .query_row("SELECT value FROM meta WHERE key = 'crawl'", [], |r| {
+                r.get(0)
+            })
+            .optional()
+            .map_err(ioerr)?;
+        let Some(blob) = blob else { return Ok(None) };
+        let mut result: CrawlResult = serde_json::from_str(&blob).map_err(ioerr)?;
+        result.issues = self.issues()?;
+        if include_pages {
+            result.pages = self.load_pages()?;
+        }
+        Ok(Some(result))
     }
 
     /// Open a write transaction. Pair with [`commit`](Self::commit) to batch the

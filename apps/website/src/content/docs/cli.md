@@ -31,6 +31,7 @@ crawlie crawl https://example.com --format pretty
 | `--severity <sev>` | Only show findings at/above a severity. |
 | `-o, --output <file>` | Write to a file instead of stdout. |
 | `--save` | Save to local report history. |
+| `--store <path>` | Stream pages to an on-disk SQLite database instead of holding them in memory — for very large sites. Inspect the result later with `crawlie store`. |
 | `--fail-on <sev>` | Exit non-zero on `error` or `warning` findings (for CI). |
 | `-q, --quiet` | Suppress progress output. |
 
@@ -93,6 +94,36 @@ crawlie reports               # list saved reports
 crawlie report <id>           # print a saved report
 crawlie report <id> --delete  # remove it
 ```
+
+## diff
+
+Compare two saved reports — what improved, regressed, and changed between two crawls of
+the same site. Shows health/GEO score deltas, pages added and removed, and issues that
+newly appeared or were resolved (grouped by rule).
+
+```bash
+crawlie diff <old-id> <new-id>            # pretty summary
+crawlie diff <old-id> <new-id> --format json
+```
+
+Great for verifying a fix actually landed, or catching a regression before it ships.
+Agents get the same via the MCP `diff_reports` tool (see [MCP server](/docs/mcp)).
+
+## store (large / streaming crawls)
+
+For sites too large to hold in memory, `crawl --store <path>` streams every page to an
+on-disk SQLite database as it crawls — peak memory stays bounded by a compact index
+instead of the whole site. The database is the artifact; inspect it afterwards with
+`crawlie store`.
+
+```bash
+crawlie crawl https://big-site.example --store crawl.db --quiet
+crawlie store crawl.db                      # pretty report from the database
+crawlie store crawl.db --format json        # full result incl. every page
+crawlie store crawl.db --severity error     # only errors
+```
+
+`crawlie store` accepts the same `--format` and `-o/--output` flags as `report`.
 
 ## CI gating
 

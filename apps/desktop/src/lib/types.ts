@@ -177,6 +177,34 @@ export interface ReportMeta {
   geoScore: number;
 }
 
+export interface IssueDelta {
+  rule: string;
+  title: string;
+  category: Category;
+  severity: Severity;
+  count: number;
+  sampleUrls: string[];
+}
+
+export interface CrawlDiff {
+  oldId: string;
+  newId: string;
+  oldCreatedAt: number;
+  newCreatedAt: number;
+  healthBefore: number;
+  healthAfter: number;
+  healthDelta: number;
+  geoBefore: number;
+  geoAfter: number;
+  geoDelta: number;
+  pagesBefore: number;
+  pagesAfter: number;
+  pagesAdded: string[];
+  pagesRemoved: string[];
+  newIssues: IssueDelta[];
+  resolvedIssues: IssueDelta[];
+}
+
 export type CrawlEvent =
   | { type: "started"; url: string }
   | { type: "progress"; crawled: number; discovered: number; queued: number; current: string }

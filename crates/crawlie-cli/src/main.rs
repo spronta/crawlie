@@ -7,7 +7,7 @@
 use clap::{Parser, Subcommand, ValueEnum};
 use crawlie_core::{
     all_rules, crawl, crawl_to_store, report_html, rule_info, top_fixes, CancelToken, CrawlConfig,
-    CrawlMode, CrawlResult, ReportStore, Severity,
+    CrawlMode, CrawlResult, PageStore, ReportStore, Severity,
 };
 mod update;
 
@@ -49,6 +49,8 @@ enum Command {
     Report(ReportArgs),
     /// Compare two saved reports — what improved, regressed, and changed.
     Diff(DiffArgs),
+    /// Inspect a streamed crawl database (created with `crawl --store <path>`).
+    Store(StoreArgs),
 }
 
 #[derive(Parser)]
@@ -200,6 +202,20 @@ struct ReportArgs {
 }
 
 #[derive(Parser)]
+struct StoreArgs {
+    /// Path to the streamed crawl database (the `.db` from `crawl --store`).
+    db: String,
+    #[arg(long, value_enum, default_value_t = Format::Pretty)]
+    format: Format,
+    /// Only show findings at or above this severity.
+    #[arg(long, value_enum)]
+    severity: Option<Sev>,
+    /// Write output to a file instead of stdout.
+    #[arg(long, short = 'o')]
+    output: Option<String>,
+}
+
+#[derive(Parser)]
 struct DiffArgs {
     /// The earlier report id (see `crawlie reports`).
     old: String,
@@ -264,6 +280,7 @@ async fn main() -> ExitCode {
         Command::Reports => list_reports(),
         Command::Report(a) => show_report(a),
         Command::Diff(a) => diff_reports(a),
+        Command::Store(a) => show_store(a),
         Command::Update(_) => unreachable!("handled above"),
     };
     // Best-effort, interactive-human-only nudge. Never touches stdout.
@@ -722,13 +739,22 @@ async fn execute(
     }
 
     if save {
-        match ReportStore::new(reports_dir()).save(&result) {
-            Ok(meta) => {
-                if !quiet {
-                    eprintln!("  saved report {}", meta.id)
-                }
+        if store.is_some() {
+            // In streaming mode the pages live in the --store database, not in
+            // the in-memory result, so saving to history would store an empty
+            // report. The .db is the artifact — inspect it with `crawlie store`.
+            if !quiet {
+                eprintln!("  note: --save ignored in --store mode; the crawl is in the database. Inspect it with `crawlie store <path>`.");
             }
-            Err(e) => eprintln!("  warning: could not save report: {e}"),
+        } else {
+            match ReportStore::new(reports_dir()).save(&result) {
+                Ok(meta) => {
+                    if !quiet {
+                        eprintln!("  saved report {}", meta.id)
+                    }
+                }
+                Err(e) => eprintln!("  warning: could not save report: {e}"),
+            }
         }
     }
 
@@ -998,6 +1024,37 @@ fn show_report(a: ReportArgs) -> ExitCode {
             ExitCode::from(2)
         }
     }
+}
+
+fn show_store(a: StoreArgs) -> ExitCode {
+    let store = match PageStore::open(&a.db) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("crawlie: can't open '{}': {e}", a.db);
+            return ExitCode::from(2);
+        }
+    };
+    // Pretty/CSV render from issues + summary only; JSON/HTML need the pages.
+    let need_pages = matches!(a.format, Format::Json | Format::Html);
+    let result = match store.to_result(need_pages) {
+        Ok(Some(r)) => r,
+        Ok(None) => {
+            eprintln!(
+                "crawlie: '{}' isn't a finalized crawl store (no metadata). Was the crawl interrupted?",
+                a.db
+            );
+            return ExitCode::from(2);
+        }
+        Err(e) => {
+            eprintln!("crawlie: {e}");
+            return ExitCode::from(2);
+        }
+    };
+    let min = a.severity.map(sev_rank);
+    let rendered = render(&result, a.format, min);
+    emit(rendered, a.output, false)
+        .err()
+        .unwrap_or(ExitCode::SUCCESS)
 }
 
 fn diff_reports(a: DiffArgs) -> ExitCode {

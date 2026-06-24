@@ -837,6 +837,8 @@ where
         llms_txt_found,
         started_at,
     };
+    // Persist the findings + metadata so the .db is a complete, queryable crawl.
+    store.finalize(&result).map_err(ioerr)?;
     Ok((result, store))
 }
 

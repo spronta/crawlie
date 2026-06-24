@@ -1,11 +1,11 @@
 ---
 title: What it checks
-description: The full catalogue of crawlie's 46 technical-SEO and GEO rules — broken links, metadata, canonicals, structured data, AI-search readiness, and more.
+description: The full catalogue of crawlie's 49 technical-SEO and GEO rules — broken links, metadata, canonicals, structured-data validation, AI-search readiness, and more.
 section: Reference
 order: 5
 ---
 
-crawlie runs **46 rules and counting**. Every finding links to plain-English guidance —
+crawlie runs **49 rules and counting**. Every finding links to plain-English guidance —
 why it matters, how to fix it, and what happens if you ignore it. Get that for any rule
 with `crawlie explain <rule-id>` (or the `explain_issue` MCP tool).
 
@@ -34,6 +34,17 @@ Viewport · `lang` · hreflang · Open Graph · Twitter cards · structured data
 
 Rule ids: `viewport-missing`, `lang-missing`, `hreflang-incomplete`, `og-missing`,
 `twitter-missing`, `structured-data-missing`.
+
+## Structured-data validation
+
+Beyond detecting JSON-LD, crawlie parses it and validates each item against Google's
+rich-result requirements — flagging markup that won't earn a rich result. It catches
+JSON-LD that doesn't parse at all, required properties that are missing (e.g. `price` on
+an `Offer`, `image` on a `Product`), and recommended properties worth adding — across
+Article, Product, Recipe, Event, FAQ, Breadcrumb, JobPosting, LocalBusiness, and more.
+
+Rule ids: `structured-data-invalid`, `schema-missing-required`,
+`schema-missing-recommended`.
 
 ## GEO — Generative Engine Optimization
 
