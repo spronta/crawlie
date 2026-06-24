@@ -4,6 +4,16 @@ All notable changes to crawlie are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.2] - 2026-06-24
+
+Custom extraction lands, plus a brand refresh.
+
+### Added
+- **Custom extraction** — pull any data off every crawled page with CSS selectors or regular expressions: prices, authors, SKUs, publish dates, any attribute. `crawlie crawl <url> --extract 'price=.product-price'` (append `@attr` to read an attribute) or `--extract-regex 'sku=SKU-(\d+)'`, repeatable. With extractors set, `--format csv` becomes a tidy table (one row per page, one column per extractor); `--format json` carries the values per page. Agents get it too via the `extract` array on the `crawl_site` MCP tool. The free, scriptable take on Screaming Frog's Custom Extraction — see the [docs](https://crawlie.dev/docs/custom-extraction).
+
+### Changed
+- **New brand** — crawlie has a fresh logo. The new mark and wordmark lockup appear across the desktop app and the website (light/dark aware), with a new app icon and a theme-aware favicon.
+
 ## [0.4.1] - 2026-06-24
 
 Polishes 0.4.0: streamed crawls are now inspectable, and you can compare crawls right in the desktop app.

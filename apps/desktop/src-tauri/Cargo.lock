@@ -450,11 +450,12 @@ dependencies = [
 
 [[package]]
 name = "crawlie-core"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "brotli",
  "flate2",
  "futures",
+ "regex",
  "reqwest 0.12.28",
  "rusqlite",
  "scraper",
@@ -466,7 +467,7 @@ dependencies = [
 
 [[package]]
 name = "crawlie-desktop"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "crawlie-core",
  "serde",

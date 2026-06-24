@@ -252,7 +252,7 @@ checksum = "cc14f565cf027a105f7a44ccf9e5b424348421a1d8952a8fc9d499d313107789"
 
 [[package]]
 name = "crawlie-cli"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "clap",
  "crawlie-core",
@@ -264,7 +264,7 @@ dependencies = [
 
 [[package]]
 name = "crawlie-core"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "brotli",
  "flate2",
@@ -281,7 +281,7 @@ dependencies = [
 
 [[package]]
 name = "crawlie-mcp"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "crawlie-core",
  "serde_json",
@@ -290,7 +290,7 @@ dependencies = [
 
 [[package]]
 name = "crawlie-rules"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "regex",
  "serde",
