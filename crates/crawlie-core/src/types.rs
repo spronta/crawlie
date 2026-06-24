@@ -84,6 +84,37 @@ pub struct CrawlConfig {
     /// Skip URLs whose path matches one of these (substring/glob, `*` ok).
     #[serde(default)]
     pub exclude: Vec<String>,
+    /// Custom data extractors run against every crawled HTML page.
+    #[serde(default)]
+    pub extract: Vec<Extractor>,
+}
+
+/// A user-defined extractor: pull arbitrary data off every page via a CSS
+/// selector (optionally an attribute) or a regular expression. The
+/// Screaming-Frog-style "custom extraction" feature.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Extractor {
+    /// Column name for the extracted values, e.g. `price`.
+    pub name: String,
+    /// CSS selector (mutually exclusive with `regex`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub css: Option<String>,
+    /// Attribute to read from matched elements; `None` extracts text.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub attr: Option<String>,
+    /// Regular expression run over the raw HTML (mutually exclusive with `css`).
+    /// Capture group 1 is used when present, otherwise the whole match.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub regex: Option<String>,
+}
+
+/// The values one [`Extractor`] pulled from a single page (in document order).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExtractValue {
+    pub name: String,
+    pub values: Vec<String>,
 }
 
 impl CrawlConfig {
@@ -103,6 +134,7 @@ impl CrawlConfig {
             use_sitemap: true,
             include: Vec::new(),
             exclude: Vec::new(),
+            extract: Vec::new(),
         }
     }
 }
@@ -200,6 +232,12 @@ pub struct Page {
 
     // --- GEO (Generative Engine Optimization) signals ---
     pub geo: GeoSignals,
+
+    // --- custom extraction ---
+    /// Values pulled by the configured [`Extractor`]s. Empty unless extractors
+    /// were set and matched.
+    #[serde(default)]
+    pub extractions: Vec<ExtractValue>,
 
     // --- dedup ---
     pub content_hash: Option<String>,
@@ -521,6 +559,8 @@ pub enum CrawlEvent {
 pub enum CrawlError {
     InvalidUrl(String),
     Client(String),
+    /// Invalid configuration (e.g. a malformed custom extractor).
+    Config(String),
 }
 
 impl std::fmt::Display for CrawlError {
@@ -528,6 +568,7 @@ impl std::fmt::Display for CrawlError {
         match self {
             CrawlError::InvalidUrl(m) => write!(f, "invalid url: {m}"),
             CrawlError::Client(m) => write!(f, "http client error: {m}"),
+            CrawlError::Config(m) => write!(f, "{m}"),
         }
     }
 }

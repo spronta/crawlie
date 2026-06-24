@@ -7,7 +7,7 @@
 use clap::{Parser, Subcommand, ValueEnum};
 use crawlie_core::{
     all_rules, crawl, crawl_to_store, report_html, rule_info, top_fixes, CancelToken, CrawlConfig,
-    CrawlMode, CrawlResult, PageStore, ReportStore, Severity,
+    CrawlMode, CrawlResult, Extractor, PageStore, ReportStore, Severity,
 };
 mod update;
 
@@ -90,6 +90,16 @@ struct CrawlArgs {
     /// Save the report to the local report store.
     #[arg(long)]
     save: bool,
+    /// Custom extraction: `NAME=CSS_SELECTOR` (append `@attr` to read an
+    /// attribute instead of text), e.g. `--extract 'price=.product-price'` or
+    /// `--extract 'author=meta[name=author]@content'`. Repeatable.
+    #[arg(long, value_name = "NAME=SELECTOR")]
+    extract: Vec<String>,
+    /// Custom extraction via regex over the raw HTML: `NAME=PATTERN` (capture
+    /// group 1 if present, else the whole match), e.g. `--extract-regex
+    /// 'sku=SKU-(\d+)'`. Repeatable.
+    #[arg(long, value_name = "NAME=PATTERN")]
+    extract_regex: Vec<String>,
     /// Stream pages to an on-disk SQLite store instead of holding them in
     /// memory — for crawling very large sites without running out of RAM. The
     /// crawl is written to this path and becomes the queryable artifact.
@@ -289,6 +299,25 @@ async fn main() -> ExitCode {
 }
 
 async fn run_crawl(a: CrawlArgs) -> ExitCode {
+    let mut extract = Vec::new();
+    for spec in &a.extract {
+        match parse_extractor(spec, false) {
+            Ok(e) => extract.push(e),
+            Err(m) => {
+                eprintln!("crawlie: {m}");
+                return ExitCode::from(2);
+            }
+        }
+    }
+    for spec in &a.extract_regex {
+        match parse_extractor(spec, true) {
+            Ok(e) => extract.push(e),
+            Err(m) => {
+                eprintln!("crawlie: {m}");
+                return ExitCode::from(2);
+            }
+        }
+    }
     let config = CrawlConfig {
         mode: CrawlMode::Site,
         max_pages: a.max_pages,
@@ -300,6 +329,7 @@ async fn run_crawl(a: CrawlArgs) -> ExitCode {
         use_sitemap: !a.no_sitemap,
         include: a.include,
         exclude: a.exclude,
+        extract,
         ..CrawlConfig::new(&a.url)
     };
     let min = a.severity.map(sev_rank);
@@ -736,6 +766,25 @@ async fn execute(
             result.summary.geo_score,
             result.summary.duration_ms
         );
+        if !result.config.extract.is_empty() {
+            let names: Vec<&str> = result
+                .config
+                .extract
+                .iter()
+                .map(|e| e.name.as_str())
+                .collect();
+            let hit = result
+                .pages
+                .iter()
+                .filter(|p| !p.extractions.is_empty())
+                .count();
+            eprintln!(
+                "  extracted {} ({}) from {} pages · --format csv for the table",
+                names.len(),
+                names.join(", "),
+                hit
+            );
+        }
     }
 
     if save {
@@ -803,9 +852,39 @@ fn render(r: &CrawlResult, format: Format, min: Option<u8>) -> String {
     match format {
         Format::Json => render_json(r, min),
         Format::Pretty => render_pretty(r, min),
+        // With extractors, CSV is the extraction table (url + a column per
+        // extractor); otherwise it's the issue list.
+        Format::Csv if !r.config.extract.is_empty() => render_extract_csv(r),
         Format::Csv => render_csv(r, min),
         Format::Html => report_html::render(r),
     }
+}
+
+/// One row per crawled page: `url` plus a column for each extractor (multiple
+/// matches joined by ` | `).
+fn render_extract_csv(r: &CrawlResult) -> String {
+    let names: Vec<&str> = r.config.extract.iter().map(|e| e.name.as_str()).collect();
+    let mut out = String::from("url");
+    for n in &names {
+        out.push(',');
+        out.push_str(&csv(n));
+    }
+    out.push('\n');
+    for p in r.pages.iter().filter(|p| p.status == 200) {
+        out.push_str(&csv(&p.url));
+        for n in &names {
+            let v = p
+                .extractions
+                .iter()
+                .find(|e| &e.name == n)
+                .map(|e| e.values.join(" | "))
+                .unwrap_or_default();
+            out.push(',');
+            out.push_str(&csv(&v));
+        }
+        out.push('\n');
+    }
+    out
 }
 
 fn filtered<'a>(r: &'a CrawlResult, min: Option<u8>) -> Vec<&'a crawlie_core::Issue> {
@@ -1151,6 +1230,53 @@ fn print_diff_pretty(d: &crawlie_core::CrawlDiff) {
         }
     }
     println!();
+}
+
+/// Parse a `NAME=SELECTOR` (or `NAME=PATTERN` for regex) extractor spec. For CSS,
+/// a trailing `@attr` reads that attribute instead of the element text. Splits on
+/// the first `=`, so selectors/patterns may contain `=` freely.
+fn parse_extractor(spec: &str, is_regex: bool) -> Result<Extractor, String> {
+    let (name, rest) = spec.split_once('=').ok_or_else(|| {
+        format!("extractor '{spec}' must be NAME=VALUE — e.g. price=.product-price")
+    })?;
+    let name = name.trim();
+    let rest = rest.trim();
+    if name.is_empty() || rest.is_empty() {
+        return Err(format!("extractor '{spec}' needs both a name and a value"));
+    }
+    if is_regex {
+        Ok(Extractor {
+            name: name.to_string(),
+            css: None,
+            attr: None,
+            regex: Some(rest.to_string()),
+        })
+    } else {
+        let (sel, attr) = split_attr(rest);
+        Ok(Extractor {
+            name: name.to_string(),
+            css: Some(sel.trim().to_string()),
+            attr,
+            regex: None,
+        })
+    }
+}
+
+/// Peel a trailing `@attr` off a CSS selector. Only treats it as an attribute
+/// when `attr` looks like an attribute name, so selectors containing `@` in a
+/// value (e.g. `a[href*="@"]`) aren't mangled.
+fn split_attr(sel: &str) -> (&str, Option<String>) {
+    if let Some(idx) = sel.rfind('@') {
+        let attr = &sel[idx + 1..];
+        if !attr.is_empty()
+            && attr
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+        {
+            return (&sel[..idx], Some(attr.to_string()));
+        }
+    }
+    (sel, None)
 }
 
 fn csv(s: &str) -> String {

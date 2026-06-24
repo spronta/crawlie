@@ -456,6 +456,7 @@ mod tests {
                     hreflang: vec![],
                     mixed_content: 0,
                     geo: Default::default(),
+                    extractions: vec![],
                     content_hash: None,
                     duplicate_of: None,
                     error: None,

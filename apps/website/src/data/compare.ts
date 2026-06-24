@@ -60,6 +60,7 @@ export const COMPETITORS: Competitor[] = [
       { feature: "Crawl-over-crawl diffing", crawlie: "Yes (crawlie diff)", them: "Limited", win: "crawlie" },
       { feature: "Plain-English fix for every issue", crawlie: "Yes", them: "No", win: "crawlie" },
       { feature: "Large-site crawls", crawlie: "Streams to SQLite", them: "Database storage mode", win: "tie" },
+      { feature: "Custom extraction", crawlie: "CSS + regex", them: "CSS, XPath, regex", win: "tie" },
       { feature: "JavaScript rendering", crawlie: "Not yet", them: "Yes", win: "them" },
       { feature: "GSC / Analytics / PageSpeed", crawlie: "Not yet", them: "Yes", win: "them" },
       { feature: "Engine", crawlie: "Rust (tiny binary)", them: "Java (JVM)", win: "tie" },
@@ -81,7 +82,7 @@ export const COMPETITORS: Competitor[] = [
     strengths: [
       "JavaScript rendering — Screaming Frog renders pages in a headless browser, so it audits SPAs and client-rendered content. crawlie currently fetches raw HTML.",
       "Built-in integrations — it pulls Google Search Console, Analytics, and PageSpeed/Lighthouse data into the crawl. crawlie doesn't connect those yet.",
-      "Custom extraction — XPath/CSS/regex scraping of arbitrary data from pages.",
+      "XPath custom extraction — crawlie now does CSS-selector and regex extraction, but Screaming Frog also supports XPath.",
       "A mature, refined desktop app on Windows, macOS, and Linux with years of polish.",
     ],
     faq: [
@@ -112,6 +113,7 @@ export const COMPETITORS: Competitor[] = [
       { feature: "Crawl-over-crawl diffing", crawlie: "Yes (crawlie diff)", them: "Yes", win: "tie" },
       { feature: "Plain-English guidance", crawlie: "Every issue", them: "Yes (Hints)", win: "tie" },
       { feature: "Structured-data validation", crawlie: "Yes", them: "Yes", win: "tie" },
+      { feature: "Custom extraction", crawlie: "CSS + regex", them: "Yes", win: "tie" },
       { feature: "Visual crawl maps", crawlie: "No", them: "Yes", win: "them" },
       { feature: "JavaScript rendering", crawlie: "Not yet", them: "Yes", win: "them" },
       { feature: "GSC / Analytics integrations", crawlie: "Not yet", them: "Yes", win: "them" },

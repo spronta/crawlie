@@ -32,6 +32,8 @@ crawlie crawl https://example.com --format pretty
 | `-o, --output <file>` | Write to a file instead of stdout. |
 | `--save` | Save to local report history. |
 | `--store <path>` | Stream pages to an on-disk SQLite database instead of holding them in memory — for very large sites. Inspect the result later with `crawlie store`. |
+| `--extract <NAME=SELECTOR>` | Pull data off every page with a CSS selector (append `@attr` for an attribute). Repeatable. See [Custom extraction](/docs/custom-extraction). |
+| `--extract-regex <NAME=PATTERN>` | Pull data off every page with a regex (capture group 1). Repeatable. |
 | `--fail-on <sev>` | Exit non-zero on `error` or `warning` findings (for CI). |
 | `-q, --quiet` | Suppress progress output. |
 

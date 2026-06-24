@@ -106,6 +106,12 @@ fn tools_list() -> Value {
                 "useSitemap": { "type": "boolean", "default": true },
                 "include": { "type": "array", "items": { "type": "string" } },
                 "exclude": { "type": "array", "items": { "type": "string" } },
+                "extract": { "type": "array", "description": "Custom data extractors run on every page. CSS pulls element text (or the named attribute); regex pulls capture group 1 (else the whole match). Results appear per page under 'extractions' — set includePages to see them.", "items": { "type": "object", "properties": {
+                    "name": { "type": "string", "description": "Column name for the values." },
+                    "css": { "type": "string", "description": "CSS selector (e.g. '.product-price')." },
+                    "attr": { "type": "string", "description": "Attribute to read instead of text (e.g. 'href')." },
+                    "regex": { "type": "string", "description": "Regex over raw HTML (instead of css)." }
+                }, "required": ["name"] } },
                 "includeIssues": { "type": "boolean", "default": false, "description": "Include the full flat issue list (verbose)." },
                 "includePages": { "type": "boolean", "default": false, "description": "Include full per-page data (verbose)." },
                 "saveReport": { "type": "boolean", "default": true }

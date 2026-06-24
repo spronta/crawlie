@@ -31,7 +31,7 @@ const HTML: &str = r##"
 
 fn parsed() -> crawlie_core::parse::Parsed {
     let url = Url::parse("https://example.com/page").unwrap();
-    parse_html(HTML, &url, "example.com")
+    parse_html(HTML, &url, "example.com", &[])
 }
 
 #[test]
@@ -122,6 +122,7 @@ fn ok_page(url: &str) -> Page {
         invalid_jsonld: 0,
         hreflang: vec![],
         mixed_content: 0,
+        extractions: vec![],
         geo: GeoSignals {
             semantic_html: true,
             structured_data: true,

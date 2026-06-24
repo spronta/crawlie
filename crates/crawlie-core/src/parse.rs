@@ -3,7 +3,7 @@
 //! await point. Extracts the full on-page signal set, including GEO signals.
 
 use crate::structured_data;
-use crate::types::{GeoSignals, Hreflang, SchemaValidation};
+use crate::types::{ExtractValue, Extractor, GeoSignals, Hreflang, SchemaValidation};
 use scraper::{Html, Selector};
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashSet;
@@ -38,6 +38,118 @@ pub struct Parsed {
     pub mixed_content: usize,
     pub geo: GeoSignals,
     pub content_hash: Option<String>,
+    pub extractions: Vec<ExtractValue>,
+}
+
+/// Validate that every extractor's selector/regex compiles, returning a
+/// human-readable error for the first bad one. Called before a crawl starts so
+/// a typo fails fast instead of silently extracting nothing.
+pub fn validate_extractors(extractors: &[Extractor]) -> Result<(), String> {
+    for ex in extractors {
+        if let Some(css) = &ex.css {
+            Selector::parse(css)
+                .map_err(|e| format!("extractor '{}': invalid CSS selector — {e:?}", ex.name))?;
+        } else if let Some(pat) = &ex.regex {
+            regex::Regex::new(pat)
+                .map_err(|e| format!("extractor '{}': invalid regex — {e}", ex.name))?;
+        } else {
+            return Err(format!(
+                "extractor '{}': needs a css selector or regex",
+                ex.name
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// Cap on values captured per extractor per page (guards against runaway regex
+/// or selectors that match thousands of nodes).
+const EXTRACT_CAP: usize = 50;
+
+#[cfg(test)]
+mod extract_tests {
+    use super::*;
+
+    fn ex(name: &str, css: Option<&str>, attr: Option<&str>, regex: Option<&str>) -> Extractor {
+        Extractor {
+            name: name.into(),
+            css: css.map(Into::into),
+            attr: attr.map(Into::into),
+            regex: regex.map(Into::into),
+        }
+    }
+
+    #[test]
+    fn css_regex_and_attr_extraction() {
+        let html = "<!doctype html><html><head><title>t</title></head><body>\
+            <div class=\"price\">$19.99</div><div class=\"price\">$5</div>\
+            <a class=\"author\" href=\"/jane\">Jane Doe</a>\
+            <p>Product SKU-123 in stock</p></body></html>";
+        let url = Url::parse("https://shop.example/p").unwrap();
+        let extractors = vec![
+            ex("price", Some(".price"), None, None),
+            ex("author_url", Some("a.author"), Some("href"), None),
+            ex("sku", None, None, Some(r"SKU-(\d+)")),
+            ex("missing", Some(".nope"), None, None),
+        ];
+        let parsed = parse_html(html, &url, "shop.example", &extractors);
+        let by = |n: &str| parsed.extractions.iter().find(|e| e.name == n).cloned();
+
+        assert_eq!(by("price").unwrap().values, vec!["$19.99", "$5"]);
+        assert_eq!(by("author_url").unwrap().values, vec!["/jane"]);
+        assert_eq!(by("sku").unwrap().values, vec!["123"]);
+        // Extractors that match nothing are omitted entirely.
+        assert!(by("missing").is_none());
+    }
+}
+
+/// Run the configured extractors over one document, returning a value list per
+/// extractor (omitting extractors that matched nothing). Selectors/regexes are
+/// expected to be pre-validated by the caller; invalid ones are skipped.
+fn run_extractors(doc: &Html, body: &str, extractors: &[Extractor]) -> Vec<ExtractValue> {
+    let mut out = Vec::new();
+    for ex in extractors {
+        let mut values: Vec<String> = Vec::new();
+        if let Some(css) = &ex.css {
+            if let Ok(sel) = Selector::parse(css) {
+                for el in doc.select(&sel) {
+                    if values.len() >= EXTRACT_CAP {
+                        break;
+                    }
+                    let v = match &ex.attr {
+                        Some(a) => el.value().attr(a).map(|s| s.trim().to_string()),
+                        None => {
+                            let t = collapse(&el.text().collect::<String>());
+                            (!t.is_empty()).then_some(t)
+                        }
+                    };
+                    if let Some(v) = v.filter(|s| !s.is_empty()) {
+                        values.push(v);
+                    }
+                }
+            }
+        } else if let Some(pat) = &ex.regex {
+            if let Ok(re) = regex::Regex::new(pat) {
+                for caps in re.captures_iter(body).take(EXTRACT_CAP) {
+                    // Capture group 1 if the pattern has one, else the whole match.
+                    let m = caps.get(1).or_else(|| caps.get(0));
+                    if let Some(m) = m {
+                        let v = m.as_str().trim();
+                        if !v.is_empty() {
+                            values.push(v.to_string());
+                        }
+                    }
+                }
+            }
+        }
+        if !values.is_empty() {
+            out.push(ExtractValue {
+                name: ex.name.clone(),
+                values,
+            });
+        }
+    }
+    out
 }
 
 fn collapse(s: &str) -> String {
@@ -74,7 +186,7 @@ fn resolve(base: &Url, href: &str) -> Option<Url> {
 }
 
 /// Parse one HTML document into structured SEO + GEO data.
-pub fn parse_html(body: &str, final_url: &Url, host: &str) -> Parsed {
+pub fn parse_html(body: &str, final_url: &Url, host: &str, extractors: &[Extractor]) -> Parsed {
     let doc = Html::parse_document(body);
     let is_https = final_url.scheme() == "https";
 
@@ -326,6 +438,7 @@ pub fn parse_html(body: &str, final_url: &Url, host: &str) -> Parsed {
         mixed_content,
         geo,
         content_hash,
+        extractions: run_extractors(&doc, body, extractors),
     }
 }
 

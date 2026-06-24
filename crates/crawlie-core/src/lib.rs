@@ -38,7 +38,7 @@ pub use priority::{group_issues, top_fixes, top_fixes_filtered};
 pub use report::ReportStore;
 pub use scoring::geo_gaps;
 pub use types::{
-    Category, CrawlConfig, CrawlDiff, CrawlError, CrawlEvent, CrawlMode, CrawlResult, Fix, GeoGaps,
-    GeoSignals, Hreflang, Issue, IssueDelta, IssueGroup, Page, Redirect, ReportMeta, RuleInfo,
-    SchemaValidation, Severity, Summary,
+    Category, CrawlConfig, CrawlDiff, CrawlError, CrawlEvent, CrawlMode, CrawlResult, ExtractValue,
+    Extractor, Fix, GeoGaps, GeoSignals, Hreflang, Issue, IssueDelta, IssueGroup, Page, Redirect,
+    ReportMeta, RuleInfo, SchemaValidation, Severity, Summary,
 };

@@ -269,6 +269,7 @@ dependencies = [
  "brotli",
  "flate2",
  "futures",
+ "regex",
  "reqwest",
  "rusqlite",
  "scraper",

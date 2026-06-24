@@ -169,6 +169,9 @@ async fn prepare<F>(config: &CrawlConfig, on_event: &mut F) -> Result<Prep, Craw
 where
     F: FnMut(CrawlEvent),
 {
+    // Fail fast on a malformed extractor instead of silently extracting nothing.
+    crate::parse::validate_extractors(&config.extract).map_err(CrawlError::Config)?;
+
     // Resolve the seed(s) and host depending on mode.
     let seeds: Vec<String> = match config.mode {
         CrawlMode::List if !config.urls.is_empty() => config.urls.clone(),
@@ -324,12 +327,13 @@ where
             started += 1;
             let client = client.clone();
             let host = host.clone();
+            let extractors = config.extract.clone();
             inflight.push(async move {
                 let res = fetch(&client, &u, 10).await.map(|o| {
                     let parsed: Option<Parsed> = if o.is_html {
                         o.body
                             .as_deref()
-                            .map(|b| parse_html(b, &o.final_url, &host))
+                            .map(|b| parse_html(b, &o.final_url, &host, &extractors))
                     } else {
                         None
                     };
@@ -593,12 +597,13 @@ where
             started += 1;
             let client = client.clone();
             let host = host.clone();
+            let extractors = config.extract.clone();
             inflight.push(async move {
                 let res = fetch(&client, &u, 10).await.map(|o| {
                     let parsed: Option<Parsed> = if o.is_html {
                         o.body
                             .as_deref()
-                            .map(|b| parse_html(b, &o.final_url, &host))
+                            .map(|b| parse_html(b, &o.final_url, &host, &extractors))
                     } else {
                         None
                     };
@@ -1045,6 +1050,10 @@ fn build_page(url: &Url, depth: usize, o: FetchOutcome, parsed: Option<Parsed>) 
             .unwrap_or_default(),
         mixed_content: parsed.as_ref().map(|p| p.mixed_content).unwrap_or(0),
         geo,
+        extractions: parsed
+            .as_ref()
+            .map(|p| p.extractions.clone())
+            .unwrap_or_default(),
         content_hash: parsed.as_ref().and_then(|p| p.content_hash.clone()),
         duplicate_of: None,
         error: None,
@@ -1100,6 +1109,7 @@ fn error_page(url: &Url, depth: usize, error: String) -> Page {
         hreflang: Vec::new(),
         mixed_content: 0,
         geo: GeoSignals::default(),
+        extractions: Vec::new(),
         content_hash: None,
         duplicate_of: None,
         error: Some(error),
