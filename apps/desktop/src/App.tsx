@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { CrawlConfig, CrawlResult } from "./lib/types";
-import { cancelCrawl, startCrawl, watchFullscreen } from "./lib/api";
+import { cancelCrawl, openExternal, startCrawl, watchFullscreen } from "./lib/api";
 import { Logo, IconBook, IconExternal, IconHistory, IconSettings, IconSearch, IconChevron } from "./components/ui";
 import { StartView } from "./views/StartView";
 import { CrawlingView, type Progress } from "./views/CrawlingView";
@@ -94,8 +94,7 @@ export function App() {
           <a
             className="nav-item"
             href="https://crawlie.dev/docs"
-            target="_blank"
-            rel="noreferrer"
+            onClick={(e) => { e.preventDefault(); openExternal("https://crawlie.dev/docs"); }}
             title="Docs"
           >
             <IconBook size={16} /> <span className="nav-label">Docs</span>
@@ -103,8 +102,7 @@ export function App() {
           <a
             className="nav-item"
             href="https://github.com/spronta/crawlie"
-            target="_blank"
-            rel="noreferrer"
+            onClick={(e) => { e.preventDefault(); openExternal("https://github.com/spronta/crawlie"); }}
             title="GitHub"
           >
             <IconExternal size={15} /> <span className="nav-label">GitHub</span>

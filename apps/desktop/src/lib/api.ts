@@ -9,6 +9,18 @@ export function isTauri(): boolean {
   return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 }
 
+/** Open a URL in the user's default browser. In the desktop app a plain
+ *  `<a target="_blank">` is blocked by the webview, so external links must go
+ *  through the opener plugin; in browser preview we fall back to `window.open`. */
+export async function openExternal(url: string): Promise<void> {
+  if (isTauri()) {
+    const { openUrl } = await import("@tauri-apps/plugin-opener");
+    await openUrl(url);
+  } else {
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+}
+
 /** Reflect the window's fullscreen state onto `<html data-fullscreen>` so CSS can
  *  drop the macOS traffic-light spacing in fullscreen. No-op in a browser. */
 export async function watchFullscreen(): Promise<() => void> {

@@ -4,6 +4,7 @@ import {
   checkForUpdate,
   getSettings,
   latestGithubRelease,
+  openExternal,
   relaunchApp,
   type UpdateInfo,
 } from "../lib/api";
@@ -138,8 +139,7 @@ export function UpdateBanner() {
           <a
             className="btn btn-sm btn-secondary"
             href={state.url}
-            target="_blank"
-            rel="noreferrer"
+            onClick={(e) => { e.preventDefault(); openExternal(state.url); }}
           >
             Download <IconExternal size={13} />
           </a>

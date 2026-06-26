@@ -4,6 +4,7 @@ import {
   checkForUpdate,
   getSettings,
   latestGithubRelease,
+  openExternal,
   relaunchApp,
   saveSettings,
   type Settings,
@@ -199,7 +200,7 @@ export function SettingsView({ onBack }: { onBack: () => void }) {
               <IconRefresh size={13} /> Restart now
             </button>
           ) : check.kind === "link" ? (
-            <a className="btn btn-secondary btn-sm" href={check.url} target="_blank" rel="noreferrer">
+            <a className="btn btn-secondary btn-sm" href={check.url} onClick={(e) => { e.preventDefault(); openExternal(check.url); }}>
               Download <IconExternal size={13} />
             </a>
           ) : (
