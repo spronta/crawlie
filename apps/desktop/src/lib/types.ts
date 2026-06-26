@@ -21,6 +21,12 @@ export type Category =
 
 export type CrawlMode = "site" | "page" | "list";
 
+/** A host/path exclusion rule: substring match by default, or regex. */
+export interface UrlFilter {
+  value: string;
+  regex: boolean;
+}
+
 export interface CrawlConfig {
   url: string;
   mode: CrawlMode;
@@ -35,6 +41,10 @@ export interface CrawlConfig {
   useSitemap: boolean;
   include: string[];
   exclude: string[];
+  /** Exclude discovered URLs whose host matches (substring or regex). */
+  excludeHosts: UrlFilter[];
+  /** Exclude discovered URLs whose path matches (substring or regex). */
+  excludePaths: UrlFilter[];
   /** Render each page with headless Chrome before auditing (sees JS-injected content). */
   render: boolean;
   /** Extra settle delay (ms) after navigation for late hydration; only used when render is on. */
@@ -240,12 +250,14 @@ export const DEFAULT_CONFIG: CrawlConfig = {
   maxDepth: 16,
   concurrency: 16,
   timeoutSecs: 15,
-  userAgent: "crawlie/0.1.0 (+https://spronta.com/crawlie)",
+  userAgent: "crawlie (+https://crawlie.dev)",
   checkExternal: true,
   respectRobots: true,
   useSitemap: true,
   include: [],
   exclude: [],
+  excludeHosts: [],
+  excludePaths: [],
   render: false,
   renderWaitMs: 0,
 };

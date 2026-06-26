@@ -41,5 +41,5 @@ pub use scoring::geo_gaps;
 pub use types::{
     Category, CrawlConfig, CrawlDiff, CrawlError, CrawlEvent, CrawlMode, CrawlResult, ExtractValue,
     Extractor, Fix, GeoGaps, GeoSignals, Hreflang, Issue, IssueDelta, IssueGroup, Page, Redirect,
-    ReportMeta, RuleInfo, SchemaValidation, Severity, Summary,
+    ReportMeta, RuleInfo, SchemaValidation, Severity, Summary, UrlFilter,
 };

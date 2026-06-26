@@ -11,6 +11,7 @@ import {
 } from "../lib/api";
 import { IconBack, IconRefresh, IconExternal, Toggle } from "../components/ui";
 import { applyTheme, currentTheme, type Theme } from "../lib/theme";
+import { getCrawlDefaults, saveCrawlDefaults, type CrawlDefaults } from "../lib/crawl-defaults";
 
 type Check =
   | { kind: "idle" }
@@ -27,11 +28,31 @@ export function SettingsView({ onBack }: { onBack: () => void }) {
   const [version, setVersion] = useState("…");
   const [check, setCheck] = useState<Check>({ kind: "idle" });
   const [theme, setThemeState] = useState<Theme>(() => currentTheme());
+  const [defaults, setDefaults] = useState<CrawlDefaults>(() => getCrawlDefaults());
 
   function setTheme(t: Theme) {
     setThemeState(t);
     applyTheme(t);
   }
+
+  function setDefault<K extends keyof CrawlDefaults>(key: K, v: CrawlDefaults[K]) {
+    const next = { ...defaults, [key]: v };
+    setDefaults(next);
+    saveCrawlDefaults(next);
+  }
+
+  const numDefault = (label: string, key: keyof CrawlDefaults, min = 1) => (
+    <div className="field">
+      <label>{label}</label>
+      <input
+        className="input input-sm mono"
+        type="number"
+        min={min}
+        value={defaults[key] as number}
+        onChange={(e) => setDefault(key, Math.max(min, Number(e.target.value) || min) as CrawlDefaults[typeof key])}
+      />
+    </div>
+  );
 
   useEffect(() => {
     (async () => {
@@ -93,6 +114,45 @@ export function SettingsView({ onBack }: { onBack: () => void }) {
           on={theme === "dark"}
           onChange={(v) => setTheme(v ? "dark" : "light")}
         />
+      </div>
+
+      <div className="card card-pad">
+        <h2 className="h3" style={{ marginBottom: 4 }}>Crawl defaults</h2>
+        <p className="toggle-hint" style={{ marginBottom: 16 }}>
+          Applied to every new crawl. You can still override any of these per crawl.
+        </p>
+
+        <div className="field" style={{ gap: 6, marginBottom: 16 }}>
+          <label>User agent</label>
+          <input
+            className="input input-sm mono"
+            style={{ width: "100%" }}
+            value={defaults.userAgent}
+            onChange={(e) => setDefault("userAgent", e.target.value)}
+          />
+        </div>
+
+        <div className="config-grid" style={{ marginBottom: 4 }}>
+          {numDefault("Max pages", "maxPages")}
+          {numDefault("Max depth", "maxDepth", 0)}
+          {numDefault("Concurrency", "concurrency")}
+          {numDefault("Timeout (s)", "timeoutSecs")}
+        </div>
+
+        <Toggle
+          label="Render JavaScript"
+          hint="Audit pages after headless Chrome runs their JS. Slower; needs Chrome installed."
+          on={defaults.render}
+          onChange={(v) => setDefault("render", v)}
+        />
+        <Toggle
+          label="Verify external links"
+          hint="HEAD-check links that point off-site."
+          on={defaults.checkExternal}
+          onChange={(v) => setDefault("checkExternal", v)}
+        />
+        <Toggle label="Respect robots.txt" on={defaults.respectRobots} onChange={(v) => setDefault("respectRobots", v)} />
+        <Toggle label="Seed from sitemap" on={defaults.useSitemap} onChange={(v) => setDefault("useSitemap", v)} />
       </div>
 
       <div className="card card-pad">

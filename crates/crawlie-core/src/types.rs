@@ -18,12 +18,7 @@ fn default_timeout() -> u64 {
     15
 }
 fn default_user_agent() -> String {
-    concat!(
-        "crawlie/",
-        env!("CARGO_PKG_VERSION"),
-        " (+https://spronta.com/crawlie)"
-    )
-    .to_string()
+    "crawlie (+https://crawlie.dev)".to_string()
 }
 fn default_true() -> bool {
     true
@@ -90,6 +85,15 @@ pub struct CrawlConfig {
     /// Custom data extractors run against every crawled HTML page.
     #[serde(default)]
     pub extract: Vec<Extractor>,
+    /// Exclude discovered URLs whose **host** matches any of these rules. Each
+    /// rule is a substring match by default, or a regular expression when
+    /// `regex` is set. The seed/explicit URLs are never excluded.
+    #[serde(default)]
+    pub exclude_hosts: Vec<UrlFilter>,
+    /// Exclude discovered URLs whose **path** matches any of these rules
+    /// (substring or regex). Applied to the URL path (e.g. `/share.php`).
+    #[serde(default)]
+    pub exclude_paths: Vec<UrlFilter>,
     /// Render each HTML page with headless Chrome before parsing, so audits see
     /// JavaScript-injected content, links and meta tags. Requires a build with
     /// the `render` feature and a Chrome/Chromium/Edge install on the host.
@@ -99,6 +103,18 @@ pub struct CrawlConfig {
     /// hydrates late. Only used when `render` is on.
     #[serde(default = "default_render_wait")]
     pub render_wait_ms: u64,
+}
+
+/// A host/path exclusion rule: a substring match by default, or a regular
+/// expression when `regex` is true.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UrlFilter {
+    /// The substring or regex pattern to match.
+    pub value: String,
+    /// Treat `value` as a regular expression instead of a literal substring.
+    #[serde(default)]
+    pub regex: bool,
 }
 
 /// A user-defined extractor: pull arbitrary data off every page via a CSS
@@ -146,6 +162,8 @@ impl CrawlConfig {
             use_sitemap: true,
             include: Vec::new(),
             exclude: Vec::new(),
+            exclude_hosts: Vec::new(),
+            exclude_paths: Vec::new(),
             extract: Vec::new(),
             render: false,
             render_wait_ms: default_render_wait(),

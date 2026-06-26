@@ -7,7 +7,7 @@
 use clap::{Parser, Subcommand, ValueEnum};
 use crawlie_core::{
     all_rules, crawl, crawl_to_store, report_html, rule_info, top_fixes, CancelToken, CrawlConfig,
-    CrawlMode, CrawlResult, Extractor, PageStore, ReportStore, Severity,
+    CrawlMode, CrawlResult, Extractor, PageStore, ReportStore, Severity, UrlFilter,
 };
 mod update;
 
@@ -80,6 +80,18 @@ struct CrawlArgs {
     /// Skip URLs matching this glob (repeatable).
     #[arg(long)]
     exclude: Vec<String>,
+    /// Exclude discovered URLs whose host contains this string (repeatable).
+    #[arg(long = "exclude-host", value_name = "STR")]
+    exclude_host: Vec<String>,
+    /// Exclude discovered URLs whose host matches this regex (repeatable).
+    #[arg(long = "exclude-host-regex", value_name = "RE")]
+    exclude_host_regex: Vec<String>,
+    /// Exclude discovered URLs whose path contains this string (repeatable).
+    #[arg(long = "exclude-path", value_name = "STR")]
+    exclude_path: Vec<String>,
+    /// Exclude discovered URLs whose path matches this regex (repeatable).
+    #[arg(long = "exclude-path-regex", value_name = "RE")]
+    exclude_path_regex: Vec<String>,
     #[arg(long, value_enum, default_value_t = Format::Json)]
     format: Format,
     #[arg(long, value_enum)]
@@ -327,6 +339,18 @@ async fn run_crawl(a: CrawlArgs) -> ExitCode {
             }
         }
     }
+    let filters = |subs: Vec<String>, res: Vec<String>| -> Vec<UrlFilter> {
+        subs.into_iter()
+            .map(|value| UrlFilter {
+                value,
+                regex: false,
+            })
+            .chain(
+                res.into_iter()
+                    .map(|value| UrlFilter { value, regex: true }),
+            )
+            .collect()
+    };
     let config = CrawlConfig {
         mode: CrawlMode::Site,
         max_pages: a.max_pages,
@@ -338,6 +362,8 @@ async fn run_crawl(a: CrawlArgs) -> ExitCode {
         use_sitemap: !a.no_sitemap,
         include: a.include,
         exclude: a.exclude,
+        exclude_hosts: filters(a.exclude_host, a.exclude_host_regex),
+        exclude_paths: filters(a.exclude_path, a.exclude_path_regex),
         extract,
         render: a.render,
         render_wait_ms: a.render_wait,

@@ -1,7 +1,16 @@
 import { useState } from "react";
-import type { CrawlConfig, CrawlMode } from "../lib/types";
+import type { CrawlConfig, CrawlMode, UrlFilter } from "../lib/types";
 import { DEFAULT_CONFIG } from "../lib/types";
-import { IconArrowRight, IconSearch, Toggle } from "../components/ui";
+import { getCrawlDefaults } from "../lib/crawl-defaults";
+import { IconArrowRight, IconChevron, IconSearch, Toggle } from "../components/ui";
+
+/** Split a textarea into one trimmed entry per line, as exclusion rules. */
+const toFilters = (text: string, regex: boolean): UrlFilter[] =>
+  text
+    .split(/\n+/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((value) => ({ value, regex }));
 import { isTauri } from "../lib/api";
 
 const MODES: { id: CrawlMode; label: string; hint: string; placeholder: string }[] = [
@@ -14,7 +23,12 @@ export function StartView({ onStart }: { onStart: (c: CrawlConfig) => void }) {
   const [mode, setMode] = useState<CrawlMode>("site");
   const [url, setUrl] = useState("");
   const [list, setList] = useState("");
-  const [cfg, setCfg] = useState<CrawlConfig>(DEFAULT_CONFIG);
+  const [cfg, setCfg] = useState<CrawlConfig>(() => ({ ...DEFAULT_CONFIG, ...getCrawlDefaults() }));
+  const [advanced, setAdvanced] = useState(false);
+  const [hostsText, setHostsText] = useState("");
+  const [pathsText, setPathsText] = useState("");
+  const [hostsRegex, setHostsRegex] = useState(false);
+  const [pathsRegex, setPathsRegex] = useState(false);
 
   const normalize = (u: string) => {
     const t = u.trim();
@@ -24,14 +38,19 @@ export function StartView({ onStart }: { onStart: (c: CrawlConfig) => void }) {
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
+    // Exclusions only apply when following links, i.e. whole-site crawls.
+    const exclusions =
+      mode === "site"
+        ? { excludeHosts: toFilters(hostsText, hostsRegex), excludePaths: toFilters(pathsText, pathsRegex) }
+        : { excludeHosts: [], excludePaths: [] };
     if (mode === "list") {
       const urls = list.split(/\n+/).map(normalize).filter(Boolean);
       if (!urls.length) return;
-      onStart({ ...cfg, mode, urls, url: urls[0], maxDepth: 0 });
+      onStart({ ...cfg, ...exclusions, mode, urls, url: urls[0], maxDepth: 0 });
     } else {
       const u = normalize(url);
       if (!u) return;
-      onStart({ ...cfg, mode, url: u, maxDepth: mode === "page" ? 0 : cfg.maxDepth });
+      onStart({ ...cfg, ...exclusions, mode, url: u, maxDepth: mode === "page" ? 0 : cfg.maxDepth });
     }
   }
 
@@ -124,6 +143,96 @@ export function StartView({ onStart }: { onStart: (c: CrawlConfig) => void }) {
               hint="Audit each page after headless Chrome runs its JS — for React, Vue & Next sites. Slower; needs Chrome / Chromium / Edge installed."
             />
           </div>
+
+          {mode === "site" && (
+            <div className="audit-advanced">
+              <button type="button" className="disclosure" onClick={() => setAdvanced(!advanced)}>
+                <span style={{ display: "inline-flex", transform: advanced ? "rotate(90deg)" : "none", transition: "transform 150ms" }}>
+                  <IconChevron size={14} />
+                </span>
+                Advanced — user agent & exclusions
+              </button>
+
+              {advanced && (
+                <div className="advanced-panel">
+                  <div className="field">
+                    <label>User agent</label>
+                    <input
+                      className="input input-sm mono"
+                      style={{ width: "100%" }}
+                      value={cfg.userAgent}
+                      onChange={(e) => set("userAgent", e.target.value)}
+                      placeholder="crawlie/…"
+                    />
+                  </div>
+
+                  <div className="exclude-group">
+                    <div className="exclude-head">
+                      <label>Excluded hosts</label>
+                      <label className="regex-inline">
+                        Regex
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={hostsRegex}
+                          aria-label="Match hosts as regex"
+                          className={`switch sm${hostsRegex ? " on" : ""}`}
+                          onClick={() => setHostsRegex(!hostsRegex)}
+                        >
+                          <span className="knob" />
+                        </button>
+                      </label>
+                    </div>
+                    <textarea
+                      className="input mono"
+                      style={{ height: 70, padding: 10, resize: "vertical", width: "100%" }}
+                      placeholder={hostsRegex ? "^ads\\.\nfacebook\\.com$" : "twitter.com\nfacebook"}
+                      value={hostsText}
+                      onChange={(e) => setHostsText(e.target.value)}
+                    />
+                    <span className="tertiary exclude-hint">
+                      One per line.{" "}
+                      {hostsRegex
+                        ? "Each line is a regular expression matched against the host."
+                        : "Substring match — “twitter” matches twitter.com and twitter.net."}
+                    </span>
+                  </div>
+
+                  <div className="exclude-group">
+                    <div className="exclude-head">
+                      <label>Excluded paths</label>
+                      <label className="regex-inline">
+                        Regex
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={pathsRegex}
+                          aria-label="Match paths as regex"
+                          className={`switch sm${pathsRegex ? " on" : ""}`}
+                          onClick={() => setPathsRegex(!pathsRegex)}
+                        >
+                          <span className="knob" />
+                        </button>
+                      </label>
+                    </div>
+                    <textarea
+                      className="input mono"
+                      style={{ height: 70, padding: 10, resize: "vertical", width: "100%" }}
+                      placeholder={pathsRegex ? "\\.php$\n^/cart" : "/share\n/cart"}
+                      value={pathsText}
+                      onChange={(e) => setPathsText(e.target.value)}
+                    />
+                    <span className="tertiary exclude-hint">
+                      One per line.{" "}
+                      {pathsRegex
+                        ? "Each line is a regular expression matched against the URL path."
+                        : "Substring match — “/share” matches any path containing it."}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </form>
 

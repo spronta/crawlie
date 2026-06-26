@@ -108,6 +108,8 @@ fn tools_list() -> Value {
                 "renderWaitMs": { "type": "integer", "default": 0, "description": "Extra settle delay in ms after navigation for late-hydrating content. Only used when render is true." },
                 "include": { "type": "array", "items": { "type": "string" } },
                 "exclude": { "type": "array", "items": { "type": "string" } },
+                "excludeHosts": { "type": "array", "description": "Exclude discovered URLs whose host matches. Each rule is a substring match, or a regex when 'regex' is true. The seed URL is never excluded.", "items": { "type": "object", "properties": { "value": { "type": "string" }, "regex": { "type": "boolean", "default": false } }, "required": ["value"] } },
+                "excludePaths": { "type": "array", "description": "Exclude discovered URLs whose path matches (substring or regex), e.g. value '/share'.", "items": { "type": "object", "properties": { "value": { "type": "string" }, "regex": { "type": "boolean", "default": false } }, "required": ["value"] } },
                 "extract": { "type": "array", "description": "Custom data extractors run on every page. CSS pulls element text (or the named attribute); regex pulls capture group 1 (else the whole match). Results appear per page under 'extractions' — set includePages to see them.", "items": { "type": "object", "properties": {
                     "name": { "type": "string", "description": "Column name for the values." },
                     "css": { "type": "string", "description": "CSS selector (e.g. '.product-price')." },

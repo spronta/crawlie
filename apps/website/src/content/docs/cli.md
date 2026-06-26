@@ -29,6 +29,10 @@ crawlie crawl https://example.com --format pretty
 | `--render-wait <ms>` | Extra settle delay after navigation for late-hydrating content (default 0). Only with `--render`. |
 | `--include <glob>` | Only crawl URLs matching this glob (repeatable). |
 | `--exclude <glob>` | Skip URLs matching this glob (repeatable). |
+| `--exclude-host <str>` | Skip discovered URLs whose host contains this string (repeatable). |
+| `--exclude-host-regex <re>` | Skip discovered URLs whose host matches this regex (repeatable). |
+| `--exclude-path <str>` | Skip discovered URLs whose path contains this string (repeatable). |
+| `--exclude-path-regex <re>` | Skip discovered URLs whose path matches this regex (repeatable). |
 | `--format <fmt>` | `json` (default), `pretty`, `csv`, or `html`. |
 | `--severity <sev>` | Only show findings at/above a severity. |
 | `-o, --output <file>` | Write to a file instead of stdout. |

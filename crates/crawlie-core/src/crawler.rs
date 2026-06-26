@@ -197,6 +197,81 @@ fn passes_filters(config: &CrawlConfig, url: &str) -> bool {
     true
 }
 
+/// Pre-compiled host/path exclusion rules, built once per crawl so regexes
+/// aren't recompiled on every discovered link. Substrings and regexes are kept
+/// apart for cheap matching.
+#[derive(Default)]
+struct ExcludeFilters {
+    host_subs: Vec<String>,
+    host_res: Vec<regex::Regex>,
+    path_subs: Vec<String>,
+    path_res: Vec<regex::Regex>,
+}
+
+impl ExcludeFilters {
+    /// Compile the config's exclusion rules, returning a human-readable error on
+    /// the first invalid regex so a typo fails the crawl up front.
+    fn build(config: &CrawlConfig) -> Result<Self, String> {
+        fn add(
+            rules: &[UrlFilter],
+            subs: &mut Vec<String>,
+            res: &mut Vec<regex::Regex>,
+            what: &str,
+        ) -> Result<(), String> {
+            for r in rules {
+                let v = r.value.trim();
+                if v.is_empty() {
+                    continue;
+                }
+                if r.regex {
+                    let re = regex::Regex::new(v)
+                        .map_err(|e| format!("excluded {what} regex '{v}': {e}"))?;
+                    res.push(re);
+                } else {
+                    subs.push(v.to_string());
+                }
+            }
+            Ok(())
+        }
+        let mut f = ExcludeFilters::default();
+        add(
+            &config.exclude_hosts,
+            &mut f.host_subs,
+            &mut f.host_res,
+            "host",
+        )?;
+        add(
+            &config.exclude_paths,
+            &mut f.path_subs,
+            &mut f.path_res,
+            "path",
+        )?;
+        Ok(f)
+    }
+
+    /// Whether `u` should be skipped: its host matches any host rule, or its path
+    /// matches any path rule.
+    fn excluded(&self, u: &Url) -> bool {
+        if !self.host_subs.is_empty() || !self.host_res.is_empty() {
+            let host = u.host_str().unwrap_or("");
+            if self.host_subs.iter().any(|s| host.contains(s.as_str()))
+                || self.host_res.iter().any(|r| r.is_match(host))
+            {
+                return true;
+            }
+        }
+        if !self.path_subs.is_empty() || !self.path_res.is_empty() {
+            let path = u.path();
+            if self.path_subs.iter().any(|s| path.contains(s.as_str()))
+                || self.path_res.iter().any(|r| r.is_match(path))
+            {
+                return true;
+            }
+        }
+        false
+    }
+}
+
 fn robots_path(u: &Url) -> String {
     match u.query() {
         Some(q) => format!("{}?{}", u.path(), q),
@@ -213,6 +288,7 @@ struct Prep {
     host: String,
     client: reqwest::Client,
     renderer: Option<Arc<Renderer>>,
+    filters: ExcludeFilters,
     robots: Robots,
     robots_found: bool,
     llms_txt_found: bool,
@@ -231,6 +307,8 @@ where
 {
     // Fail fast on a malformed extractor instead of silently extracting nothing.
     crate::parse::validate_extractors(&config.extract).map_err(CrawlError::Config)?;
+    // Compile host/path exclusion rules once (fails fast on a bad regex).
+    let filters = ExcludeFilters::build(config).map_err(CrawlError::Config)?;
 
     // Resolve the seed(s) and host depending on mode.
     let seeds: Vec<String> = match config.mode {
@@ -328,7 +406,11 @@ where
                     .host_str()
                     .map(|h| crate::parse::same_site(&host, h))
                     .unwrap_or(false);
-                if same && !is_asset(&u) && passes_filters(config, u.as_str()) {
+                if same
+                    && !is_asset(&u)
+                    && passes_filters(config, u.as_str())
+                    && !filters.excluded(&u)
+                {
                     if config.respect_robots && !robots.allowed(&robots_path(&u)) {
                         continue;
                     }
@@ -345,6 +427,7 @@ where
         host,
         client,
         renderer,
+        filters,
         robots,
         robots_found,
         llms_txt_found,
@@ -375,6 +458,7 @@ where
         host,
         client,
         renderer,
+        filters,
         robots,
         robots_found,
         llms_txt_found,
@@ -444,6 +528,9 @@ where
                             }
                             let Ok(lu) = Url::parse(link) else { continue };
                             if is_asset(&lu) {
+                                continue;
+                            }
+                            if filters.excluded(&lu) {
                                 continue;
                             }
                             if config.respect_robots && !robots.allowed(&robots_path(&lu)) {
@@ -650,6 +737,7 @@ where
         host,
         client,
         renderer,
+        filters,
         robots,
         robots_found,
         llms_txt_found,
@@ -722,6 +810,9 @@ where
                             }
                             let Ok(lu) = Url::parse(link) else { continue };
                             if is_asset(&lu) {
+                                continue;
+                            }
+                            if filters.excluded(&lu) {
                                 continue;
                             }
                             if config.respect_robots && !robots.allowed(&robots_path(&lu)) {
@@ -1267,5 +1358,56 @@ fn build_summary(pages: &[Page], issues: &[Issue], duration_ms: u64) -> Summary 
         by_category,
         by_depth,
         duration_ms,
+    }
+}
+
+#[cfg(test)]
+mod filter_tests {
+    use super::*;
+    use crate::types::UrlFilter;
+
+    fn cfg(hosts: Vec<UrlFilter>, paths: Vec<UrlFilter>) -> CrawlConfig {
+        let mut c = CrawlConfig::new("https://example.com");
+        c.exclude_hosts = hosts;
+        c.exclude_paths = paths;
+        c
+    }
+    fn sub(v: &str) -> UrlFilter {
+        UrlFilter {
+            value: v.into(),
+            regex: false,
+        }
+    }
+    fn re(v: &str) -> UrlFilter {
+        UrlFilter {
+            value: v.into(),
+            regex: true,
+        }
+    }
+    fn url(u: &str) -> Url {
+        Url::parse(u).unwrap()
+    }
+
+    #[test]
+    fn host_substring_and_regex_exclusion() {
+        let f = ExcludeFilters::build(&cfg(vec![sub("twitter"), re(r"^ads\.")], vec![])).unwrap();
+        assert!(f.excluded(&url("https://twitter.com/x")));
+        assert!(f.excluded(&url("https://ads.example.com/")));
+        assert!(!f.excluded(&url("https://example.com/")));
+    }
+
+    #[test]
+    fn path_substring_and_regex_exclusion() {
+        let f = ExcludeFilters::build(&cfg(vec![], vec![sub("/share"), re(r"\.php$")])).unwrap();
+        assert!(f.excluded(&url("https://example.com/share/this")));
+        assert!(f.excluded(&url("https://example.com/page.php")));
+        assert!(!f.excluded(&url("https://example.com/about")));
+    }
+
+    #[test]
+    fn empty_filters_exclude_nothing_and_bad_regex_errors() {
+        let none = ExcludeFilters::build(&cfg(vec![], vec![])).unwrap();
+        assert!(!none.excluded(&url("https://anything.example/path")));
+        assert!(ExcludeFilters::build(&cfg(vec![re("(")], vec![])).is_err());
     }
 }

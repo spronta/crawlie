@@ -832,6 +832,49 @@ table.grid tbody tr:last-child td {
   border-top: 1px solid var(--border);
 }
 .audit-toggles { display: flex; flex-direction: column; }
+/* Advanced (user agent + host/path exclusions) */
+.audit-advanced { display: flex; flex-direction: column; gap: var(--sp-2); }
+.audit-advanced .disclosure {
+  background: none; border: none; cursor: pointer;
+  color: var(--text-secondary); font: var(--label-13);
+  display: inline-flex; align-items: center; gap: 6px; align-self: flex-start;
+  padding: 0;
+}
+.audit-advanced .disclosure:hover { color: var(--text); }
+/* The expanded panel reads as a distinct, inset section — tinted + bordered so
+   it's clearly separate from the primary crawl settings above it. */
+.advanced-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+  margin-top: 6px;
+  padding: var(--sp-4);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.advanced-panel .field { gap: 6px; }
+.advanced-panel .field > label,
+.exclude-head > label {
+  font: var(--label-13);
+  font-weight: 600;
+  color: var(--text);
+}
+.exclude-group { display: flex; flex-direction: column; gap: var(--sp-2); }
+.exclude-head { display: flex; align-items: center; justify-content: space-between; }
+/* Small inline "Regex" toggle — clearly subordinate to the section label. */
+.regex-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font: var(--label-12);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.switch.sm { width: 32px; height: 19px; }
+.switch.sm .knob { width: 13px; height: 13px; top: 3px; left: 3px; }
+.switch.sm.on .knob { transform: translateX(13px); }
+.exclude-hint { font: var(--label-12); color: var(--text-tertiary); }
 /* Toggle rows carry their own dividers — tidy the ends of the list. */
 .audit-toggles .toggle-row { padding: 12px 0; }
 .audit-toggles .toggle-row:first-child { padding-top: 0; }
