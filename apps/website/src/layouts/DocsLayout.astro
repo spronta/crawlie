@@ -1,6 +1,7 @@
 ---
 import BaseLayout from './BaseLayout.astro';
 import SiteHeader from '../components/SiteHeader.astro';
+import SiteFooter from '../components/SiteFooter.astro';
 import '../styles/prose.css';
 import type { MarkdownHeading } from 'astro';
 
@@ -79,6 +80,7 @@ const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
       )}
     </aside>
   </div>
+  <SiteFooter />
 </BaseLayout>
 
 <style>
