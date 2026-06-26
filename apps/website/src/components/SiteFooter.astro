@@ -25,6 +25,12 @@ const year = 2026;
       <a href="/changelog">Changelog</a>
     </div>
     <div class="group">
+      <h4>Compare</h4>
+      <a href="/compare">All comparisons</a>
+      <a href="/compare/screaming-frog">vs Screaming Frog</a>
+      <a href="/compare/sitebulb">vs Sitebulb</a>
+    </div>
+    <div class="group">
       <h4>Project</h4>
       <a href={GITHUB} target="_blank" rel="noopener">GitHub</a>
       <a href="https://www.npmjs.com/package/crawlie" target="_blank" rel="noopener">npm</a>
@@ -43,9 +49,15 @@ const year = 2026;
     border-top: 1px solid var(--border-soft);
     padding: 84px 0 52px;
   }
+  /* Full-bleed footer: span the whole viewport with comfortable edge gutters
+     instead of the centred 1080px content column. */
+  .site-footer .container {
+    max-width: none;
+    padding-inline: clamp(24px, 4vw, 56px);
+  }
   .cols {
     display: grid;
-    grid-template-columns: 1.8fr 1fr 1fr 1fr;
+    grid-template-columns: 1.8fr 1fr 1fr 1fr 1fr;
     gap: 48px;
   }
   .brand {

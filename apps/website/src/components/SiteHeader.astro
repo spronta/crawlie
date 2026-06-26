@@ -51,6 +51,12 @@ const starLabel = formatStars(stars);
     background: color-mix(in srgb, var(--bg) 78%, transparent);
     border-bottom-color: var(--border-soft);
   }
+  /* Full-bleed nav: span the whole viewport with comfortable edge gutters
+     instead of the centred 1080px content column. */
+  .site-header .container {
+    max-width: none;
+    padding-inline: clamp(24px, 4vw, 56px);
+  }
   .bar {
     display: flex;
     align-items: center;
