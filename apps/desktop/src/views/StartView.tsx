@@ -49,7 +49,7 @@ export function StartView({ onStart }: { onStart: (c: CrawlConfig) => void }) {
       />
     </div>
   );
-  const checkField = (label: string, key: "checkExternal" | "respectRobots" | "useSitemap") => (
+  const checkField = (label: string, key: "checkExternal" | "respectRobots" | "useSitemap" | "render") => (
     <label className="field" style={{ justifyContent: "flex-end" }}>
       <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <input type="checkbox" checked={cfg[key]} onChange={(e) => setCfg({ ...cfg, [key]: e.target.checked })} />
@@ -116,7 +116,15 @@ export function StartView({ onStart }: { onStart: (c: CrawlConfig) => void }) {
           {checkField("Verify external links", "checkExternal")}
           {checkField("Respect robots.txt", "respectRobots")}
           {checkField("Seed from sitemap", "useSitemap")}
+          {checkField("Render JavaScript", "render")}
         </div>
+      )}
+
+      {open && mode === "site" && cfg.render && (
+        <span className="tertiary" style={{ font: "var(--label-12)", marginTop: 2 }}>
+          Renders each page in headless Chrome to audit JavaScript-injected content — slower, and
+          needs Chrome / Chromium / Edge installed.
+        </span>
       )}
 
       {!isTauri() && (

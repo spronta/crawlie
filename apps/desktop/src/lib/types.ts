@@ -35,6 +35,10 @@ export interface CrawlConfig {
   useSitemap: boolean;
   include: string[];
   exclude: string[];
+  /** Render each page with headless Chrome before auditing (sees JS-injected content). */
+  render: boolean;
+  /** Extra settle delay (ms) after navigation for late hydration; only used when render is on. */
+  renderWaitMs: number;
 }
 
 export interface Redirect {
@@ -242,4 +246,6 @@ export const DEFAULT_CONFIG: CrawlConfig = {
   useSitemap: true,
   include: [],
   exclude: [],
+  render: false,
+  renderWaitMs: 0,
 };

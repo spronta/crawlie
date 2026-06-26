@@ -82,7 +82,6 @@ export const COMPETITORS: Competitor[] = [
     strengths: [
       "Built-in integrations — it pulls Google Search Console, Analytics, and PageSpeed/Lighthouse data into the crawl. crawlie doesn't connect those yet.",
       "XPath custom extraction — crawlie now does CSS-selector and regex extraction, but Screaming Frog also supports XPath.",
-      "JavaScript rendering is on by a setting in the desktop app; crawlie renders via the CLI/MCP `--render` flag, with a desktop toggle still to come.",
       "A mature, refined desktop app on Windows, macOS, and Linux with years of polish.",
     ],
     faq: [
@@ -136,7 +135,6 @@ export const COMPETITORS: Competitor[] = [
     strengths: [
       "Visual crawl maps and force-directed link graphs — Sitebulb's signature, great for seeing site architecture at a glance. crawlie reports the data but doesn't visualise it this way.",
       "Built-in Google Search Console and Analytics integrations layered onto the crawl.",
-      "JavaScript rendering is a built-in setting in Sitebulb's app; crawlie renders via the CLI/MCP `--render` flag, with a desktop toggle still to come.",
       "A polished, mature desktop experience with a deep, well-curated Hint library.",
     ],
     faq: [

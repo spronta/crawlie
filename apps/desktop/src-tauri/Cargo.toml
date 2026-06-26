@@ -20,7 +20,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["full"] }
 url = "2"
-crawlie-core = { path = "../../../crates/crawlie-core" }
+crawlie-core = { path = "../../../crates/crawlie-core", features = ["render"] }
 
 # Stand alone from the root cargo workspace so root builds stay lean.
 [workspace]

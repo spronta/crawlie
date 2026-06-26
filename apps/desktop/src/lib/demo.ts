@@ -123,6 +123,8 @@ export const DEMO_RESULT: CrawlResult = {
     useSitemap: true,
     include: [],
     exclude: [],
+    render: false,
+    renderWaitMs: 0,
   },
   pages,
   issues,
