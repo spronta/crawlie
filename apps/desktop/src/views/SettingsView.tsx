@@ -10,6 +10,7 @@ import {
   type UpdateInfo,
 } from "../lib/api";
 import { IconBack, IconRefresh, IconExternal, Toggle } from "../components/ui";
+import { applyTheme, currentTheme, type Theme } from "../lib/theme";
 
 type Check =
   | { kind: "idle" }
@@ -25,6 +26,12 @@ export function SettingsView({ onBack }: { onBack: () => void }) {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [version, setVersion] = useState("…");
   const [check, setCheck] = useState<Check>({ kind: "idle" });
+  const [theme, setThemeState] = useState<Theme>(() => currentTheme());
+
+  function setTheme(t: Theme) {
+    setThemeState(t);
+    applyTheme(t);
+  }
 
   useEffect(() => {
     (async () => {
@@ -76,6 +83,16 @@ export function SettingsView({ onBack }: { onBack: () => void }) {
         <button className="btn btn-secondary btn-sm" onClick={onBack}>
           <IconBack size={15} /> Back
         </button>
+      </div>
+
+      <div className="card card-pad">
+        <h2 className="h3" style={{ marginBottom: 4 }}>Appearance</h2>
+        <Toggle
+          label="Dark mode"
+          hint="Use the dark colour theme."
+          on={theme === "dark"}
+          onChange={(v) => setTheme(v ? "dark" : "light")}
+        />
       </div>
 
       <div className="card card-pad">

@@ -78,9 +78,9 @@
   --green-bg: #ecf8f1;
   --green-border: #c8e9d6;
 
-  --shadow-card: 0 2px 2px rgba(0, 0, 0, 0.04);
-  --shadow-pop: 0 1px 1px rgba(0, 0, 0, 0.02), 0 4px 8px -4px rgba(0, 0, 0, 0.04),
-    0 16px 24px -8px rgba(0, 0, 0, 0.06);
+  /* Flat by design — separation comes from borders and surface tints, not shadows. */
+  --shadow-card: none;
+  --shadow-pop: none;
   --focus-gap: #ffffff;
 }
 
@@ -119,9 +119,8 @@
   --green-bg: #0d2419;
   --green-border: #1c4733;
 
-  --shadow-card: 0 2px 2px rgba(0, 0, 0, 0.2);
-  --shadow-pop: 0 1px 1px rgba(0, 0, 0, 0.2), 0 4px 8px -4px rgba(0, 0, 0, 0.3),
-    0 16px 24px -8px rgba(0, 0, 0, 0.4);
+  --shadow-card: none;
+  --shadow-pop: none;
   --focus-gap: #0a0a0a;
 }
 

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { CrawlConfig, CrawlResult } from "./lib/types";
 import { cancelCrawl, startCrawl, watchFullscreen } from "./lib/api";
-import { Logo, ThemeToggle, IconExternal, IconHistory, IconSettings, IconSearch, IconChevron } from "./components/ui";
+import { Logo, IconBook, IconExternal, IconHistory, IconSettings, IconSearch, IconChevron } from "./components/ui";
 import { StartView } from "./views/StartView";
 import { CrawlingView, type Progress } from "./views/CrawlingView";
 import { ResultsView } from "./views/ResultsView";
@@ -93,6 +93,15 @@ export function App() {
         <div className="sidebar-foot">
           <a
             className="nav-item"
+            href="https://crawlie.dev/docs"
+            target="_blank"
+            rel="noreferrer"
+            title="Docs"
+          >
+            <IconBook size={16} /> <span className="nav-label">Docs</span>
+          </a>
+          <a
+            className="nav-item"
             href="https://github.com/spronta/crawlie"
             target="_blank"
             rel="noreferrer"
@@ -108,7 +117,6 @@ export function App() {
             <IconSettings size={16} /> <span className="nav-label">Settings</span>
           </button>
           <div className="sidebar-foot-row">
-            <ThemeToggle />
             <button
               className="icon-btn collapse-toggle"
               onClick={toggleCollapsed}

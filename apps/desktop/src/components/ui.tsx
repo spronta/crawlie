@@ -18,6 +18,7 @@ export const IconDownload = ({ size }: IconProps) => I("M21 15v4a2 2 0 0 1-2 2H5
 export const IconSun = ({ size }: IconProps) => I("M12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4", size, <circle cx="12" cy="12" r="4" />);
 export const IconMoon = ({ size }: IconProps) => I("M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z", size);
 export const IconExternal = ({ size }: IconProps) => I("M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6", size);
+export const IconBook = ({ size }: IconProps) => I("M4 19.5A2.5 2.5 0 0 1 6.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z", size);
 export const IconRefresh = ({ size }: IconProps) => I("M3 12a9 9 0 0 1 15-6.7L21 8M21 3v5h-5M21 12a9 9 0 0 1-15 6.7L3 16M3 21v-5h5", size);
 export const IconArrowRight = ({ size }: IconProps) => I("M5 12h14M12 5l7 7-7 7", size);
 export const IconHistory = ({ size }: IconProps) => I("M3 3v5h5M3.05 13A9 9 0 1 0 6 5.3L3 8M12 7v5l4 2", size);
