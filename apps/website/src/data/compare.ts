@@ -36,7 +36,7 @@ export interface Competitor {
   updated: string;
 }
 
-const UPDATED = "2026-06-24";
+const UPDATED = "2026-06-26";
 
 export const COMPETITORS: Competitor[] = [
   {
@@ -48,7 +48,7 @@ export const COMPETITORS: Competitor[] = [
       "How crawlie compares to the Screaming Frog SEO Spider: free and open-source, no 500-URL cap, a scriptable CLI and an MCP server for AI agents, and AI-search (GEO) checks — plus an honest look at where Screaming Frog still wins.",
     tagline: "A free, open-source, agent-native alternative to the Screaming Frog SEO Spider.",
     answer:
-      "crawlie is a free, open-source technical-SEO and GEO crawler. Against Screaming Frog it drops the 500-URL free cap and the paid licence, adds a scriptable CLI and an MCP server so AI agents can run full audits, and grades AI-search (GEO) readiness. Screaming Frog is still ahead on JavaScript rendering and built-in Google Search Console, Analytics, and PageSpeed integrations.",
+      "crawlie is a free, open-source technical-SEO and GEO crawler. Against Screaming Frog it drops the 500-URL free cap and the paid licence, adds a scriptable CLI and an MCP server so AI agents can run full audits, and grades AI-search (GEO) readiness. crawlie now also renders JavaScript with headless Chrome, so it audits client-rendered (SPA) sites too. Screaming Frog is still ahead on built-in Google Search Console, Analytics, and PageSpeed integrations.",
     rows: [
       { feature: "Price", crawlie: "Free & open-source (MIT)", them: "Free to 500 URLs, then £259/yr", win: "crawlie" },
       { feature: "Crawl limit (free)", crawlie: "Unlimited", them: "500 URLs", win: "crawlie" },
@@ -61,14 +61,14 @@ export const COMPETITORS: Competitor[] = [
       { feature: "Plain-English fix for every issue", crawlie: "Yes", them: "No", win: "crawlie" },
       { feature: "Large-site crawls", crawlie: "Streams to SQLite", them: "Database storage mode", win: "tie" },
       { feature: "Custom extraction", crawlie: "CSS + regex", them: "CSS, XPath, regex", win: "tie" },
-      { feature: "JavaScript rendering", crawlie: "Not yet", them: "Yes", win: "them" },
+      { feature: "JavaScript rendering", crawlie: "Yes (headless Chrome)", them: "Yes", win: "tie" },
       { feature: "GSC / Analytics / PageSpeed", crawlie: "Not yet", them: "Yes", win: "them" },
       { feature: "Engine", crawlie: "Rust (tiny binary)", them: "Java (JVM)", win: "tie" },
     ],
     reasons: [
       {
         h: "Is crawlie a good Screaming Frog alternative?",
-        p: "Yes — especially if you want something free, scriptable, and agent-friendly. crawlie runs the same core technical-SEO checks (broken links, redirects, titles & meta, canonicals, indexability, structured data) with no URL cap and no licence, and adds things Screaming Frog doesn't have. The main trade-off today is JavaScript rendering, which Screaming Frog does and crawlie doesn't yet.",
+        p: "Yes — especially if you want something free, scriptable, and agent-friendly. crawlie runs the same core technical-SEO checks (broken links, redirects, titles & meta, canonicals, indexability, structured data) with no URL cap and no licence, and adds things Screaming Frog doesn't have. crawlie now renders JavaScript too (the `--render` flag drives headless Chrome), so the main remaining trade-off is Screaming Frog's built-in Google Search Console, Analytics, and PageSpeed integrations.",
       },
       {
         h: "What does crawlie do that Screaming Frog doesn't?",
@@ -80,14 +80,14 @@ export const COMPETITORS: Competitor[] = [
       },
     ],
     strengths: [
-      "JavaScript rendering — Screaming Frog renders pages in a headless browser, so it audits SPAs and client-rendered content. crawlie currently fetches raw HTML.",
       "Built-in integrations — it pulls Google Search Console, Analytics, and PageSpeed/Lighthouse data into the crawl. crawlie doesn't connect those yet.",
       "XPath custom extraction — crawlie now does CSS-selector and regex extraction, but Screaming Frog also supports XPath.",
+      "JavaScript rendering is on by a setting in the desktop app; crawlie renders via the CLI/MCP `--render` flag, with a desktop toggle still to come.",
       "A mature, refined desktop app on Windows, macOS, and Linux with years of polish.",
     ],
     faq: [
       { q: "Is crawlie free?", a: "Yes — crawlie is free and open-source under the MIT licence, with no URL cap." },
-      { q: "Does crawlie render JavaScript like Screaming Frog?", a: "Not yet. crawlie fetches and parses the raw HTML response. Screaming Frog can render pages in a headless browser, so for heavily client-rendered (SPA) sites it currently sees more." },
+      { q: "Does crawlie render JavaScript like Screaming Frog?", a: "Yes. With the `--render` flag, crawlie loads each page in headless Chrome and audits the rendered DOM — so it sees client-rendered (SPA) content, the same as Screaming Frog. It also flags pages whose content only appears after JavaScript runs (the `content-requires-js` check)." },
       { q: "Can I run crawlie in CI?", a: "Yes. The CLI outputs clean JSON and sets exit codes (`--fail-on`), so you can gate a build on SEO regressions. There's a ready-to-paste GitHub Actions workflow in the docs." },
       { q: "Can AI agents use crawlie?", a: "Yes. crawlie ships an MCP server and Claude Skills, so an agent can crawl a site, read structured findings, and explain fixes — something Screaming Frog can't do." },
       { q: "Does crawlie have a free URL limit?", a: "No. crawlie crawls any number of URLs for free. Screaming Frog's free tier stops at 500 URLs per crawl." },
@@ -103,7 +103,7 @@ export const COMPETITORS: Competitor[] = [
       "How crawlie compares to Sitebulb: free and open-source, a scriptable CLI and an MCP server for AI agents, AI-search (GEO) checks, and crawl-over-crawl diffing — plus an honest look at where Sitebulb still wins.",
     tagline: "A free, open-source, agent-native alternative to Sitebulb.",
     answer:
-      "crawlie is a free, open-source technical-SEO and GEO crawler. Against Sitebulb it matches the crawl-over-crawl comparison and the plain-English guidance, adds a scriptable CLI, an MCP server for AI agents, and AI-search (GEO) grading — all for free, with no subscription. Sitebulb is still ahead on JavaScript rendering, data integrations, and its visual crawl maps and reporting depth.",
+      "crawlie is a free, open-source technical-SEO and GEO crawler. Against Sitebulb it matches the crawl-over-crawl comparison and the plain-English guidance, adds a scriptable CLI, an MCP server for AI agents, and AI-search (GEO) grading — all for free, with no subscription. crawlie now also renders JavaScript with headless Chrome, so it audits client-rendered sites too. Sitebulb is still ahead on data integrations and its visual crawl maps and reporting depth.",
     rows: [
       { feature: "Price", crawlie: "Free & open-source (MIT)", them: "Paid subscription, from £13.50/mo", win: "crawlie" },
       { feature: "Open source", crawlie: "Yes — read & extend it", them: "No (closed source)", win: "crawlie" },
@@ -115,14 +115,14 @@ export const COMPETITORS: Competitor[] = [
       { feature: "Structured-data validation", crawlie: "Yes", them: "Yes", win: "tie" },
       { feature: "Custom extraction", crawlie: "CSS + regex", them: "Yes", win: "tie" },
       { feature: "Visual crawl maps", crawlie: "No", them: "Yes", win: "them" },
-      { feature: "JavaScript rendering", crawlie: "Not yet", them: "Yes", win: "them" },
+      { feature: "JavaScript rendering", crawlie: "Yes (headless Chrome)", them: "Yes", win: "tie" },
       { feature: "GSC / Analytics integrations", crawlie: "Not yet", them: "Yes", win: "them" },
       { feature: "Engine", crawlie: "Rust (tiny binary)", them: ".NET", win: "tie" },
     ],
     reasons: [
       {
         h: "Is crawlie a good Sitebulb alternative?",
-        p: "Yes, if you want Sitebulb's strengths — crawl comparisons and clear, prioritized guidance — without the subscription, plus a CLI and agent support. crawlie is free and open-source, runs the core technical-SEO and structured-data checks, and explains every finding. Sitebulb still leads on visual reporting and JavaScript rendering.",
+        p: "Yes, if you want Sitebulb's strengths — crawl comparisons and clear, prioritized guidance — without the subscription, plus a CLI and agent support. crawlie is free and open-source, runs the core technical-SEO and structured-data checks, renders JavaScript with headless Chrome, and explains every finding. Sitebulb still leads on visual crawl maps and reporting depth.",
       },
       {
         h: "What does crawlie offer that Sitebulb doesn't?",
@@ -135,14 +135,14 @@ export const COMPETITORS: Competitor[] = [
     ],
     strengths: [
       "Visual crawl maps and force-directed link graphs — Sitebulb's signature, great for seeing site architecture at a glance. crawlie reports the data but doesn't visualise it this way.",
-      "JavaScript rendering of client-side content. crawlie fetches raw HTML today.",
       "Built-in Google Search Console and Analytics integrations layered onto the crawl.",
+      "JavaScript rendering is a built-in setting in Sitebulb's app; crawlie renders via the CLI/MCP `--render` flag, with a desktop toggle still to come.",
       "A polished, mature desktop experience with a deep, well-curated Hint library.",
     ],
     faq: [
       { q: "Is crawlie free?", a: "Yes — crawlie is free and open-source under the MIT licence. Sitebulb is a paid subscription." },
       { q: "Does crawlie compare two crawls like Sitebulb?", a: "Yes. `crawlie diff` and the desktop Compare view show score deltas, pages added/removed, and resolved vs new issues between two crawls." },
-      { q: "Does crawlie render JavaScript?", a: "Not yet — it parses the raw HTML response. Sitebulb can render JavaScript, so it currently sees more on heavily client-rendered sites." },
+      { q: "Does crawlie render JavaScript?", a: "Yes. With the `--render` flag, crawlie loads each page in headless Chrome and audits the rendered DOM, so it sees client-rendered content — the same as Sitebulb. It also flags pages whose content only appears after JavaScript runs (the `content-requires-js` check)." },
       { q: "Can AI agents use crawlie?", a: "Yes. crawlie ships an MCP server and Claude Skills so an agent can run a full SEO audit and read the results." },
       { q: "Does crawlie have the visual crawl maps Sitebulb is known for?", a: "Not currently. crawlie surfaces the same underlying data (depth, inlinks, link authority) in tables and scores, but doesn't render the visual crawl-map diagrams Sitebulb does." },
     ],
