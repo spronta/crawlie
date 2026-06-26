@@ -683,7 +683,7 @@ dependencies = [
 
 [[package]]
 name = "crawlie-core"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "brotli",
  "chromiumoxide",
@@ -701,7 +701,7 @@ dependencies = [
 
 [[package]]
 name = "crawlie-desktop"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "crawlie-core",
  "serde",

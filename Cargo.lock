@@ -350,7 +350,7 @@ dependencies = [
 
 [[package]]
 name = "crawlie-cli"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "clap",
  "crawlie-core",
@@ -362,7 +362,7 @@ dependencies = [
 
 [[package]]
 name = "crawlie-core"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "brotli",
  "chromiumoxide",
@@ -380,7 +380,7 @@ dependencies = [
 
 [[package]]
 name = "crawlie-mcp"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "crawlie-core",
  "serde_json",
@@ -389,7 +389,7 @@ dependencies = [
 
 [[package]]
 name = "crawlie-rules"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "regex",
  "serde",

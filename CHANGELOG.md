@@ -4,6 +4,24 @@ All notable changes to crawlie are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.1] - 2026-06-26
+
+The desktop app got a glow-up, and crawlie finally learned some manners about what not to crawl.
+
+### Added
+- **JavaScript rendering, now in the desktop app.** The `--render` superpower from 0.5.0 is a one-click toggle in the crawl settings, so you can audit React, Vue and Next sites without ever opening a terminal. (The CLI and MCP have had it all along.)
+- **Exclude hosts and paths, by plain text or regex.** Tell crawlie what to skip (analytics domains, share links, endless faceted URLs) from the new Advanced settings, the CLI (`--exclude-host`, `--exclude-path`, plus their `-regex` cousins), or the `crawl_site` MCP tool. A bad regex fails fast instead of silently matching nothing.
+- **Global crawl defaults.** Set your user agent, crawl budget, render mode and friends once in Settings, and every new crawl starts from there. Override per crawl whenever the mood strikes.
+- **Custom user agent**, surfaced in the desktop Advanced settings (the CLI and MCP already had it).
+
+### Changed
+- **The desktop app looks like it is from this decade.** A flat, Linear-style interface: a rounded content panel, a full-width sticky report header, a Pages table that finally uses the whole window, dark mode that moved into Settings and actually remembers your choice, and a Docs link in the sidebar.
+- **The Overview dashboard means something at a glance.** Issues by category is a stacked severity bar, and Status codes and Crawl depth are colour-coded proportion strips instead of a row of identical grey bars.
+- **Default user agent is now `crawlie (+https://crawlie.dev)`** (unversioned, and pointed at the right place).
+
+### Fixed
+- **Sidebar links open now.** Docs, GitHub and the update Download links open in your default browser instead of quietly doing nothing inside the app.
+
 ## [0.5.0] - 2026-06-26
 
 JavaScript rendering — crawlie now sees what your users (and Google's renderer) see.
