@@ -12,6 +12,6 @@ name = "crawlie-mcp"
 path = "src/main.rs"
 
 [dependencies]
-crawlie-core = { workspace = true }
+crawlie-core = { workspace = true, features = ["render"] }
 tokio = { workspace = true, features = ["full"] }
 serde_json = { workspace = true }

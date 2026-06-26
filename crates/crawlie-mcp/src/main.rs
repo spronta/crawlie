@@ -104,6 +104,8 @@ fn tools_list() -> Value {
                 "checkExternal": { "type": "boolean", "default": true },
                 "respectRobots": { "type": "boolean", "default": true },
                 "useSitemap": { "type": "boolean", "default": true },
+                "render": { "type": "boolean", "default": false, "description": "Render each page with headless Chrome before auditing, so JavaScript-injected content, links and meta tags are seen (React/Next/Vue and other client-rendered sites). Surfaces the 'content-requires-js' rule. Slower; requires a Chrome/Chromium/Edge install on the host." },
+                "renderWaitMs": { "type": "integer", "default": 0, "description": "Extra settle delay in ms after navigation for late-hydrating content. Only used when render is true." },
                 "include": { "type": "array", "items": { "type": "string" } },
                 "exclude": { "type": "array", "items": { "type": "string" } },
                 "extract": { "type": "array", "description": "Custom data extractors run on every page. CSS pulls element text (or the named attribute); regex pulls capture group 1 (else the whole match). Results appear per page under 'extractions' — set includePages to see them.", "items": { "type": "object", "properties": {

@@ -4,7 +4,7 @@
 
 use crate::structured_data;
 use crate::types::{ExtractValue, Extractor, GeoSignals, Hreflang, SchemaValidation};
-use scraper::{Html, Selector};
+use scraper::{ElementRef, Html, Node, Selector};
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashSet;
 use std::hash::{Hash, Hasher};
@@ -156,6 +156,29 @@ fn collapse(s: &str) -> String {
     s.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
+/// Accumulate the visible text under `el`, skipping the contents of elements
+/// that hold code/data rather than reading content (`script`, `style`,
+/// `noscript`, `template`). The space-joining keeps adjacent words separated.
+fn collect_visible_text(el: ElementRef, out: &mut String) {
+    for child in el.children() {
+        match child.value() {
+            Node::Text(t) => {
+                out.push_str(t);
+                out.push(' ');
+            }
+            Node::Element(e) => {
+                if matches!(e.name(), "script" | "style" | "noscript" | "template") {
+                    continue;
+                }
+                if let Some(child_el) = ElementRef::wrap(child) {
+                    collect_visible_text(child_el, out);
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
 fn sel(s: &str) -> Selector {
     Selector::parse(s).expect("valid selector")
 }
@@ -292,11 +315,18 @@ pub fn parse_html(body: &str, final_url: &Url, host: &str, extractors: &[Extract
         }
     }
 
-    // body text → word count, text ratio, content hash
+    // body text → word count, text ratio, content hash. Excludes the contents of
+    // <script>/<style>/<noscript>/<template>: scraper's `.text()` would otherwise
+    // count inline JS, JSON data and CSS as "words", inflating the count (and, on
+    // client-rendered pages, masking how little real content is in the raw HTML).
     let body_text = doc
         .select(&sel("body"))
         .next()
-        .map(|b| b.text().collect::<Vec<_>>().join(" "))
+        .map(|b| {
+            let mut s = String::new();
+            collect_visible_text(b, &mut s);
+            s
+        })
         .unwrap_or_default();
     let normalized = collapse(&body_text);
     let word_count = normalized.split_whitespace().count();

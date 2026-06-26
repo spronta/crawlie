@@ -22,6 +22,7 @@ pub mod knowledge;
 pub mod pagestore;
 pub mod parse;
 pub mod priority;
+pub mod render;
 pub mod report;
 pub mod report_html;
 pub mod robots;

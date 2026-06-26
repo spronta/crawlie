@@ -1,11 +1,11 @@
 ---
 title: What it checks
-description: The full catalogue of crawlie's 49 technical-SEO and GEO rules — broken links, metadata, canonicals, structured-data validation, AI-search readiness, and more.
+description: The full catalogue of crawlie's 50 technical-SEO and GEO rules — broken links, metadata, canonicals, structured-data validation, JavaScript-rendering checks, AI-search readiness, and more.
 section: Reference
 order: 5
 ---
 
-crawlie runs **49 rules and counting**. Every finding links to plain-English guidance —
+crawlie runs **50 rules and counting**. Every finding links to plain-English guidance —
 why it matters, how to fix it, and what happens if you ignore it. Get that for any rule
 with `crawlie explain <rule-id>` (or the `explain_issue` MCP tool).
 
@@ -19,7 +19,7 @@ Representative rule ids: `broken-link`, `client-error`, `server-error`,
 `redirect-chain`, `title-missing`, `title-too-long`, `title-duplicate`,
 `description-missing`, `description-duplicate`, `h1-missing`, `h1-multiple`,
 `canonical-missing`, `image-missing-alt`, `blocked-by-robots`, `thin-content`,
-`duplicate-content`, `low-text-ratio`, `deep-page`.
+`duplicate-content`, `low-text-ratio`, `content-requires-js`, `deep-page`.
 
 ## Performance & security
 
@@ -45,6 +45,18 @@ Article, Product, Recipe, Event, FAQ, Breadcrumb, JobPosting, LocalBusiness, and
 
 Rule ids: `structured-data-invalid`, `schema-missing-required`,
 `schema-missing-recommended`.
+
+## JavaScript rendering
+
+Run a crawl with `--render` (CLI) or `render: true` (MCP) and crawlie audits each
+page from its **post-JavaScript DOM** via headless Chrome — so content, links and
+meta tags injected by React, Next.js, Vue and other client-rendered frameworks are
+seen, not missed. crawlie compares the raw server HTML with the rendered DOM and
+flags pages whose content only exists after JavaScript runs — a real risk, since
+Google renders JS on a delayed second pass and most AI answer engines don't run it
+at all.
+
+Rule id: `content-requires-js`.
 
 ## GEO — Generative Engine Optimization
 

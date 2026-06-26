@@ -25,6 +25,8 @@ crawlie crawl https://example.com --format pretty
 | `--no-external` | Skip HEAD-checking external/uncrawled links. |
 | `--no-robots` | Ignore `robots.txt`. |
 | `--no-sitemap` | Don't seed the crawl from `sitemap.xml`. |
+| `--render` | Render each page with headless Chrome before auditing, so JavaScript-injected content, links and meta tags are seen (React/Next/Vue etc.). Surfaces `content-requires-js`. Requires a Chrome/Chromium/Edge install. |
+| `--render-wait <ms>` | Extra settle delay after navigation for late-hydrating content (default 0). Only with `--render`. |
 | `--include <glob>` | Only crawl URLs matching this glob (repeatable). |
 | `--exclude <glob>` | Skip URLs matching this glob (repeatable). |
 | `--format <fmt>` | `json` (default), `pretty`, `csv`, or `html`. |
@@ -126,6 +128,26 @@ crawlie store crawl.db --severity error     # only errors
 ```
 
 `crawlie store` accepts the same `--format` and `-o/--output` flags as `report`.
+
+## render (JavaScript sites)
+
+By default crawlie audits the raw HTML a server returns. Modern client-rendered apps
+(React, Next.js, Vue, Angular, client-rendered Shopify themes) inject their real
+content, links and meta tags only after JavaScript runs — so the raw HTML is near
+empty. `--render` drives a real headless browser, lets each page hydrate, and audits
+the **post-JavaScript DOM** instead.
+
+```bash
+crawlie crawl https://app.example --render
+crawlie crawl https://app.example --render --render-wait 500   # wait for late hydration
+```
+
+It needs a Chrome / Chromium / Edge install on the host (set `$CHROME` to pin a
+specific binary). Rendering is slower than a raw fetch, so reach for it on JS-heavy
+sites. crawlie also compares the raw HTML against the rendered DOM and raises
+`content-requires-js` on pages whose content only exists after JavaScript — a real
+risk, since Google renders JS on a delayed second pass and most AI answer engines
+don't run it at all.
 
 ## CI gating
 

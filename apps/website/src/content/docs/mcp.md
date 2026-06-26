@@ -41,7 +41,7 @@ over stdio. Built from source? Use the absolute path to `target/release/crawlie-
 
 | Tool | Purpose |
 |---|---|
-| `crawl_site` | Crawl + audit a whole site (SEO + GEO); returns scores, issues, per-page data. |
+| `crawl_site` | Crawl + audit a whole site (SEO + GEO); returns scores, issues, per-page data. Pass `render: true` to audit the JavaScript-rendered DOM (headless Chrome) for client-rendered sites. |
 | `audit_url` | Audit a single page. |
 | `audit_urls` | Audit an explicit list of pages. |
 | `explain_issue` | Why a rule matters + how to fix it. |
@@ -60,6 +60,9 @@ over stdio. Built from source? Use the absolute path to `target/release/crawlie-
 
 > "Run a crawl with `--fail-on error` semantics — are there any broken links or 5xx pages
 > blocking launch?"
+
+> "Crawl our React app with rendering on and tell me which pages have content that only
+> shows up after JavaScript — those are the ones AI engines can't see."
 
 The agent calls `crawl_site`, reads the structured issues, and uses `explain_issue` to
 turn findings into a prioritized, actionable plan.

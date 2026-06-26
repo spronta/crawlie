@@ -104,6 +104,8 @@ fn ok_page(url: &str) -> Page {
         meta_robots: None,
         lang: Some("en".into()),
         has_viewport: true,
+        rendered: false,
+        pre_render_word_count: 500,
         indexable: true,
         indexability: None,
         canonicalized: false,
@@ -321,6 +323,36 @@ fn old_reports_without_new_score_fields_still_deserialize() {
     let page: Page = serde_json::from_str(json).expect("old page JSON should deserialize");
     assert_eq!(page.link_score, 0.0);
     assert_eq!(page.seo_score, 0);
+}
+
+#[test]
+fn audit_flags_content_that_only_renders_with_js() {
+    let seed = Url::parse("https://example.com/").unwrap();
+    let mut page = ok_page("https://example.com/spa");
+    // The raw HTML is near-empty; the 500-word body only exists after JS renders.
+    page.rendered = true;
+    page.pre_render_word_count = 5;
+    let issues = crawlie_core::audit::audit(&[page], &HashMap::new(), &[], &seed);
+    assert!(
+        rules(&issues).contains(&"content-requires-js"),
+        "expected content-requires-js, got {:?}",
+        rules(&issues)
+    );
+}
+
+#[test]
+fn audit_does_not_flag_js_content_when_raw_html_is_substantial() {
+    let seed = Url::parse("https://example.com/").unwrap();
+    let mut page = ok_page("https://example.com/ssr");
+    // Server-rendered: nearly all the content is already in the raw HTML, so the
+    // page does not depend on JavaScript even though render mode was on.
+    page.rendered = true;
+    page.pre_render_word_count = 480;
+    let issues = crawlie_core::audit::audit(&[page], &HashMap::new(), &[], &seed);
+    assert!(
+        !rules(&issues).contains(&"content-requires-js"),
+        "should not flag server-rendered content as JS-dependent"
+    );
 }
 
 #[test]

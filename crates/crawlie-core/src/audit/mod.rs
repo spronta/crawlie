@@ -11,6 +11,9 @@ const TITLE_MAX: usize = 60;
 const DESC_MIN: usize = 70;
 const DESC_MAX: usize = 160;
 const THIN_WORDS: usize = 200;
+/// Minimum post-render words for `content-requires-js` to fire — enough that the
+/// JS-delivered content is real, not an enhancement to an already-substantial page.
+const JS_CONTENT_MIN: usize = 100;
 const SLOW_MS: u64 = 2000;
 const LARGE_BYTES: usize = 2_000_000;
 const DEEP: usize = 4;
@@ -402,6 +405,28 @@ pub fn audit_one(
                 Notice,
                 u,
                 Some(format!("{} words", p.word_count)),
+            ));
+        }
+        // Content that only exists after JavaScript renders. Only detectable in
+        // render mode (`pre_render_word_count` = raw HTML, `word_count` = post-JS
+        // DOM): real content after render, but the raw payload a non-JS crawler
+        // sees is largely empty.
+        if p.rendered
+            && p.status == 200
+            && p.word_count >= JS_CONTENT_MIN
+            && p.pre_render_word_count * 3 < p.word_count
+        {
+            let pct = (p.pre_render_word_count * 100) / p.word_count.max(1);
+            out.push(issue(
+                "content-requires-js",
+                "Content Requires JavaScript",
+                Indexability,
+                Warning,
+                u,
+                Some(format!(
+                    "Only {pct}% of content ({} of {} words) is in the raw HTML; the rest needs JavaScript",
+                    p.pre_render_word_count, p.word_count
+                )),
             ));
         }
         if p.size_bytes > LARGE_BYTES {

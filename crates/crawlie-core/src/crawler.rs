@@ -7,6 +7,7 @@ use crate::audit::{audit, audit_one};
 use crate::fetch::{build_client, check_status, fetch, FetchOutcome};
 use crate::pagestore::PageStore;
 use crate::parse::{parse_html, Parsed};
+use crate::render::Renderer;
 use crate::robots::Robots;
 use crate::scoring::{geo_score, health_score, site_geo_score};
 use crate::sitemap;
@@ -37,6 +38,64 @@ impl CancelToken {
 async fn verify_link(client: reqwest::Client, u: Url) -> (String, u16) {
     let status = check_status(&client, &u).await;
     (normalize(&u), status)
+}
+
+/// One fetched (and optionally rendered) page, ready to become a [`Page`].
+struct Fetched {
+    outcome: FetchOutcome,
+    parsed: Option<Parsed>,
+    rendered: bool,
+    pre_render_word_count: usize,
+}
+
+/// Fetch one URL, then — when a renderer is supplied — re-acquire its
+/// post-JavaScript DOM with headless Chrome and parse *that* instead, so every
+/// downstream audit rule sees client-rendered content. The raw server HTML's
+/// word count is captured first so the gap between raw and rendered can flag
+/// JS-dependent content. A render failure is non-fatal: the raw HTML is used.
+async fn fetch_one(
+    client: &reqwest::Client,
+    renderer: Option<&Renderer>,
+    u: &Url,
+    host: &str,
+    extractors: &[Extractor],
+    render_wait_ms: u64,
+) -> Result<Fetched, reqwest::Error> {
+    let o = fetch(client, u, 10).await?;
+    let mut rendered = false;
+    let mut pre_render_word_count = 0usize;
+    let mut html = o.body.clone();
+
+    if o.is_html && o.status == 200 {
+        if let Some(r) = renderer {
+            // Count words in the raw payload (before any JS) for the JS-content gap.
+            if let Some(raw) = o.body.as_deref() {
+                pre_render_word_count = parse_html(raw, &o.final_url, host, &[]).word_count;
+            }
+            if let Ok(dom) = r.render_html(&o.final_url, render_wait_ms).await {
+                html = Some(dom);
+                rendered = true;
+            }
+        }
+    }
+
+    let parsed = if o.is_html {
+        html.as_deref()
+            .map(|b| parse_html(b, &o.final_url, host, extractors))
+    } else {
+        None
+    };
+    // With no render, pre == post by definition (keeps the field meaningful).
+    if !rendered {
+        pre_render_word_count = parsed.as_ref().map(|p| p.word_count).unwrap_or(0);
+    }
+
+    Ok(Fetched {
+        outcome: o,
+        parsed,
+        rendered,
+        pre_render_word_count,
+    })
 }
 
 fn normalize(u: &Url) -> String {
@@ -153,6 +212,7 @@ struct Prep {
     seed: Url,
     host: String,
     client: reqwest::Client,
+    renderer: Option<Arc<Renderer>>,
     robots: Robots,
     robots_found: bool,
     llms_txt_found: bool,
@@ -188,6 +248,19 @@ where
         .to_string();
     let client = build_client(&config.user_agent, config.timeout_secs)
         .map_err(|e| CrawlError::Client(e.to_string()))?;
+
+    // Launch the headless browser once, up front, so a misconfigured render mode
+    // fails the crawl immediately instead of after fetching the seed.
+    let renderer = if config.render {
+        let nav_timeout = config.timeout_secs.saturating_mul(2).max(20);
+        match Renderer::launch(None, nav_timeout).await {
+            Ok(r) => Some(Arc::new(r)),
+            Err(e) => return Err(CrawlError::Config(format!("render mode: {e}"))),
+        }
+    } else {
+        None
+    };
+
     let concurrency = config.concurrency.max(1);
     let follow = matches!(config.mode, CrawlMode::Site);
     let max_pages = match config.mode {
@@ -271,6 +344,7 @@ where
         seed,
         host,
         client,
+        renderer,
         robots,
         robots_found,
         llms_txt_found,
@@ -300,6 +374,7 @@ where
         seed,
         host,
         client,
+        renderer,
         robots,
         robots_found,
         llms_txt_found,
@@ -328,17 +403,18 @@ where
             let client = client.clone();
             let host = host.clone();
             let extractors = config.extract.clone();
+            let renderer = renderer.clone();
+            let render_wait = config.render_wait_ms;
             inflight.push(async move {
-                let res = fetch(&client, &u, 10).await.map(|o| {
-                    let parsed: Option<Parsed> = if o.is_html {
-                        o.body
-                            .as_deref()
-                            .map(|b| parse_html(b, &o.final_url, &host, &extractors))
-                    } else {
-                        None
-                    };
-                    (o, parsed)
-                });
+                let res = fetch_one(
+                    &client,
+                    renderer.as_deref(),
+                    &u,
+                    &host,
+                    &extractors,
+                    render_wait,
+                )
+                .await;
                 (u, depth, res)
             });
         }
@@ -349,8 +425,14 @@ where
 
         if let Some((u, depth, result)) = inflight.next().await {
             match result {
-                Ok((outcome, parsed)) => {
-                    let page = build_page(&u, depth, outcome, parsed);
+                Ok(Fetched {
+                    outcome,
+                    parsed,
+                    rendered,
+                    pre_render_word_count,
+                }) => {
+                    let page =
+                        build_page(&u, depth, outcome, parsed, rendered, pre_render_word_count);
                     visited.insert(normalize_str(&page.final_url));
                     if follow && depth < config.max_depth {
                         for link in &page.internal_links {
@@ -567,6 +649,7 @@ where
         seed,
         host,
         client,
+        renderer,
         robots,
         robots_found,
         llms_txt_found,
@@ -598,17 +681,18 @@ where
             let client = client.clone();
             let host = host.clone();
             let extractors = config.extract.clone();
+            let renderer = renderer.clone();
+            let render_wait = config.render_wait_ms;
             inflight.push(async move {
-                let res = fetch(&client, &u, 10).await.map(|o| {
-                    let parsed: Option<Parsed> = if o.is_html {
-                        o.body
-                            .as_deref()
-                            .map(|b| parse_html(b, &o.final_url, &host, &extractors))
-                    } else {
-                        None
-                    };
-                    (o, parsed)
-                });
+                let res = fetch_one(
+                    &client,
+                    renderer.as_deref(),
+                    &u,
+                    &host,
+                    &extractors,
+                    render_wait,
+                )
+                .await;
                 (u, depth, res)
             });
         }
@@ -619,8 +703,14 @@ where
 
         if let Some((u, depth, result)) = inflight.next().await {
             let page = match result {
-                Ok((outcome, parsed)) => {
-                    let page = build_page(&u, depth, outcome, parsed);
+                Ok(Fetched {
+                    outcome,
+                    parsed,
+                    rendered,
+                    pre_render_word_count,
+                }) => {
+                    let page =
+                        build_page(&u, depth, outcome, parsed, rendered, pre_render_word_count);
                     visited.insert(normalize_str(&page.final_url));
                     if follow && depth < config.max_depth {
                         for link in &page.internal_links {
@@ -945,7 +1035,14 @@ impl SummaryAcc {
     }
 }
 
-fn build_page(url: &Url, depth: usize, o: FetchOutcome, parsed: Option<Parsed>) -> Page {
+fn build_page(
+    url: &Url,
+    depth: usize,
+    o: FetchOutcome,
+    parsed: Option<Parsed>,
+    rendered: bool,
+    pre_render_word_count: usize,
+) -> Page {
     let final_url_str = o.final_url.to_string();
     let canonical = parsed.as_ref().and_then(|p| p.canonical.clone());
     let canonicalized = canonical
@@ -1016,6 +1113,8 @@ fn build_page(url: &Url, depth: usize, o: FetchOutcome, parsed: Option<Parsed>) 
         meta_robots,
         lang: parsed.as_ref().and_then(|p| p.lang.clone()),
         has_viewport: parsed.as_ref().map(|p| p.has_viewport).unwrap_or(false),
+        rendered,
+        pre_render_word_count,
         indexable,
         indexability,
         canonicalized,
@@ -1090,6 +1189,8 @@ fn error_page(url: &Url, depth: usize, error: String) -> Page {
         meta_robots: None,
         lang: None,
         has_viewport: false,
+        rendered: false,
+        pre_render_word_count: 0,
         indexable: false,
         indexability: Some("Connection Error".into()),
         canonicalized: false,

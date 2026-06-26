@@ -12,7 +12,7 @@ name = "crawlie"
 path = "src/main.rs"
 
 [dependencies]
-crawlie-core = { workspace = true }
+crawlie-core = { workspace = true, features = ["render"] }
 crawlie-rules = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 reqwest = { workspace = true, features = ["json"] }

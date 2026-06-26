@@ -19,6 +19,13 @@ url = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 futures = { workspace = true }
+chromiumoxide = { version = "0.7", default-features = false, features = ["tokio-runtime"], optional = true }
+
+[features]
+# Headless-Chrome rendering. Off by default so the core build stays lean and the
+# wasm story is untouched; enabled by the CLI/MCP/desktop which ship a real
+# binary. Requires a Chrome/Chromium/Edge install on the host at run time.
+render = ["dep:chromiumoxide"]
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full"] }

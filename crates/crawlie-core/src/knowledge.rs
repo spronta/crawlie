@@ -170,6 +170,10 @@ entries! {
         "A page that is mostly markup with little readable text often signals thin or template-heavy content to search and AI engines.",
         "Increase the proportion of meaningful body text relative to code, and remove bloated markup.",
         "Perceived as low-value, reducing ranking and citation.";
+    "content-requires-js" => "Content Requires JavaScript", Indexability, Warning,
+        "Most of this page's content is missing from the raw HTML and only appears after JavaScript runs. Google renders JS but on a delayed, budget-limited second pass — and most AI answer engines and social/link unfurlers don't execute JS at all, so they see an almost-empty page.",
+        "Server-render or pre-render the primary content (SSR/SSG/ISR) so it's present in the initial HTML response. Keep JavaScript for enhancement, not for delivering core content and links.",
+        "Delayed or skipped indexing, and invisibility to AI engines and crawlers that don't run JavaScript.";
 
     // ---- Security ----
     "not-secure" => "Not Served Over HTTPS", Security, Warning,

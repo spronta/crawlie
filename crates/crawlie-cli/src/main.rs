@@ -100,6 +100,15 @@ struct CrawlArgs {
     /// 'sku=SKU-(\d+)'`. Repeatable.
     #[arg(long, value_name = "NAME=PATTERN")]
     extract_regex: Vec<String>,
+    /// Render each page with headless Chrome before auditing, so JavaScript-
+    /// injected content, links and meta tags are seen (for React/Next/Vue and
+    /// other client-rendered sites). Requires a Chrome/Chromium/Edge install.
+    #[arg(long)]
+    render: bool,
+    /// Extra settle delay in milliseconds after navigation for late hydration.
+    /// Only used with --render.
+    #[arg(long, default_value_t = 0, value_name = "MS")]
+    render_wait: u64,
     /// Stream pages to an on-disk SQLite store instead of holding them in
     /// memory — for crawling very large sites without running out of RAM. The
     /// crawl is written to this path and becomes the queryable artifact.
@@ -330,6 +339,8 @@ async fn run_crawl(a: CrawlArgs) -> ExitCode {
         include: a.include,
         exclude: a.exclude,
         extract,
+        render: a.render,
+        render_wait_ms: a.render_wait,
         ..CrawlConfig::new(&a.url)
     };
     let min = a.severity.map(sev_rank);

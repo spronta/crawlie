@@ -437,6 +437,8 @@ mod tests {
                     meta_robots: None,
                     lang: None,
                     has_viewport: false,
+                    rendered: false,
+                    pre_render_word_count: 0,
                     indexable: true,
                     indexability: None,
                     canonicalized: false,

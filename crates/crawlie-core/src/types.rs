@@ -28,6 +28,9 @@ fn default_user_agent() -> String {
 fn default_true() -> bool {
     true
 }
+fn default_render_wait() -> u64 {
+    0
+}
 
 /// What to crawl.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -87,6 +90,15 @@ pub struct CrawlConfig {
     /// Custom data extractors run against every crawled HTML page.
     #[serde(default)]
     pub extract: Vec<Extractor>,
+    /// Render each HTML page with headless Chrome before parsing, so audits see
+    /// JavaScript-injected content, links and meta tags. Requires a build with
+    /// the `render` feature and a Chrome/Chromium/Edge install on the host.
+    #[serde(default)]
+    pub render: bool,
+    /// Extra settle delay in milliseconds after navigation, for content that
+    /// hydrates late. Only used when `render` is on.
+    #[serde(default = "default_render_wait")]
+    pub render_wait_ms: u64,
 }
 
 /// A user-defined extractor: pull arbitrary data off every page via a CSS
@@ -135,6 +147,8 @@ impl CrawlConfig {
             include: Vec::new(),
             exclude: Vec::new(),
             extract: Vec::new(),
+            render: false,
+            render_wait_ms: default_render_wait(),
         }
     }
 }
@@ -191,6 +205,17 @@ pub struct Page {
     pub meta_robots: Option<String>,
     pub lang: Option<String>,
     pub has_viewport: bool,
+
+    // --- rendering ---
+    /// Whether this page was audited from its headless-Chrome-rendered DOM
+    /// (`true`) rather than the raw server HTML. Only set when render mode is on.
+    #[serde(default)]
+    pub rendered: bool,
+    /// Word count of the *raw* server HTML, before JavaScript ran. Compared with
+    /// `word_count` (post-render) to detect content that only exists after JS.
+    /// Equals `word_count` when render mode is off.
+    #[serde(default)]
+    pub pre_render_word_count: usize,
 
     // --- indexability (derived) ---
     pub indexable: bool,

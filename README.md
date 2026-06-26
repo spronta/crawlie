@@ -203,7 +203,7 @@ Whole-site / single-page / URL-list modes, live progress, **Health** & **GEO** s
 
 ## What it checks
 
-*49 rules and counting.*
+*50 rules and counting.*
 
 **Technical SEO** — broken links · 4xx/5xx · redirects & chains · titles & meta descriptions (missing / duplicate / length) · H1s · canonicals · noindex / nofollow / X-Robots-Tag · robots.txt blocking · images missing alt · thin & duplicate content · orphan & deep pages
 
@@ -212,6 +212,8 @@ Whole-site / single-page / URL-list modes, live progress, **Health** & **GEO** s
 **Mobile, international & social** — viewport · `lang` · hreflang · Open Graph · Twitter cards · structured data
 
 **Structured-data validation** — parses JSON-LD and checks each item against Google's rich-result requirements: invalid markup, missing required fields, and missing recommended fields (Product, Article, Recipe, Event, FAQ, Breadcrumb, and more)
+
+**JavaScript rendering** — crawl with `--render` to audit each page's post-JavaScript DOM via headless Chrome, so client-rendered content (React/Next/Vue) is seen, and `content-requires-js` flags pages whose content only exists after JS runs
 
 **GEO — Generative Engine Optimization** — structured data, semantic HTML, answer-readiness, authorship/E-E-A-T, dated content, question-style headings, and extractable blocks, rolled into a per-page **GEO score**.
 
@@ -226,6 +228,7 @@ Every finding links to plain-English guidance: **why it matters**, **how to fix 
 | Price | **Free & open-source** | £259/yr to unlock | from £13.50/mo |
 | Engine | **Rust, async, tiny binary** | Java (JVM) | .NET |
 | CLI with JSON output | ✅ | partial | ❌ |
+| JavaScript rendering | ✅ headless Chrome | ✅ | ✅ |
 | **MCP server (agent-native)** | ✅ | ❌ | ❌ |
 | **GEO — AI/answer-engine audit** | ✅ | ❌ | ❌ |
 | **"Why it matters" built in** | ✅ every issue | ❌ | partial |

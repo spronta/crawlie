@@ -4,6 +4,17 @@ All notable changes to crawlie are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-06-26
+
+JavaScript rendering — crawlie now sees what your users (and Google's renderer) see.
+
+### Added
+- **JavaScript rendering** — crawl with `--render` and crawlie drives a real headless browser, lets each page hydrate, and audits the **post-JavaScript DOM**. Content, links and meta tags injected by React, Next.js, Vue and other client-rendered frameworks are now seen instead of missed, so every one of crawlie's rules works on modern JS apps. Add `--render-wait <ms>` to wait for late-hydrating content. Uses your installed Chrome / Chromium / Edge (set `$CHROME` to pin one). Agents get it too via `render: true` on the `crawl_site` MCP tool. See the [docs](https://crawlie.dev/docs/cli#render-javascript-sites).
+- **`content-requires-js` rule** — crawlie compares the raw server HTML against the rendered DOM and flags pages whose content only exists after JavaScript runs. That's a real risk: Google renders JS on a delayed, budget-limited second pass, and most AI answer engines don't run it at all — so a client-only page can be near-invisible to the very engines you want to rank and be cited in.
+
+### Changed
+- **More accurate content metrics** — body word count, thin-content detection and the text-to-HTML ratio now exclude the contents of `<script>`, `<style>`, `<noscript>` and `<template>`, so inline JavaScript and JSON data no longer inflate a page's apparent word count.
+
 ## [0.4.2] - 2026-06-24
 
 Custom extraction lands, plus a brand refresh.
