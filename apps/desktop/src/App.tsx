@@ -131,7 +131,7 @@ export function App() {
 
       <div className="content">
         <UpdateBanner />
-        <main className="main">
+        <main className={`main${phase.name === "done" ? " flush" : ""}`}>
         {phase.name === "idle" && <StartView onStart={start} />}
         {phase.name === "crawling" && <CrawlingView config={phase.config} progress={phase.progress} onCancel={cancel} />}
         {phase.name === "done" && <ResultsView result={phase.result} onReset={reset} />}

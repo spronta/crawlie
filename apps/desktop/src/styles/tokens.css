@@ -68,15 +68,22 @@
   --red-bg: #fff5f5;
   --red-border: #f5d2d3;
 
-  --amber: #f5a623;
-  --amber-text: #a05e00;
-  --amber-bg: #fff8ec;
-  --amber-border: #f7e3bd;
+  /* Warnings — orange. */
+  --amber: #f97316;
+  --amber-text: #c2410c;
+  --amber-bg: #fff3eb;
+  --amber-border: #fbd4b4;
 
   --green: #1a9d63;
   --green-text: #157a4d;
   --green-bg: #ecf8f1;
   --green-border: #c8e9d6;
+
+  /* Notices — soft yellow, low-attention (informational). */
+  --notice: #e0b020;
+  --notice-text: #856300;
+  --notice-bg: #fdf7e0;
+  --notice-border: #eedf9c;
 
   /* Flat by design — separation comes from borders and surface tints, not shadows. */
   --shadow-card: none;
@@ -109,15 +116,22 @@
   --red-bg: #2a1416;
   --red-border: #5a2326;
 
-  --amber: #f5b544;
-  --amber-text: #f7c870;
-  --amber-bg: #2a1f0d;
-  --amber-border: #574013;
+  /* Warnings — orange. */
+  --amber: #fb923c;
+  --amber-text: #fdba74;
+  --amber-bg: #2a1709;
+  --amber-border: #5a3315;
 
   --green: #3ddc91;
   --green-text: #6fe7b1;
   --green-bg: #0d2419;
   --green-border: #1c4733;
+
+  /* Notices — soft yellow, low-attention (informational). */
+  --notice: #ecd95e;
+  --notice-text: #f2e189;
+  --notice-bg: #2a2408;
+  --notice-border: #574a13;
 
   --shadow-card: none;
   --shadow-pop: none;

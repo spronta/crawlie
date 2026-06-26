@@ -3,7 +3,7 @@ import { CircleAlert, Info, TriangleAlert } from "lucide-react";
 import type { Category, CrawlResult, GeoSignals, Issue, Page, Severity } from "../lib/types";
 import { CATEGORY_LABELS } from "../lib/types";
 import { ruleInfo } from "../lib/rules";
-import { Donut, Bars } from "../components/charts";
+import { Donut, StackedBars, ProportionBar } from "../components/charts";
 import { IconDownload, IconRefresh, IconShare, IconX, ScoreRing, SeverityBadge, StatusPill } from "../components/ui";
 import { exportHtml, isTauri } from "../lib/api";
 import { topFixes } from "../lib/priority";
@@ -59,8 +59,10 @@ export function ResultsView({ result, onReset }: { result: CrawlResult; onReset:
   const issueCount = result.issues.filter((i) => i.severity !== "good").length;
 
   return (
-    <div className="section-gap">
-      <div className="row between wrap" style={{ gap: "var(--sp-3)" }} data-tauri-drag-region>
+    <>
+      <div className="report-bar">
+        <div className="report-bar-inner">
+          <div className="row between wrap" style={{ gap: "var(--sp-3)" }} data-tauri-drag-region>
         <div className="col" style={{ gap: 4 }} data-tauri-drag-region>
           <h1 className="h1" data-tauri-drag-region>{hostOf(result.config.url)}</h1>
           <span className="mono muted" style={{ fontSize: 13 }} data-tauri-drag-region>
@@ -77,15 +79,19 @@ export function ResultsView({ result, onReset }: { result: CrawlResult; onReset:
           <button className="btn btn-secondary btn-sm" onClick={share} title={isTauri() ? "Save a shareable HTML report" : "Available in the desktop app"}><IconShare size={15} /> Share</button>
           <button className="btn btn-primary btn-sm" onClick={onReset}><IconRefresh size={15} /> New crawl</button>
         </div>
+          </div>
+
+          <div className="tabs">
+            <Tabish id="overview" tab={tab} set={setTab}>Overview</Tabish>
+            <Tabish id="issues" tab={tab} set={setTab} count={issueCount}>Issues</Tabish>
+            <Tabish id="pages" tab={tab} set={setTab} count={result.pages.length}>Pages</Tabish>
+          </div>
+        </div>
       </div>
+
       {toast && <div className="toast">{toast}</div>}
 
-      <div className="tabs">
-        <Tabish id="overview" tab={tab} set={setTab}>Overview</Tabish>
-        <Tabish id="issues" tab={tab} set={setTab} count={issueCount}>Issues</Tabish>
-        <Tabish id="pages" tab={tab} set={setTab} count={result.pages.length}>Pages</Tabish>
-      </div>
-
+      <div className={`report-body${tab === "pages" ? " wide" : ""}`}>
       {tab === "overview" && <Overview result={result} onCategory={goCategory} onSeverity={goSeverity} onStatus={goStatus} onDepth={goDepth} />}
       {tab === "issues" && (
         <Issues
@@ -108,8 +114,9 @@ export function ResultsView({ result, onReset }: { result: CrawlResult; onReset:
         />
       )}
 
+      </div>
       {page && <PageDrawer page={page} issues={result.issues.filter((i) => i.url === page.url)} onClose={() => setPage(null)} />}
-    </div>
+    </>
   );
 }
 
@@ -149,28 +156,40 @@ function Overview({
     .filter(([, v]) => v > 0)
     .sort((a, b) => Number(a[0]) - Number(b[0]))
     .map(([code, v]) => ({ label: code === "0" ? "Conn. error" : code, value: v, color: statusColor(Number(code)), key: code }));
+  // Depth shaded on a sequential scale so each level is visually distinct and
+  // deeper (harder-to-reach) pages run warmer.
+  const DEPTH_COLORS = ["var(--green)", "var(--blue)", "#8b5cf6", "var(--amber)", "var(--red)"];
   const depthRows = Object.entries(s.byDepth)
     .sort((a, b) => Number(a[0]) - Number(b[0]))
-    .map(([d, value]) => ({ label: d === "0" ? "Home" : `${d} clicks`, value, color: "var(--blue)", key: d }));
+    .map(([d, value]) => ({
+      label: d === "0" ? "Home" : `${d} click${d === "1" ? "" : "s"}`,
+      value,
+      key: d,
+      color: DEPTH_COLORS[Math.min(Number(d), DEPTH_COLORS.length - 1)],
+    }));
 
-  // Category rows coloured by their worst severity (red = contains errors).
+  // Category rows broken down into error / warning / notice segments so each
+  // bar shows the *mix*, not just a total.
   const catRows = useMemo(() => {
-    const m = new Map<Category, { count: number; worst: number }>();
+    const m = new Map<Category, { error: number; warning: number; notice: number }>();
     for (const i of result.issues) {
       if (i.severity === "good") continue;
-      const e = m.get(i.category) ?? { count: 0, worst: 0 };
-      e.count++;
-      e.worst = Math.max(e.worst, severityRank(i.severity));
+      const e = m.get(i.category) ?? { error: 0, warning: 0, notice: 0 };
+      e[i.severity as "error" | "warning" | "notice"]++;
       m.set(i.category, e);
     }
     return [...m.entries()]
-      .sort((a, b) => b[1].count - a[1].count)
       .map(([cat, d]) => ({
         label: CATEGORY_LABELS[cat],
-        value: d.count,
         key: cat,
-        color: d.worst >= 2 ? "var(--red)" : d.worst === 1 ? "var(--amber)" : "var(--text-tertiary)",
-      }));
+        total: d.error + d.warning + d.notice,
+        segments: [
+          { label: "Errors", value: d.error, color: "var(--red)" },
+          { label: "Warnings", value: d.warning, color: "var(--amber)" },
+          { label: "Notices", value: d.notice, color: "var(--notice)" },
+        ],
+      }))
+      .sort((a, b) => b.total - a.total);
   }, [result.issues]);
 
   const fixes = topFixes(result.issues, 5);
@@ -219,7 +238,7 @@ function Overview({
         <Stat k="Pages crawled" v={num(s.totalPages)} />
         <Stat k="Errors" v={num(s.errors)} tone={s.errors ? "error" : undefined} />
         <Stat k="Warnings" v={num(s.warnings)} tone={s.warnings ? "warning" : undefined} />
-        <Stat k="Notices" v={num(s.notices)} />
+        <Stat k="Notices" v={num(s.notices)} tone={s.notices ? "notice" : undefined} />
         <Stat k="Indexable" v={`${pct(s.indexablePages, s.totalPages)}%`} sub={`${num(s.indexablePages)}/${num(s.totalPages)}`} />
         <Stat k="Duplicates" v={num(s.duplicatePages)} />
         <Stat k="Avg response" v={ms(s.avgResponseMs)} />
@@ -232,33 +251,34 @@ function Overview({
             slices={[
               { label: "Errors", value: s.errors, color: "var(--red)", key: "error" },
               { label: "Warnings", value: s.warnings, color: "var(--amber)", key: "warning" },
-              { label: "Notices", value: s.notices, color: "var(--text-tertiary)", key: "notice" },
+              { label: "Notices", value: s.notices, color: "var(--notice)", key: "notice" },
             ]}
             onSelect={(k) => onSeverity(k as Severity)}
           />
         </div>
         <div className="card card-pad">
           <h3 className="h3" style={{ marginBottom: "var(--sp-4)" }}>Issues by category</h3>
-          {catRows.length ? <Bars rows={catRows} onSelect={(k) => onCategory(k as Category)} /> : <Empty>No issues — clean crawl.</Empty>}
+          {catRows.length ? <StackedBars rows={catRows} onSelect={(k) => onCategory(k as Category)} /> : <Empty>No issues — clean crawl.</Empty>}
         </div>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--sp-3)" }}>
         <div className="card card-pad">
           <h3 className="h3" style={{ marginBottom: "var(--sp-4)" }}>Status codes</h3>
-          <Bars rows={statusRows} onSelect={(k) => onStatus(Number(k))} />
+          <ProportionBar segments={statusRows} onSelect={(k) => onStatus(Number(k))} />
         </div>
         <div className="card card-pad">
           <h3 className="h3" style={{ marginBottom: "var(--sp-4)" }}>Crawl depth</h3>
-          <Bars rows={depthRows} onSelect={(k) => onDepth(Number(k))} />
+          <ProportionBar segments={depthRows} onSelect={(k) => onDepth(Number(k))} />
         </div>
       </div>
     </div>
   );
 }
 
-function Stat({ k, v, sub, tone }: { k: string; v: string; sub?: string; tone?: "error" | "warning" }) {
-  const color = tone === "error" ? "var(--red-text)" : tone === "warning" ? "var(--amber-text)" : undefined;
+function Stat({ k, v, sub, tone }: { k: string; v: string; sub?: string; tone?: "error" | "warning" | "notice" }) {
+  const color =
+    tone === "error" ? "var(--red-text)" : tone === "warning" ? "var(--amber-text)" : tone === "notice" ? "var(--notice-text)" : undefined;
   return (
     <div className="card stat">
       <div className="k">{k}</div>
@@ -308,7 +328,7 @@ function Issues({
           <FilterChip active={sevFilter === "all"} onClick={() => setSevFilter("all")}>All <span className="mono">{problems.length}</span></FilterChip>
           <FilterChip active={sevFilter === "error"} onClick={() => setSevFilter("error")}><CircleAlert size={14} style={{ color: "var(--red-text)" }} /> Errors <span className="mono">{result.summary.errors}</span></FilterChip>
           <FilterChip active={sevFilter === "warning"} onClick={() => setSevFilter("warning")}><TriangleAlert size={14} style={{ color: "var(--amber-text)" }} /> Warnings <span className="mono">{result.summary.warnings}</span></FilterChip>
-          <FilterChip active={sevFilter === "notice"} onClick={() => setSevFilter("notice")}><Info size={14} style={{ color: "var(--text-secondary)" }} /> Notices <span className="mono">{result.summary.notices}</span></FilterChip>
+          <FilterChip active={sevFilter === "notice"} onClick={() => setSevFilter("notice")}><Info size={14} style={{ color: "var(--notice-text)" }} /> Notices <span className="mono">{result.summary.notices}</span></FilterChip>
         </div>
         {catFilter && (
           <button className="btn btn-sm btn-secondary" onClick={() => setCatFilter(null)} style={{ gap: 6 }}>
@@ -434,7 +454,7 @@ function Pages({
         )}
         <span className="tertiary mono" style={{ fontSize: 12, alignSelf: "center" }}>{rows.length} pages</span>
       </div>
-      <div className="table-wrap" style={{ maxHeight: "62vh" }}>
+      <div className="table-wrap">
         <table className="grid">
           <thead>
             <tr>

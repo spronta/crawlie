@@ -8,12 +8,16 @@
 
 html,
 body,
+html,
+body,
 #root {
   height: 100%;
 }
 
 body {
   margin: 0;
+  /* The app shell owns its scroll regions (only .main scrolls) — never the page. */
+  overflow: hidden;
   font: var(--copy-14);
   color: var(--text);
   background: var(--bg);
@@ -41,7 +45,10 @@ a:hover {
 /* ---------- App shell ---------- */
 .app {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
+  /* Tinted window backdrop — the rounded content panel floats on top of it. */
+  background: var(--bg-subtle);
 }
 
 /* ---------- Sidebar ---------- */
@@ -57,8 +64,9 @@ a:hover {
   gap: var(--sp-1);
   /* leave room for the macOS traffic lights under the overlay titlebar */
   padding: 40px var(--sp-3) var(--sp-4);
-  background: var(--bg-subtle);
-  border-right: 1px solid var(--border);
+  /* Transparent so the tinted window backdrop shows through — no divider; the
+     rounded content panel provides the separation. */
+  background: transparent;
   -webkit-app-region: drag;
   transition: width var(--t-med) var(--ease);
 }
@@ -137,7 +145,9 @@ a:hover {
 
 /* ---------- Collapsed sidebar ---------- */
 .sidebar.collapsed {
-  width: 64px;
+  /* Wide enough to clear the macOS traffic lights (~x19–73) so they never
+     overlap the content panel's rounded corner. */
+  width: 82px;
   padding-left: var(--sp-2);
   padding-right: var(--sp-2);
 }
@@ -173,6 +183,13 @@ a:hover {
   min-width: 0;
   display: flex;
   flex-direction: column;
+  /* Rounded floating panel (Linear-style): inset from the window edges, sitting
+     on the tinted backdrop, scrolling internally. */
+  margin: var(--sp-2) var(--sp-2) var(--sp-2) 0;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
 }
 
 /* new-release banner */
@@ -287,10 +304,84 @@ a:hover {
 
 .main {
   flex: 1;
-  width: 100%;
+  min-height: 0;
+  /* Scrolls inside the rounded panel; the scrollbar tracks the panel edge while
+     content stays centred to a max width. */
+  overflow-y: auto;
+  padding-top: var(--sp-6);
+  padding-bottom: var(--sp-8);
+  padding-inline: max((100% - 1200px) / 2, var(--sp-5));
+}
+/* Views that own their full width (e.g. the report) render flush, and lay out
+   as a fixed-height column: a pinned top bar + a body that fills the rest. */
+.main.flush {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Report header/tabs: a full-width bar pinned to the top of the scroll area,
+   with its content aligned to the same centred column as the body below. */
+.report-bar {
+  flex: none;
+  z-index: 10;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+.report-bar-inner {
+  /* Full width — the nav spans the whole panel, the same on every tab. */
+  padding: var(--sp-4) var(--sp-5) 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+.report-bar .tabs {
+  border-bottom: none;
+}
+/* Compact report title — keep the sticky bar tight. */
+.report-bar .h1 {
+  font: var(--heading-16);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.report-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
   max-width: 1200px;
-  margin: 0 auto;
-  padding: var(--sp-6) var(--sp-5) var(--sp-8);
+  width: 100%;
+  margin-inline: auto;
+  padding: var(--sp-5) var(--sp-5) var(--sp-8);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+}
+/* Data-dense tabs (Pages): the body uses the full panel width. The sticky nav
+   keeps its normal centred margin on every tab — only the body goes wide. */
+.report-body.wide {
+  max-width: none;
+  padding-inline: var(--sp-4);
+}
+/* Pages: the body doesn't scroll — the table fills the remaining height and
+   scrolls inside itself, so it uses the full content area. */
+.report-body.wide {
+  overflow: hidden;
+  padding-bottom: var(--sp-4);
+}
+.report-body.wide > .section-gap {
+  flex: 1;
+  min-height: 0;
+}
+/* The table itself goes truly full-bleed — edge to edge of the panel, flush
+   sides, no rounded box — and fills the available height. */
+.report-body.wide .table-wrap {
+  flex: 1;
+  min-height: 0;
+  margin-inline: calc(-1 * var(--sp-4));
+  border-left: none;
+  border-right: none;
+  border-radius: 0;
 }
 
 /* ---------- Buttons ---------- */
@@ -447,9 +538,9 @@ a:hover {
   border-color: var(--amber-border);
 }
 .badge-notice {
-  color: var(--text-secondary);
-  background: var(--gray-100);
-  border-color: var(--border);
+  color: var(--notice-text);
+  background: var(--notice-bg);
+  border-color: var(--notice-border);
 }
 .badge-ok {
   color: var(--green-text);
@@ -563,7 +654,7 @@ a:hover {
   overflow: auto;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  background: var(--surface);
+  background: var(--bg);
 }
 table.grid {
   width: 100%;
@@ -576,7 +667,7 @@ table.grid th {
   text-align: left;
   font: var(--label-12);
   color: var(--text-secondary);
-  background: var(--bg-subtle);
+  background: var(--bg);
   padding: 10px 14px;
   border-bottom: 1px solid var(--border);
   white-space: nowrap;
@@ -701,6 +792,46 @@ table.grid tbody tr:last-child td {
   background: var(--text);
   transition: width var(--t-med) var(--ease);
 }
+/* Stacked (multi-segment) bars: severity segments sit side by side, separated
+   by a hairline of the track behind them. */
+.bar-track.stacked {
+  display: flex;
+  gap: 1.5px;
+}
+.bar-seg {
+  height: 100%;
+  transition: width var(--t-med) var(--ease);
+}
+
+/* ---------- Proportion strip (one segmented bar + legend) ---------- */
+.prop { display: flex; flex-direction: column; gap: var(--sp-4); }
+.prop-bar {
+  display: flex;
+  gap: 2px;
+  height: 14px;
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  background: var(--gray-100);
+}
+.prop-seg { height: 100%; transition: width var(--t-med) var(--ease); }
+.prop-legend { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-4); }
+.prop-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font: var(--label-13);
+  color: var(--text-secondary);
+}
+.prop-item .swatch { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+.prop-item .mono { font-size: 12px; }
+.prop-item.clickable {
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  margin: -2px -6px;
+  padding: 2px 6px;
+  transition: background var(--t-fast) var(--ease);
+}
+.prop-item.clickable:hover { background: var(--bg-subtle); color: var(--text); }
 .bar-row .n { font-family: var(--font-mono); font-size: 12px; text-align: right; color: var(--text-secondary); }
 
 /* ---------- Progress ---------- */
