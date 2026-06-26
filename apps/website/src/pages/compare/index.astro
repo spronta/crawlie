@@ -3,11 +3,28 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 import SiteHeader from "../../components/SiteHeader.astro";
 import SiteFooter from "../../components/SiteFooter.astro";
 import { COMPETITORS } from "../../data/compare";
+
+const Y = "✓";
+const N = "✕";
+// crawlie vs the two main competitors. Each cell is [value, win-class].
+const rows: { label: string; crawlie: [string, string]; sf: [string, string]; sb: [string, string] }[] = [
+  { label: "Price for local use", crawlie: ["Free forever", "yes"], sf: ["£259/yr", "no"], sb: ["from £13.50/mo", "no"] },
+  { label: "Free, with no URL cap", crawlie: [Y, "yes"], sf: ["500 URLs", "no"], sb: [N, "no"] },
+  { label: "Open source (MIT)", crawlie: [Y, "yes"], sf: [N, "no"], sb: [N, "no"] },
+  { label: "Crawl speed", crawlie: ["Fast (Rust)", "yes"], sf: ["Slower (JVM)", "no"], sb: ["Slower (.NET)", "no"] },
+  { label: "Command-line (CLI)", crawlie: [Y, "yes"], sf: ["Partial", "tie"], sb: [N, "no"] },
+  { label: "MCP server for AI agents", crawlie: [Y, "yes"], sf: [N, "no"], sb: ["Coming soon", "no"] },
+  { label: "Desktop app", crawlie: [Y, "tie"], sf: [Y, "tie"], sb: [Y, "tie"] },
+  { label: "JavaScript rendering", crawlie: [Y, "tie"], sf: [Y, "tie"], sb: [Y, "tie"] },
+  { label: "AI-search (GEO) audit", crawlie: [Y, "yes"], sf: [N, "no"], sb: [N, "no"] },
+  { label: "Plain-English fix for every issue", crawlie: [Y, "yes"], sf: [N, "no"], sb: ["Hints", "tie"] },
+  { label: "Modern, polished interface", crawlie: [Y, "yes"], sf: ["Dated", "no"], sb: ["Dated", "no"] },
+];
 ---
 
 <BaseLayout
   title="Compare crawlie — free, open-source SEO crawler vs the alternatives"
-  description="How crawlie stacks up against the popular technical-SEO crawlers — Screaming Frog and Sitebulb. Free, open-source, agent-native, with AI-search (GEO) checks."
+  description="crawlie vs Screaming Frog and Sitebulb at a glance: completely free for local use, open source, agent-native (CLI, MCP and a desktop app), with AI-search (GEO) checks."
   canonical="/compare"
 >
   <SiteHeader />
@@ -15,8 +32,34 @@ import { COMPETITORS } from "../../data/compare";
     <header>
       <p class="eyebrow">Compare</p>
       <h1>crawlie vs the alternatives</h1>
-      <p class="lede">How crawlie compares to the popular technical-SEO crawlers — free and open-source, with a CLI, an MCP server for AI agents, and AI-search (GEO) checks.</p>
+      <p class="lede">The same technical-SEO audits as the paid desktop tools, completely free for local use, plus a CLI and an MCP server so your AI agents can run them too.</p>
     </header>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Feature</th>
+            <th class="us">crawlie</th>
+            <th>Screaming Frog</th>
+            <th>Sitebulb</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr>
+              <td class="label">{r.label}</td>
+              <td class={`us ${r.crawlie[1]}`}>{r.crawlie[0]}</td>
+              <td class={r.sf[1]}>{r.sf[0]}</td>
+              <td class={r.sb[1]}>{r.sb[0]}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+    <p class="caption">Translation: crawlie is the only one that's <strong>completely free for local use</strong> and <strong>built for AI agents</strong> (a scriptable CLI, an MCP server, and a desktop app, no licence required). It's also a lot faster, thanks to a Rust core, and frankly doesn't look like it was designed in 2007.</p>
+
+    <h2 class="dig">The full breakdown</h2>
     <div class="grid">
       {COMPETITORS.map((c) => (
         <a class="cmp-card" href={`/compare/${c.slug}`}>
@@ -33,7 +76,24 @@ import { COMPETITORS } from "../../data/compare";
 <style>
   .cmp-index { padding-top: 40px; padding-bottom: 72px; max-width: 820px; }
   .cmp-index h1 { font-size: clamp(28px, 4.4vw, 40px); margin: 6px 0 10px; }
-  .lede { color: var(--muted); font-size: 18px; margin: 0 0 32px; max-width: 60ch; }
+  .lede { color: var(--muted); font-size: 18px; margin: 0 0 28px; max-width: 64ch; }
+
+  .table-wrap { overflow-x: auto; border: 1px solid var(--border-soft); border-radius: var(--radius); }
+  table { width: 100%; border-collapse: collapse; font-size: 14.5px; min-width: 540px; }
+  th, td { padding: 13px 16px; border-bottom: 1px solid var(--border-soft); }
+  th { text-align: left; color: var(--muted); font-weight: 500; font-size: 13px; }
+  th.us { color: var(--link); font-weight: 700; }
+  th:not(:first-child), td:not(.label) { text-align: center; }
+  tbody tr:last-child td { border-bottom: 0; }
+  td.label { color: var(--text); font-weight: 500; }
+  td.us { background: rgba(59, 158, 255, 0.06); }
+  td.yes { color: var(--green); font-weight: 600; }
+  td.no { color: var(--muted-2); }
+  td.tie { color: var(--text); }
+  .caption { color: var(--muted); font-size: 14.5px; line-height: 1.6; margin: 16px 0 0; max-width: 66ch; }
+  .caption strong { color: var(--text); font-weight: 600; }
+
+  .dig { font-size: 20px; margin: 48px 0 16px; color: var(--text); }
   .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
   .cmp-card {
     display: flex; flex-direction: column; gap: 8px;

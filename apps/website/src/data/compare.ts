@@ -135,7 +135,7 @@ export const COMPETITORS: Competitor[] = [
     strengths: [
       "Visual crawl maps and force-directed link graphs — Sitebulb's signature, great for seeing site architecture at a glance. crawlie reports the data but doesn't visualise it this way.",
       "Built-in Google Search Console and Analytics integrations layered onto the crawl.",
-      "A polished, mature desktop experience with a deep, well-curated Hint library.",
+      "A deep, well-curated Hint library that explains issues in detail.",
     ],
     faq: [
       { q: "Is crawlie free?", a: "Yes — crawlie is free and open-source under the MIT licence. Sitebulb is a paid subscription." },

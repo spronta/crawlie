@@ -32,7 +32,7 @@ const fmt = (d: Date) =>
     <header class="cl-head">
       <p class="eyebrow">Changelog</p>
       <h1>What's new in crawlie</h1>
-      <p class="lede">Every release, in full — newest first. We ship often.</p>
+      <p class="lede">We ship suspiciously often. If we were a legacy SEO audit tool, we'd be a little concerned.</p>
     </header>
 
     <div class="cl-list">
@@ -58,12 +58,16 @@ const fmt = (d: Date) =>
 </BaseLayout>
 
 <style>
+  /* Only set vertical padding so the container's horizontal padding survives
+     (a `padding` shorthand here would zero it and flush content to the edges
+     on mobile). */
   .changelog {
-    padding: 56px 0 96px;
+    padding-block: 56px 96px;
   }
   .cl-head {
     max-width: 720px;
-    margin-bottom: 8px;
+    margin: 0 auto 8px;
+    text-align: center;
   }
   .cl-head h1 {
     font-family: var(--font-display);
@@ -80,9 +84,10 @@ const fmt = (d: Date) =>
     margin: 0;
   }
 
+  /* Centred as a block; the entries inside stay left-aligned. */
   .cl-list {
     max-width: 860px;
-    margin-top: 48px;
+    margin: 48px auto 0;
   }
   .cl-item {
     display: grid;

@@ -1,11 +1,31 @@
 ---
 import BrandLockup from './BrandLockup.astro';
 import { fetchStars, formatStars } from '../lib/github';
+import { COMPETITORS } from '../data/compare';
 const GITHUB = 'https://github.com/spronta/crawlie';
+const DOWNLOAD = 'https://github.com/spronta/crawlie/releases/latest';
 
 // Fetch star count at build time; falls back to null if the API is unreachable.
 const stars = await fetchStars();
 const starLabel = formatStars(stars);
+
+// Shared so the desktop nav and the mobile menu never drift apart. Compare is a
+// dropdown of the competitor pages, generated from the comparison data.
+type NavItem = { href: string; label: string; children?: { href: string; label: string }[] };
+const links: NavItem[] = [
+  { href: '/docs/getting-started', label: 'Docs' },
+  { href: '/#features', label: 'Features' },
+  { href: '/#agents', label: 'Agents' },
+  {
+    href: '/compare',
+    label: 'Compare',
+    children: [
+      { href: '/compare', label: 'All comparisons' },
+      ...COMPETITORS.map((c) => ({ href: `/compare/${c.slug}`, label: `vs ${c.name}` })),
+    ],
+  },
+  { href: '/changelog', label: 'Changelog' },
+];
 ---
 <header class="site-header">
   <div class="container bar">
@@ -13,12 +33,20 @@ const starLabel = formatStars(stars);
       <BrandLockup height={21} />
     </a>
     <nav class="nav">
-      <a href="/docs/getting-started">Docs</a>
-      <a href="/#features">Features</a>
-      <a href="/#agents">Agents</a>
-      <a href="/#compare">Compare</a>
-      <a href="/changelog">Changelog</a>
-      <a href="https://github.com/spronta/crawlie/releases/latest" data-track="cta_download" data-track-location="header">Download</a>
+      {links.map((l) => l.children ? (
+        <div class="nav-dd">
+          <a href={l.href} class="nav-dd-trigger">
+            {l.label}
+            <svg class="dd-caret" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+          </a>
+          <div class="nav-dd-menu">
+            {l.children.map((c) => <a href={c.href}>{c.label}</a>)}
+          </div>
+        </div>
+      ) : (
+        <a href={l.href}>{l.label}</a>
+      ))}
+      <a href={DOWNLOAD} data-track="cta_download" data-track-location="header">Download</a>
       <a href={GITHUB} target="_blank" rel="noopener" class="gh" aria-label="crawlie on GitHub">
         <svg class="gh-icon" viewBox="0 0 16 16" width="18" height="18" aria-hidden="true" fill="currentColor">
           <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
@@ -34,7 +62,30 @@ const starLabel = formatStars(stars);
       </a>
       <a href="/docs/getting-started" class="btn btn-primary header-cta" data-track="cta_get_started" data-track-location="header">Get started</a>
     </nav>
+
+    <button class="nav-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="mobile-menu">
+      <svg class="icon-open" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+        <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+      </svg>
+      <svg class="icon-close" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+        <line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/>
+      </svg>
+    </button>
   </div>
+
+  <nav class="mobile-menu" id="mobile-menu">
+    {links.map((l) => l.children ? (
+      <div class="mobile-group">
+        <span class="mobile-group-label">{l.label}</span>
+        {l.children.map((c) => <a class="mobile-sub" href={c.href}>{c.label}</a>)}
+      </div>
+    ) : (
+      <a href={l.href}>{l.label}</a>
+    ))}
+    <a href={DOWNLOAD} data-track="cta_download" data-track-location="mobile-menu">Download</a>
+    <a href={GITHUB} target="_blank" rel="noopener">GitHub{starLabel && ` · ★ ${starLabel}`}</a>
+    <a href="/docs/getting-started" class="btn btn-primary mobile-cta" data-track="cta_get_started" data-track-location="mobile-menu">Get started</a>
+  </nav>
 </header>
 
 <style>
@@ -105,9 +156,101 @@ const starLabel = formatStars(stars);
     color: var(--muted);
   }
   .nav a.gh:hover .gh-stars { color: var(--text); }
+
+  /* Compare dropdown (desktop) — revealed on hover/focus. */
+  .nav-dd { position: relative; display: inline-flex; align-items: center; height: 100%; }
+  .nav-dd-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    color: var(--muted);
+    font-size: 14.5px;
+    font-weight: 500;
+  }
+  .nav-dd:hover .nav-dd-trigger,
+  .nav-dd:focus-within .nav-dd-trigger { color: var(--text); text-decoration: none; }
+  .dd-caret { opacity: 0.6; transition: transform 0.15s ease; }
+  .nav-dd:hover .dd-caret,
+  .nav-dd:focus-within .dd-caret { transform: rotate(180deg); }
+  .nav-dd-menu {
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    min-width: 210px;
+    display: none;
+    flex-direction: column;
+    padding: 6px;
+    background: var(--bg);
+    border: 1px solid var(--border-soft);
+    border-radius: 12px;
+    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+  }
+  .nav-dd:hover .nav-dd-menu,
+  .nav-dd:focus-within .nav-dd-menu { display: flex; }
+  .nav-dd-menu a {
+    padding: 9px 11px;
+    border-radius: 7px;
+    color: var(--muted);
+    font-size: 14px;
+    white-space: nowrap;
+  }
+  .nav-dd-menu a:hover { background: var(--panel); color: var(--text); text-decoration: none; }
+
+  /* Hamburger toggle + mobile menu — hidden on desktop. */
+  .nav-toggle {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    color: var(--text);
+    cursor: pointer;
+    padding: 8px;
+    margin-right: -8px;
+  }
+  .nav-toggle .icon-close { display: none; }
+  .nav-toggle[aria-expanded='true'] .icon-open { display: none; }
+  .nav-toggle[aria-expanded='true'] .icon-close { display: block; }
+  .mobile-menu { display: none; }
+
   @media (max-width: 760px) {
-    .nav a:not(.header-cta):not([href*='github']) { display: none; }
-    .nav { gap: 14px; }
+    .nav { display: none; }
+    .nav-toggle { display: inline-flex; }
+    /* The menu sits solid below the bar even when the header is transparent. */
+    .mobile-menu.open {
+      display: flex;
+      flex-direction: column;
+      padding: 6px clamp(24px, 4vw, 56px) 18px;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border-soft);
+    }
+    .mobile-menu a {
+      color: var(--text);
+      font-size: 16px;
+      font-weight: 500;
+      padding: 13px 2px;
+      border-bottom: 1px solid var(--border-soft);
+    }
+    .mobile-menu a:hover { text-decoration: none; }
+    /* Compare group: a small header label, then indented competitor links. */
+    .mobile-group { display: contents; }
+    .mobile-group-label {
+      padding: 16px 2px 4px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--muted-2);
+    }
+    .mobile-menu a.mobile-sub { padding-left: 14px; }
+    .mobile-menu a.mobile-cta {
+      margin-top: 14px;
+      border-bottom: none;
+      color: #fff;
+      text-align: center;
+      padding: 11px 14px;
+    }
   }
 </style>
 
@@ -117,5 +260,20 @@ const starLabel = formatStars(stars);
     const onScroll = () => header.classList.toggle('scrolled', window.scrollY > 4);
     onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
+  }
+
+  const toggle = document.querySelector<HTMLButtonElement>('.nav-toggle');
+  const menu = document.querySelector('.mobile-menu');
+  if (toggle && menu) {
+    const setOpen = (open: boolean) => {
+      menu.classList.toggle('open', open);
+      toggle.setAttribute('aria-expanded', String(open));
+    };
+    toggle.addEventListener('click', () => setOpen(!menu.classList.contains('open')));
+    menu.querySelectorAll('a').forEach((a) => a.addEventListener('click', () => setOpen(false)));
+    // Drop the open state if the viewport grows back to desktop.
+    window.matchMedia('(min-width: 761px)').addEventListener('change', (e) => {
+      if (e.matches) setOpen(false);
+    });
   }
 </script>
