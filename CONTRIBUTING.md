@@ -13,4 +13,4 @@ We love and appreciate contributions from the community and thank you for taking
 
 
 > ### Legal Notice 
-> When contributing to this project, you must agree that you have authored 100% of the content, that you have the necessary rights to the content and that the content you contribute may be provided under the project license.
+> When contributing to this project, you must agree that you (or your coding agent) have authored 100% of the content, that you have the necessary rights to the content and that the content you contribute may be provided under the project license.
