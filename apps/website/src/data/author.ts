@@ -10,6 +10,8 @@ export const AUTHOR = {
   tagline: 'Creator, crawlie',
   jobTitle: 'Founder',
   url: 'https://www.linkedin.com/in/sean-exe',
+  linkedin: 'https://www.linkedin.com/in/sean-exe',
+  x: 'https://x.com/seandotexe',
   image: '/sean-avatar.png',
   bio: "Self-taught since his teens, Sean scaled a community gaming network past a million users before most people finish school. After six-plus years across B2B and B2C tech, spanning engineering, product and marketing, he founded Spronta to build the tools agentic marketing needs. crawlie is the first.",
   knowsAbout: [
@@ -31,7 +33,7 @@ export function authorLd() {
     description: AUTHOR.bio,
     worksFor: { '@type': 'Organization', name: 'Spronta', url: SITE },
     image: new URL(AUTHOR.image, SITE).href,
-    sameAs: [AUTHOR.url],
+    sameAs: [AUTHOR.linkedin, AUTHOR.x],
     knowsAbout: AUTHOR.knowsAbout,
   };
 }
