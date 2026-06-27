@@ -1,0 +1,62 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import SiteHeader from '../../components/SiteHeader.astro';
+import SiteFooter from '../../components/SiteFooter.astro';
+---
+
+<BaseLayout
+  title="Legal · Crawlie"
+  description="Legal documents for Crawlie: Terms of Service and Privacy Policy."
+  canonical="/legal"
+>
+  <SiteHeader />
+
+  <main class="container legal-index">
+    <header class="li-head">
+      <p class="eyebrow">Legal</p>
+      <h1>Legal</h1>
+      <p class="lede">The terms and policies that govern the Crawlie website and any hosted services. The open-source CLI, MCP server, and desktop app are MIT-licensed free software.</p>
+    </header>
+
+    <div class="li-cards">
+      <a class="li-card" href="/legal/terms">
+        <h2>Terms of Service</h2>
+        <p>The terms governing your use of crawlie.dev and any current or future hosted Crawlie services.</p>
+        <span class="li-go">Read terms →</span>
+      </a>
+      <a class="li-card" href="/legal/privacy">
+        <h2>Privacy Policy</h2>
+        <p>What data we collect, how we use it, and your rights. The local software keeps your crawl data on your device.</p>
+        <span class="li-go">Read policy →</span>
+      </a>
+    </div>
+  </main>
+
+  <SiteFooter />
+</BaseLayout>
+
+<style>
+  .legal-index { padding-block: 56px 96px; }
+  .li-head { max-width: 720px; margin: 0 auto; text-align: center; }
+  .li-head h1 {
+    font-family: var(--font-display); font-weight: 500;
+    font-size: clamp(30px, 5vw, 42px); letter-spacing: -0.01em;
+    color: #fff; margin: 6px 0 10px;
+  }
+  .li-head .lede { color: var(--muted); font-size: 16.5px; margin: 0; }
+  .li-cards {
+    max-width: 760px; margin: 40px auto 0;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 18px;
+  }
+  .li-card {
+    display: block; padding: 24px 26px;
+    border: 1px solid var(--border-soft); border-radius: var(--radius-sm);
+    background: var(--panel); color: var(--text);
+    transition: border-color 0.15s ease;
+  }
+  .li-card:hover { text-decoration: none; border-color: color-mix(in srgb, var(--blue) 50%, transparent); }
+  .li-card h2 { font-family: var(--font-display); font-weight: 500; font-size: 19px; margin: 0 0 6px; color: #fff; }
+  .li-card p { color: var(--muted); font-size: 14.5px; line-height: 1.55; margin: 0 0 14px; }
+  .li-go { color: var(--link); font-size: 14px; font-weight: 500; }
+  @media (max-width: 640px) { .li-cards { grid-template-columns: 1fr; } }
+</style>

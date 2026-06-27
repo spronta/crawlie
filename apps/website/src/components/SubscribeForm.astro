@@ -11,8 +11,12 @@
     aria-label="Email address"
     autocomplete="email"
   />
-  <button type="submit" class="btn btn-primary">Subscribe</button>
+  <button type="submit" class="subscribe-btn">Subscribe</button>
   <p class="subscribe-msg" data-msg role="status" aria-live="polite"></p>
+  <p class="subscribe-consent">
+    By subscribing, you agree to receive Crawlie emails and confirm you have read our
+    <a href="/legal/privacy">Privacy Policy</a>. Unsubscribe anytime.
+  </p>
 </form>
 
 <script is:inline>
@@ -59,16 +63,17 @@
 <style>
   .subscribe {
     display: flex;
-    gap: 8px;
     flex-wrap: wrap;
-    align-items: center;
+    align-items: stretch;
+    gap: 0;
   }
   .subscribe input {
     flex: 1;
-    min-width: 220px;
-    padding: 10px 13px;
+    min-width: 200px;
+    padding: 11px 14px;
     border: 1px solid var(--border-soft);
-    border-radius: var(--radius-sm);
+    border-right: 0;
+    border-radius: var(--radius-sm) 0 0 var(--radius-sm);
     background: var(--bg);
     color: var(--text);
     font-size: 14.5px;
@@ -77,17 +82,55 @@
     outline: none;
     border-color: var(--blue);
   }
+  /* Inline, borderless button joined to the input: white fill, blue label. */
+  .subscribe-btn {
+    flex: 0 0 auto;
+    border: 0;
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    padding: 0 20px;
+    background: #fff;
+    color: #0a0d14;
+    font-family: inherit;
+    font-size: 14.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  .subscribe-btn:hover {
+    background: color-mix(in srgb, #000 7%, #fff);
+  }
+  .subscribe-btn:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
   .subscribe-msg {
     width: 100%;
-    margin: 4px 0 0;
+    margin: 0;
     font-size: 13.5px;
     color: var(--muted);
-    min-height: 1em;
+  }
+  .subscribe-msg:not(:empty) {
+    margin: 8px 0 0;
   }
   .subscribe-msg[data-ok='true'] {
     color: var(--green);
   }
   .subscribe-msg[data-ok='false'] {
     color: var(--red);
+  }
+  .subscribe-consent {
+    width: 100%;
+    margin: 8px 0 0;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--muted-2);
+  }
+  .subscribe-consent a {
+    color: var(--muted);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .subscribe-consent a:hover {
+    color: var(--text);
   }
 </style>

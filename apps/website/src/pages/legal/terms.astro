@@ -1,0 +1,633 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import SiteHeader from '../../components/SiteHeader.astro';
+import SiteFooter from '../../components/SiteFooter.astro';
+import LegalToc from '../../components/LegalToc.astro';
+import '../../styles/prose.css';
+---
+
+<BaseLayout
+  title="Terms of Service · Crawlie"
+  description="Terms of Service for Crawlie. The terms governing the crawlie.dev website and any current or future hosted Crawlie services. The open-source CLI, MCP server, and desktop app are MIT-licensed free software."
+  canonical="/legal/terms"
+>
+  <SiteHeader />
+
+  <main class="container legal">
+    <nav class="crumb" aria-label="Breadcrumb">
+      <a href="/legal">Legal</a> <span>/</span> <span class="here">Terms of Service</span>
+    </nav>
+
+    <div class="legal-layout">
+    <article class="prose">
+      <h1>Terms of Service</h1>
+      <p class="lead"><strong>Last updated: 27 June 2026</strong></p>
+
+      <p>
+        Welcome to Crawlie. These Terms of Service ("Terms") govern your access to and use of
+        the Crawlie website (crawlie.dev), its documentation, and any current or future hosted
+        Crawlie services (collectively, the "Service"), provided by Spronta Ltd ("Crawlie", "we",
+        "us", or "our").
+      </p>
+      <p>
+        By using the Service, you agree to these Terms. If you are using the Service on behalf of
+        an organisation, you represent that you have authority to bind that organisation, and "you"
+        refers to that organisation.
+      </p>
+
+      <blockquote>
+        <strong>Open-source software is separate.</strong> The Crawlie CLI, the Crawlie MCP server,
+        and the Crawlie desktop app are free and open-source software licensed under the MIT License
+        (see the <a href="https://github.com/spronta/crawlie/blob/main/LICENSE" target="_blank" rel="noopener">LICENSE</a>
+        file in the repository). Your use of that software is governed by the MIT License, not these
+        Terms. These Terms govern the crawlie.dev website and any hosted services we offer now or in
+        the future.
+      </blockquote>
+
+      <h2>What these Terms cover — a plain English summary</h2>
+      <p>This table is a guide, not a legal summary. The full terms below govern your use of the Service.</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Topic</th><th>What it means</th><th>Section</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>The Service</td><td>What Crawlie is and does</td><td><a href="#1-the-service">§1</a></td></tr>
+            <tr><td>Your account</td><td>Accounts, if and when we offer hosted services</td><td><a href="#2-accounts">§2</a></td></tr>
+            <tr><td>Billing and refunds</td><td>Plans and payments for any paid hosted services</td><td><a href="#3-plans-and-billing">§3</a></td></tr>
+            <tr><td>What you can do</td><td>Permitted use and responsible crawling</td><td><a href="#4-acceptable-use">§4</a></td></tr>
+            <tr><td>Your content</td><td>You own your crawl data. We only use it to run the Service</td><td><a href="#5-your-content">§5</a></td></tr>
+            <tr><td>Privacy and data</td><td>GDPR, data residency, your obligations</td><td><a href="#6-data-protection-and-privacy">§6</a></td></tr>
+            <tr><td>Uptime</td><td>We aim for high availability. No contractual SLA</td><td><a href="#7-uptime-and-availability">§7</a></td></tr>
+            <tr><td>Our IP</td><td>Our hosted software and brand belong to us</td><td><a href="#8-intellectual-property">§8</a></td></tr>
+            <tr><td>API and SDKs</td><td>Key security, rate limits, no competitive use</td><td><a href="#9-api-and-sdk-usage">§9</a></td></tr>
+            <tr><td>Beta features</td><td>No warranties, may change or disappear</td><td><a href="#10-beta-and-early-access-features">§10</a></td></tr>
+            <tr><td>AI features</td><td>Outputs may be imperfect, check the work</td><td><a href="#11-ai-powered-features">§11</a></td></tr>
+            <tr><td>Copyright</td><td>How to report infringement, how we respond</td><td><a href="#12-copyright-and-dmca">§12</a></td></tr>
+            <tr><td>Using your logo</td><td>We may list you as a user. Easy opt-out</td><td><a href="#13-publicity-and-customer-references">§13</a></td></tr>
+            <tr><td>Confidentiality</td><td>We keep each other's secrets</td><td><a href="#14-confidentiality">§14</a></td></tr>
+            <tr><td>Security</td><td>How to report vulnerabilities responsibly</td><td><a href="#15-security">§15</a></td></tr>
+            <tr><td>Disclaimers</td><td>Service is as-is. Statutory rights unaffected</td><td><a href="#16-disclaimers-and-statutory-rights">§16</a></td></tr>
+            <tr><td>Our liability cap</td><td>Capped at your last 3 months of fees</td><td><a href="#17-limitation-of-liability">§17</a></td></tr>
+            <tr><td>Indemnification</td><td>You cover us if your breach causes us loss</td><td><a href="#18-indemnification">§18</a></td></tr>
+            <tr><td>Termination</td><td>How either party can end the relationship</td><td><a href="#19-term-and-termination">§19</a></td></tr>
+            <tr><td>Changes to Terms</td><td>14 days notice for material changes</td><td><a href="#20-changes-to-these-terms">§20</a></td></tr>
+            <tr><td>How contracts form</td><td>Using the Service is legally binding</td><td><a href="#21-formation-of-contract-and-electronic-acceptance">§21</a></td></tr>
+            <tr><td>Notices</td><td>How we communicate officially</td><td><a href="#22-notices">§22</a></td></tr>
+            <tr><td>Disputes</td><td>Arbitration via LCIA. US customers can opt out</td><td><a href="#23-governing-law-and-dispute-resolution">§23</a></td></tr>
+            <tr><td>Export controls</td><td>Don't use Crawlie from sanctioned countries</td><td><a href="#24-export-controls">§24</a></td></tr>
+            <tr><td>General</td><td>Standard legal boilerplate</td><td><a href="#25-general">§25</a></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="1-the-service">1. The Service</h2>
+      <p>
+        Crawlie is a technical-SEO and Generative Engine Optimization (GEO) crawler. The
+        open-source distribution includes a command-line interface (CLI), a Model Context Protocol
+        (MCP) server for use with AI agents, and a desktop application. These run locally on your
+        own machine.
+      </p>
+      <p>
+        These Terms cover the crawlie.dev website and documentation, and any hosted Crawlie services
+        we may offer now or in the future (for example, scheduled crawls, monitoring, dashboards, or
+        an API). Where a clause below refers to accounts, billing, APIs, or other hosted-service
+        features, it applies only to the extent we make those features available to you.
+      </p>
+      <p>
+        We may update, expand, or modify the Service over time. We will give you reasonable notice of
+        any changes that materially affect your use.
+      </p>
+
+      <h2 id="2-accounts">2. Accounts</h2>
+      <p>
+        The open-source CLI, MCP server, and desktop app do not require an account. The following
+        applies if and when we offer hosted services that require one.
+      </p>
+      <h3>2.1 Registration</h3>
+      <p>
+        You must provide accurate information when creating an account. You are responsible for
+        maintaining the security of your credentials and for all activity that occurs under your
+        account. Notify us immediately at <a href="mailto:hello@spronta.com">hello@spronta.com</a>
+        if you suspect unauthorised access.
+      </p>
+      <h3>2.2 Eligibility</h3>
+      <p>You must be at least 18 years old to use a hosted Service. By using it, you confirm that you meet this requirement.</p>
+      <h3>2.3 One account per person</h3>
+      <p>Free hosted accounts are limited to one per individual or organisation. We reserve the right to close duplicate accounts.</p>
+
+      <h2 id="3-plans-and-billing">3. Plans and Billing</h2>
+      <p>
+        The Crawlie CLI, MCP server, and desktop app are free. This section applies only to any paid
+        hosted services we may offer.
+      </p>
+      <h3>3.1 Free plan</h3>
+      <p>
+        Where we offer a free tier of a hosted service, it may have defined resource limits and may be
+        used for commercial purposes. We may change free tier limits with 30 days' notice and will not
+        retroactively charge for usage incurred under a free plan.
+      </p>
+      <h3>3.2 Paid plans</h3>
+      <p>
+        Any paid plans are billed monthly or annually in advance. All prices are listed on our pricing
+        page and exclude VAT where applicable. VAT will be added at checkout for customers in applicable
+        jurisdictions.
+      </p>
+      <h3>3.3 Overages</h3>
+      <p>
+        If you exceed your plan limits, we will notify you. We will not suspend your account or charge
+        overage fees without your prior consent. You may choose to upgrade your plan or reduce usage.
+      </p>
+      <h3>3.4 Annual plans</h3>
+      <p>Annual plans are paid upfront and are non-refundable after 14 days, except where required by law.</p>
+      <h3>3.5 Cancellation</h3>
+      <p>
+        You may cancel a subscription at any time from your account dashboard. Your plan will remain
+        active until the end of the current billing period. We do not offer pro-rata refunds for unused
+        time on monthly plans.
+      </p>
+      <h3>3.6 Refunds</h3>
+      <p>
+        If you are unsatisfied within your first 14 days on a paid plan, contact us and we will issue a
+        full refund, no questions asked. We reserve the right to decline refund requests where usage
+        indicates the Service has been used in a manner inconsistent with a genuine evaluation.
+      </p>
+      <h3>3.7 Late payment</h3>
+      <p>
+        If payment fails, we will retry and notify you. Accounts with failed payments may have hosted
+        functionality restricted after 14 days of non-payment. We will not delete your data for at least
+        30 days following account suspension.
+      </p>
+
+      <h2 id="4-acceptable-use">4. Acceptable Use</h2>
+      <h3>4.1 Permitted use</h3>
+      <p>
+        You may use Crawlie to audit and analyse websites for any lawful purpose, including commercial
+        use. Crawlie is a tool for crawling sites you own or are authorised to test.
+      </p>
+      <h3>4.2 Responsible crawling</h3>
+      <p>You must not use Crawlie to:</p>
+      <ul>
+        <li>Crawl, scan, or probe websites or systems you do not own or have permission to test</li>
+        <li>Conduct denial-of-service attacks or otherwise overload, disrupt, or degrade any website or system</li>
+        <li>Circumvent access controls, authentication, rate limits, or technical measures designed to restrict access</li>
+        <li>Collect personal data in violation of applicable law, or for spam, harassment, or other unlawful purposes</li>
+        <li>Bypass or ignore a site's stated crawling preferences in a manner that is unlawful or abusive</li>
+      </ul>
+      <h3>4.3 Prohibited behaviour (hosted services)</h3>
+      <p>Where you use a hosted Service, you must not:</p>
+      <ul>
+        <li>Resell or white-label access without our written permission</li>
+        <li>Attempt to reverse engineer, decompile, or extract source code from non-open-source parts of the Service</li>
+        <li>Circumvent or tamper with rate limits, access controls, or billing mechanisms</li>
+        <li>Use automated means to create multiple free accounts</li>
+        <li>Use the Service in a way that causes disproportionate load or disrupts other customers</li>
+      </ul>
+      <h3>4.4 Enforcement</h3>
+      <p>
+        We may investigate suspected violations and suspend or terminate access for conduct that breaches
+        these Terms. Where practical, we will give you notice and an opportunity to remedy the issue before
+        taking action. For serious violations, we may act immediately.
+      </p>
+
+      <h2 id="5-your-content">5. Your Content</h2>
+      <h3>5.1 Ownership</h3>
+      <p>
+        You retain full ownership of all data you generate or provide through the Service, including crawl
+        results and reports ("Your Content"). When you run the CLI or desktop app, your crawl data is
+        processed and stored locally on your own device and is not sent to us.
+      </p>
+      <h3>5.2 Licence to operate the Service</h3>
+      <p>
+        Where you use a hosted Service, you grant us a limited, non-exclusive, royalty-free licence to
+        store, process, and deliver Your Content solely as necessary to provide that Service to you. This
+        licence ends when you delete the content or close your account.
+      </p>
+      <h3>5.3 Your responsibility</h3>
+      <p>
+        You are responsible for ensuring that Your Content and your use of the Service comply with these
+        Terms and applicable law. We are not responsible for reviewing Your Content and do not endorse it.
+      </p>
+      <h3>5.4 Deletion</h3>
+      <p>
+        Where we hold Your Content in a hosted Service, we will remove it from our systems within 30 days of
+        you deleting it or closing your account. Copies may persist in backups for up to 90 days, after which
+        they will be permanently deleted.
+      </p>
+
+      <h2 id="6-data-protection-and-privacy">6. Data Protection and Privacy</h2>
+      <h3>6.1 Privacy Policy</h3>
+      <p>
+        Our <a href="/legal/privacy">Privacy Policy</a> explains how we collect, use, and protect personal
+        data. By using the Service, you agree to our Privacy Policy.
+      </p>
+      <h3>6.2 GDPR</h3>
+      <p>
+        If you are based in the UK or European Economic Area, or process personal data of UK or EEA residents
+        using a hosted Service, our Data Processing Agreement ("DPA") applies. You can request a copy at
+        <a href="mailto:hello@spronta.com">hello@spronta.com</a>.
+      </p>
+      <h3>6.3 Your obligations</h3>
+      <p>
+        If your use of the Service involves personal data relating to third parties, you are responsible for
+        having a lawful basis to process that data and for complying with applicable data protection law.
+      </p>
+
+      <h2 id="7-uptime-and-availability">7. Uptime and Availability</h2>
+      <h3>7.1 Availability</h3>
+      <p>
+        For any hosted Service, we target high availability and operate on a commercially reasonable basis to
+        achieve this. We do not offer contractual SLAs.
+      </p>
+      <h3>7.2 Scheduled maintenance</h3>
+      <p>We will provide advance notice of scheduled maintenance that may affect availability, and aim to schedule it during low-traffic periods.</p>
+      <h3>7.3 No guarantees</h3>
+      <p>The Service is provided on a commercially reasonable basis. We do not guarantee uninterrupted or error-free service.</p>
+
+      <h2 id="8-intellectual-property">8. Intellectual Property</h2>
+      <h3>8.1 Crawlie IP</h3>
+      <p>
+        The Service, including the design, documentation, trademarks, brand assets, and any non-open-source
+        software, is owned by Spronta Ltd and protected by intellectual property law. The open-source
+        components are licensed separately under the MIT License. Nothing in these Terms grants you any rights
+        in our intellectual property except as expressly stated or as provided by an applicable open-source licence.
+      </p>
+      <h3>8.2 Feedback</h3>
+      <p>
+        If you provide us with feedback, suggestions, or ideas about the Service, you grant us a perpetual,
+        irrevocable, royalty-free licence to use that feedback for any purpose without obligation to you.
+      </p>
+
+      <h2 id="9-api-and-sdk-usage">9. API and SDK Usage</h2>
+      <p>This section applies to any hosted API or SDK we make available.</p>
+      <h3>9.1 API access</h3>
+      <p>
+        Access to a hosted Crawlie API is granted via API keys issued to your account. You are responsible for
+        keeping your API keys confidential and for all usage that occurs under your keys. You must not share API
+        keys publicly, embed them in client-side code, or commit them to public repositories.
+      </p>
+      <h3>9.2 Compromised credentials</h3>
+      <p>
+        If you believe an API key has been compromised, rotate it immediately via your account dashboard and
+        notify us at <a href="mailto:hello@spronta.com">hello@spronta.com</a>. We are not liable for usage or
+        charges incurred as a result of unauthorised use of your credentials prior to notification.
+      </p>
+      <h3>9.3 Rate limits</h3>
+      <p>
+        A hosted Service may operate rate limits per plan tier, as documented. You must not attempt to circumvent
+        rate limits. If you have a legitimate need for higher limits, contact us to discuss an appropriate arrangement.
+      </p>
+      <h3>9.4 SDK licence</h3>
+      <p>
+        We may provide open-source SDKs and client libraries under separate licence terms stated in the relevant
+        repository. Those licence terms govern your use of the SDK code itself. These Terms govern your use of any
+        hosted Service the SDKs connect to.
+      </p>
+      <h3>9.5 No competitive use or public benchmarking</h3>
+      <p>
+        You must not use hosted API access to build, train, benchmark, or improve a product or service that directly
+        competes with our hosted offering. You must not publish or distribute performance benchmarks or comparative
+        analyses of a hosted Service without our prior written consent. (This does not restrict any rights granted to
+        you under the MIT License for the open-source software.)
+      </p>
+
+      <h2 id="10-beta-and-early-access-features">10. Beta and Early Access Features</h2>
+      <h3>10.1 Beta features</h3>
+      <p>
+        We may make features available as "beta", "preview", "experimental", or similarly labelled functionality.
+        Beta features are provided for evaluation and are not subject to the same availability, reliability, or
+        support commitments as generally available features.
+      </p>
+      <h3>10.2 No warranties on beta features</h3>
+      <p>
+        Beta features are provided without warranty of any kind. We are not liable for any data loss, service
+        disruption, or other harm arising from your use of beta features. You should not rely on beta features where
+        reliability is critical unless you have accepted that risk.
+      </p>
+      <h3>10.3 Changes and withdrawal</h3>
+      <p>
+        We may modify, suspend, or permanently withdraw any beta feature at any time without notice and without
+        liability. Graduation of a beta feature to general availability, or its withdrawal, does not entitle you to
+        any refund or compensation.
+      </p>
+      <h3>10.4 Feedback on beta features</h3>
+      <p>We may ask for feedback on beta features. Any feedback you provide is subject to the feedback licence in §8.2.</p>
+
+      <h2 id="11-ai-powered-features">11. AI-Powered Features</h2>
+      <h3>11.1 What this covers</h3>
+      <p>
+        Crawlie may offer features that use AI, such as plain-English explanations of findings or AI-assisted guidance.
+        Some of these may be powered by third-party AI model providers.
+      </p>
+      <h3>11.2 Nature of AI outputs</h3>
+      <p>
+        AI-generated and AI-assisted outputs are provided as-is. They may be inaccurate, incomplete, or unsuitable for
+        your purposes. You are responsible for reviewing and validating any AI outputs before relying on them, particularly
+        where accuracy matters.
+      </p>
+      <h3>11.3 Third-party AI providers</h3>
+      <p>
+        Where an AI feature is powered by a third-party provider, the relevant inputs may be transmitted to that provider
+        subject to their terms. We will identify which providers are used in our documentation.
+      </p>
+
+      <h2 id="12-copyright-and-dmca">12. Copyright and DMCA</h2>
+      <h3>12.1 Respect for intellectual property</h3>
+      <p>
+        Crawlie respects intellectual property rights and expects users to do the same. You must not use the Service to
+        store or deliver content that infringes the copyright, trademark, or other intellectual property rights of any third party.
+      </p>
+      <h3>12.2 Copyright infringement notices</h3>
+      <p>If you believe that content stored or delivered through a hosted Service infringes your copyright, you may submit a notice to our designated agent:</p>
+      <p><strong>Copyright Agent</strong><br />Email: <a href="mailto:hello@spronta.com">hello@spronta.com</a></p>
+      <p>Your notice must include:</p>
+      <ul>
+        <li>Identification of the copyrighted work you claim has been infringed</li>
+        <li>Identification of the allegedly infringing material and its location on our Service (e.g. the URL)</li>
+        <li>Your contact information (name, address, telephone number, and email address)</li>
+        <li>A statement that you have a good faith belief that the use is not authorised by the copyright owner, its agent, or the law</li>
+        <li>A statement, under penalty of perjury, that the information in your notice is accurate and that you are the copyright owner or authorised to act on their behalf</li>
+        <li>Your physical or electronic signature</li>
+      </ul>
+      <p>We will act on valid notices promptly, which may include removing or disabling access to the identified content.</p>
+      <h3>12.3 Counter-notices</h3>
+      <p>If you believe content was removed in error, you may submit a counter-notice to <a href="mailto:hello@spronta.com">hello@spronta.com</a> containing:</p>
+      <ul>
+        <li>Identification of the removed content and its former location</li>
+        <li>A statement under penalty of perjury that you have a good faith belief the content was removed as a result of mistake or misidentification</li>
+        <li>Your contact information and consent to jurisdiction of the courts of England and Wales</li>
+        <li>Your physical or electronic signature</li>
+      </ul>
+      <p>Upon receipt of a valid counter-notice, we may restore the content after notifying the original complainant.</p>
+      <h3>12.4 Repeat infringers</h3>
+      <p>We will terminate access for users who are found to be repeat infringers of third-party intellectual property rights.</p>
+
+      <h2 id="13-publicity-and-customer-references">13. Publicity and Customer References</h2>
+      <h3>13.1 Our use of your name and logo</h3>
+      <p>
+        If you are a paying customer of a hosted Service, you grant us permission to identify you as a Crawlie customer,
+        including using your company name and logo in our marketing materials, website, case studies, investor materials,
+        and press releases.
+      </p>
+      <p>
+        We will always use your brand assets in accordance with any brand guidelines you make publicly available or share
+        with us. If no guidelines are provided, we will use your name and logo in good faith in a manner consistent with how
+        you present your own brand.
+      </p>
+      <h3>13.2 Opting out</h3>
+      <p>
+        You may opt out at any time by contacting us at <a href="mailto:hello@spronta.com">hello@spronta.com</a>. We will
+        remove references to your brand from new materials promptly following your request. We are not required to recall or
+        destroy materials already in circulation.
+      </p>
+      <h3>13.3 No endorsement implied</h3>
+      <p>Our use of your name or logo does not imply your endorsement of Crawlie. We will not represent that you endorse us without your explicit written consent.</p>
+      <h3>13.4 Case studies</h3>
+      <p>If we wish to publish a detailed case study featuring your company, we will seek your prior written approval for that specific content before publication.</p>
+
+      <h2 id="14-confidentiality">14. Confidentiality</h2>
+      <p>
+        Each party may receive confidential information from the other. Both parties agree to keep such information
+        confidential and not to disclose it to third parties without prior written consent, except as required by law.
+        This obligation does not apply to information that is publicly available, already known, or independently developed.
+      </p>
+
+      <h2 id="15-security">15. Security</h2>
+      <h3>15.1 Our security obligations</h3>
+      <p>
+        For any hosted Service, we implement and maintain reasonable technical and organisational security measures appropriate
+        to the nature of the Service. We will notify you promptly if we become aware of a security breach that affects Your Content.
+      </p>
+      <h3>15.2 Responsible vulnerability disclosure</h3>
+      <p>
+        If you discover a potential security vulnerability in the Service, we ask that you report it responsibly by emailing
+        <a href="mailto:hello@spronta.com">hello@spronta.com</a> before disclosing it publicly. We commit to acknowledging your
+        report within 5 business days and working with you in good faith to resolve the issue before any public disclosure. We
+        will not take legal action against researchers who act in good faith in accordance with this policy.
+      </p>
+      <h3>15.3 Your security obligations</h3>
+      <p>You are responsible for implementing appropriate security measures to protect any account credentials and API keys you hold.</p>
+
+      <h2 id="16-disclaimers-and-statutory-rights">16. Disclaimers and Statutory Rights</h2>
+      <p>
+        <strong>TO THE FULLEST EXTENT PERMITTED BY LAW, THE SERVICE IS PROVIDED "AS IS" AND "AS AVAILABLE" WITHOUT WARRANTIES OF
+        ANY KIND, WHETHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+        PURPOSE, OR NON-INFRINGEMENT.</strong>
+      </p>
+      <p>
+        <strong>WE DO NOT WARRANT THAT THE SERVICE WILL MEET YOUR REQUIREMENTS, THAT RESULTS OBTAINED THROUGH THE SERVICE (INCLUDING
+        AUDIT FINDINGS AND SCORES) WILL BE ACCURATE OR COMPLETE, OR THAT ANY ERRORS WILL BE CORRECTED.</strong>
+      </p>
+      <p>
+        Nothing in these Terms is intended to exclude or restrict any rights you have under the Unfair Contract Terms Act 1977, the
+        Consumer Rights Act 2015, or any other applicable UK consumer protection legislation that cannot lawfully be excluded. If you
+        are a consumer, your statutory rights are not affected by these Terms.
+      </p>
+
+      <h2 id="17-limitation-of-liability">17. Limitation of Liability</h2>
+      <p><strong>TO THE FULLEST EXTENT PERMITTED BY APPLICABLE LAW:</strong></p>
+      <p>
+        <strong>OUR TOTAL AGGREGATE LIABILITY TO YOU ARISING OUT OF OR IN CONNECTION WITH THESE TERMS OR THE SERVICE SHALL NOT EXCEED
+        THE FEES PAID BY YOU TO US IN THE THREE MONTHS PRECEDING THE EVENT GIVING RISE TO THE CLAIM. WHERE YOU USE THE SERVICE FREE OF
+        CHARGE, OUR TOTAL AGGREGATE LIABILITY SHALL NOT EXCEED ONE HUNDRED POUNDS (£100).</strong>
+      </p>
+      <p>
+        <strong>WE SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, INCLUDING LOSS OF
+        PROFITS, LOSS OF DATA, LOSS OF GOODWILL, OR BUSINESS INTERRUPTION, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.</strong>
+      </p>
+      <p>Nothing in these Terms limits liability for death or personal injury caused by negligence, fraud, fraudulent misrepresentation, or any other liability that cannot be limited under applicable law.</p>
+
+      <h2 id="18-indemnification">18. Indemnification</h2>
+      <p>
+        <strong>YOU AGREE TO INDEMNIFY AND HOLD HARMLESS SPRONTA LTD, ITS OFFICERS, EMPLOYEES, AND CONTRACTORS FROM ANY CLAIMS, DAMAGES,
+        LOSSES, OR EXPENSES (INCLUDING REASONABLE LEGAL FEES) ARISING FROM: (A) YOUR USE OF THE SERVICE IN BREACH OF THESE TERMS; (B)
+        YOUR CONTENT; OR (C) YOUR VIOLATION OF ANY THIRD-PARTY RIGHTS OR APPLICABLE LAW.</strong>
+      </p>
+
+      <h2 id="19-term-and-termination">19. Term and Termination</h2>
+      <h3>19.1 Term</h3>
+      <p>These Terms apply from the date you first use the Service and continue until you stop using it or your account is closed.</p>
+      <h3>19.2 Termination by you</h3>
+      <p>You may stop using the Service at any time, and close any account via your account settings or by contacting us.</p>
+      <h3>19.3 Termination by us</h3>
+      <p>
+        We may suspend or terminate your access to a hosted Service if you breach these Terms, if required by law, or if we discontinue
+        the Service. Except for serious violations, we will give you at least 30 days' notice before terminating a paid account.
+      </p>
+      <h3>19.4 Effect of termination</h3>
+      <p>Upon termination, your right to access a hosted Service ceases. We will retain Your Content for 30 days following termination to allow you to export it, after which it will be deleted.</p>
+      <h3>19.5 Survival</h3>
+      <p>Clauses relating to intellectual property, confidentiality, disclaimers, limitation of liability, indemnification, and governing law survive termination.</p>
+
+      <h2 id="20-changes-to-these-terms">20. Changes to These Terms</h2>
+      <p>
+        We may update these Terms from time to time. We will notify you of material changes by email or via a notice on the Service at
+        least 14 days before they take effect. Your continued use of the Service after changes take effect constitutes acceptance of the
+        updated Terms. If you do not agree to updated Terms, stop using the Service before the changes take effect.
+      </p>
+
+      <h2 id="21-formation-of-contract-and-electronic-acceptance">21. Formation of Contract and Electronic Acceptance</h2>
+      <h3>21.1 How the contract is formed</h3>
+      <p>
+        These Terms constitute a legally binding contract between you and Spronta Ltd. The contract is formed when you: (a) click a button
+        or checkbox indicating your acceptance of these Terms; (b) create an account; or (c) otherwise use the Service, whichever occurs first.
+      </p>
+      <h3>21.2 Electronic acceptance</h3>
+      <p>
+        You acknowledge that your electronic acceptance of these Terms, whether by clicking "I agree", "Sign up", or similar, or by using the
+        Service, constitutes a valid and binding agreement under English contract law, and is as legally effective as a handwritten signature.
+      </p>
+      <h3>21.3 Capacity</h3>
+      <p>By accepting these Terms, you confirm that you have legal capacity to enter into a binding contract and, if acting on behalf of an organisation, that you have authority to bind that organisation.</p>
+
+      <h2 id="22-notices">22. Notices</h2>
+      <h3>22.1 Notices to you</h3>
+      <p>
+        We will send notices to you at the email address associated with your account, or by a notice on the Service. Notices are deemed
+        received 24 hours after sending, provided we do not receive a delivery failure notification. It is your responsibility to keep your
+        account email address current.
+      </p>
+      <h3>22.2 Notices to us</h3>
+      <p>
+        All notices to us, including legal notices, must be sent by email to <a href="mailto:hello@spronta.com">hello@spronta.com</a>. Legal
+        notices are deemed received on the next business day following confirmed delivery.
+      </p>
+      <h3>22.3 Language</h3>
+      <p>All notices and communications under these Terms shall be in English.</p>
+
+      <h2 id="23-governing-law-and-dispute-resolution">23. Governing Law and Dispute Resolution</h2>
+      <h3>23.1 Governing law</h3>
+      <p>These Terms and any dispute or claim arising out of or in connection with them (including non-contractual disputes or claims) are governed by and construed in accordance with the laws of England and Wales.</p>
+      <h3>23.2 Informal resolution first</h3>
+      <p>
+        Before initiating any formal dispute process, both parties agree to attempt to resolve the dispute informally. The party raising the
+        dispute must send a written notice to the other describing the nature of the dispute and the remedy sought. Both parties agree to
+        negotiate in good faith for at least 30 days from receipt of that notice before proceeding to arbitration. This requirement does not
+        apply where a party seeks urgent interim or injunctive relief.
+      </p>
+      <h3>23.3 Binding arbitration</h3>
+      <p>
+        If informal resolution fails, any dispute, controversy, or claim arising out of or in connection with these Terms, or the breach,
+        termination, or invalidity thereof, shall be finally resolved by binding arbitration under the rules of the London Court of
+        International Arbitration (LCIA), which rules are incorporated by reference into this clause.
+      </p>
+      <ul>
+        <li><strong>Seat of arbitration:</strong> London, England</li>
+        <li><strong>Language:</strong> English</li>
+        <li><strong>Number of arbitrators:</strong> One (1), unless the amount in dispute exceeds £250,000, in which case either party may request a panel of three (3)</li>
+        <li><strong>Appointing authority:</strong> The LCIA</li>
+      </ul>
+      <p>The arbitrator's award shall be final and binding on both parties and may be enforced in any court of competent jurisdiction. The parties agree to keep arbitration proceedings and any award confidential, except as required by law or to enforce an award.</p>
+      <h3>23.4 Exceptions to arbitration</h3>
+      <p>Notwithstanding the above, either party may seek urgent interim or injunctive relief from the courts of England and Wales without first exhausting the informal resolution process or arbitration procedure. This does not waive either party's right to arbitrate the underlying dispute.</p>
+      <h3>23.5 Consumer carve-out</h3>
+      <p>
+        If you are a consumer (an individual using the Service for personal, non-commercial purposes), you are not bound by the arbitration
+        clause and retain the right to bring proceedings in the courts of England and Wales. Nothing in these Terms affects your statutory
+        rights as a consumer under applicable UK law, including the Consumer Rights Act 2015.
+      </p>
+      <h3>23.6 No class proceedings</h3>
+      <p>All disputes must be brought on an individual basis. Neither party may bring or participate in any class, collective, or representative action or arbitration arising out of or relating to these Terms or the Service.</p>
+      <h3>23.7 US customers — notice and right to opt out of arbitration</h3>
+      <p>
+        If you are located in the United States, you have the right to opt out of the binding arbitration clause in §23.3 and the no class
+        proceedings clause in §23.6 by sending written notice to <a href="mailto:hello@spronta.com">hello@spronta.com</a> within 30 days of
+        first accepting these Terms. Your notice must include your full name, account email address, and a clear statement that you are opting
+        out of arbitration. If you opt out, disputes will be resolved in the courts of England and Wales in accordance with §23.1.
+      </p>
+      <p>If you do not opt out within 30 days, you will be deemed to have accepted the arbitration clause. We will maintain a record of opt-out notices received.</p>
+
+      <h2 id="24-export-controls">24. Export Controls</h2>
+      <h3>24.1 Compliance with export laws</h3>
+      <p>
+        The Service may be subject to export control laws and regulations, including the United States Export Administration Regulations
+        (EAR), the Office of Foreign Assets Control (OFAC) sanctions programmes, and equivalent laws in the United Kingdom and European Union.
+        You agree to comply with all applicable export control and sanctions laws in connection with your use of the Service.
+      </p>
+      <h3>24.2 Your representations</h3>
+      <p>By using the Service, you represent and warrant that:</p>
+      <ul>
+        <li>You are not located in, and are not a national or resident of, any country subject to a comprehensive US, UK, or EU trade embargo, including Cuba, Iran, North Korea, Syria, and the Crimea, Donetsk, and Luhansk regions of Ukraine</li>
+        <li>You are not listed on any US government restricted party list, including the OFAC Specially Designated Nationals list, the US Commerce Department Denied Persons List, or the US State Department Debarred Parties list</li>
+        <li>You will not use the Service in violation of applicable export control or sanctions laws</li>
+      </ul>
+      <h3>24.3 Our right to restrict access</h3>
+      <p>We reserve the right to restrict or terminate access to a hosted Service for any user or region where we determine, in our reasonable judgment, that continued access would violate applicable export control or sanctions laws. We will not be liable for any loss or damage arising from such restrictions.</p>
+
+      <h2 id="25-general">25. General</h2>
+      <h3>25.1 Entire agreement</h3>
+      <p>These Terms, together with our Privacy Policy and any applicable DPA, constitute the entire agreement between you and Spronta Ltd regarding the Service. The MIT License governs your use of the open-source software.</p>
+      <h3>25.2 Severability</h3>
+      <p>If any provision of these Terms is found to be unenforceable, it will be modified to the minimum extent necessary to make it enforceable. The remaining provisions continue in full force.</p>
+      <h3>25.3 No waiver</h3>
+      <p>Our failure to enforce any provision of these Terms does not constitute a waiver of our right to enforce it in the future.</p>
+      <h3>25.4 Assignment</h3>
+      <p>You may not assign your rights or obligations under these Terms without our prior written consent. We may assign these Terms in connection with a merger, acquisition, or sale of substantially all of our assets.</p>
+      <h3>25.5 Force majeure</h3>
+      <p>Neither party shall be liable for delays or failures caused by circumstances beyond their reasonable control, including natural disasters, government actions, or infrastructure failures.</p>
+      <h3>25.6 Third-party rights</h3>
+      <p>These Terms do not confer any rights on third parties under the Contracts (Rights of Third Parties) Act 1999 unless expressly stated.</p>
+
+      <h2 id="26-contact">26. Contact</h2>
+      <p>If you have any questions about these Terms, please contact:</p>
+      <p>
+        <strong>Spronta Ltd</strong><br />
+        128 City Road<br />
+        London, EC1V 2NX<br />
+        England<br />
+        Company number 16278102<br />
+        Email: <a href="mailto:hello@spronta.com">hello@spronta.com</a>
+      </p>
+
+      <p><em>These Terms were written to be read by humans. If something is unclear, just ask.</em></p>
+
+      <p class="legal-foot">
+        <a href="/legal/privacy">Privacy Policy</a> · <a href="/">Back to home</a>
+      </p>
+    </article>
+    <LegalToc />
+    </div>
+  </main>
+
+  <SiteFooter />
+</BaseLayout>
+
+<style>
+  .legal { padding-block: 48px 96px; }
+  .crumb {
+    max-width: 1040px; margin: 0 auto 18px;
+    font-size: 13.5px; color: var(--muted-2);
+    display: flex; gap: 8px; align-items: center;
+  }
+  .crumb a { color: var(--muted); }
+  .crumb a:hover { color: var(--text); text-decoration: none; }
+  .crumb .here { color: var(--text); }
+  .legal-layout {
+    max-width: 1040px; margin: 0 auto;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 220px;
+    gap: 56px;
+    align-items: start;
+  }
+  .legal .prose { min-width: 0; max-width: 760px; }
+  /* More breathing room between the section divider line and the heading. */
+  .legal .prose h2 { padding-top: 24px; margin-top: 52px; }
+  .legal .prose h1 {
+    font-family: var(--font-display); font-weight: 500;
+    font-size: clamp(30px, 5vw, 40px); letter-spacing: -0.01em;
+    color: #fff; margin: 0 0 10px;
+  }
+  .legal .prose .lead { color: var(--muted); font-size: 16px; }
+  .legal .prose blockquote {
+    background: color-mix(in srgb, var(--blue) 14%, transparent);
+    border: 1px solid color-mix(in srgb, var(--blue) 28%, transparent);
+    padding: 14px 18px; border-radius: var(--radius-sm); margin: 22px 0;
+  }
+  .legal .prose .table-wrap { overflow-x: auto; }
+  .legal-foot { color: var(--muted-2); margin-top: 8px; }
+
+  @media (max-width: 1024px) {
+    .crumb, .legal-layout { max-width: 820px; }
+    .legal-layout { grid-template-columns: 1fr; gap: 0; }
+  }
+</style>

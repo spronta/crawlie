@@ -5,14 +5,21 @@ const GITHUB = 'https://github.com/spronta/crawlie';
 const year = 2026;
 ---
 <footer class="site-footer">
+  <div class="container foot-subscribe">
+    <div class="foot-subscribe-copy">
+      <p class="eyebrow">Newsletter</p>
+      <h3>Crawl smarter, every two weeks</h3>
+      <p>Stay up to date on new checks, MCP improvements, and fixes, rounded up every couple of weeks. No spam, unsubscribe anytime.</p>
+    </div>
+    <div class="foot-subscribe-form">
+      <SubscribeForm />
+    </div>
+  </div>
+
   <div class="container cols">
     <div class="about">
       <a href="/" class="brand" aria-label="crawlie home"><BrandLockup height={30} /></a>
       <p>The free, open-source technical-SEO &amp; GEO crawler — built for humans and agents.</p>
-      <div class="foot-subscribe">
-        <h4>Get the biweekly digest</h4>
-        <SubscribeForm />
-      </div>
     </div>
     <div class="group">
       <h4>Product</h4>
@@ -45,14 +52,18 @@ const year = 2026;
   </div>
   <div class="container baseline">
     <span>© {year} Spronta Ltd</span>
-    <span>Built fast. Audited with crawlie.</span>
+    <nav class="legal-links" aria-label="Legal">
+      <a href="/legal/terms">Terms of Service</a>
+      <a href="/legal/privacy">Privacy Policy</a>
+    </nav>
   </div>
 </footer>
 
 <style>
   .site-footer {
-    border-top: 1px solid var(--border-soft);
-    padding: 84px 0 52px;
+    /* The full-bleed newsletter band is the first child and carries its own
+       top border, so the footer sits flush against the page content above. */
+    padding: 0 0 52px;
   }
   /* Full-bleed footer: span the whole viewport with comfortable edge gutters
      instead of the centred 1080px content column. */
@@ -74,13 +85,40 @@ const year = 2026;
     color: var(--muted); font-size: 16.5px; line-height: 1.6;
     max-width: 34ch; margin: 22px 0 0;
   }
+  /* Full-width standalone signup band above the link columns. Full-bleed panel
+     tint (slightly lighter than the page) frames it as its own section. */
   .foot-subscribe {
-    margin-top: 26px;
-    max-width: 360px;
+    display: grid;
+    grid-template-columns: 1fr minmax(0, 460px);
+    align-items: center;
+    gap: 24px 64px;
+    padding-block: 44px;
+    margin-bottom: 60px;
+    background: var(--panel);
+    border-block: 1px solid var(--border-soft);
   }
-  .foot-subscribe h4 {
-    font-size: 14.5px; color: var(--text); font-weight: 600;
-    letter-spacing: -0.01em; margin: 0 0 12px;
+  .foot-subscribe-copy .eyebrow {
+    margin: 0 0 12px;
+    color: var(--baby-blue);
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    line-height: 1;
+  }
+  .foot-subscribe-copy h3 {
+    font-family: var(--font-display); font-weight: 500;
+    font-feature-settings: 'calt' 1;
+    font-size: clamp(24px, 3vw, 32px); letter-spacing: -0.01em;
+    color: #fff; margin: 0 0 8px;
+  }
+  .foot-subscribe-copy p {
+    color: var(--muted); font-size: 16px; line-height: 1.55;
+    margin: 0; max-width: 52ch;
+  }
+  .foot-subscribe-form :global(.subscribe input) {
+    padding: 13px 16px; font-size: 15px;
+  }
+  .foot-subscribe-form :global(.subscribe-btn) {
+    padding: 0 24px; font-size: 15px;
   }
   .group h4 {
     font-size: 14.5px; color: var(--text); font-weight: 600;
@@ -92,14 +130,21 @@ const year = 2026;
   }
   .group a:hover { color: var(--text); text-decoration: none; }
   .baseline {
-    display: flex; justify-content: space-between;
+    display: flex; justify-content: space-between; align-items: center;
     margin-top: 64px; padding-top: 28px;
     border-top: 1px solid var(--border-soft);
     color: var(--muted-2); font-size: 13.5px;
     font-family: var(--font-mono);
   }
+  .legal-links { display: flex; gap: 18px; }
+  .legal-links a { color: var(--muted-2); transition: color 0.15s ease; }
+  .legal-links a:hover { color: var(--text); text-decoration: none; }
   @media (max-width: 760px) {
-    .site-footer { padding: 56px 0 40px; }
+    .site-footer { padding: 0 0 40px; }
+    .foot-subscribe {
+      grid-template-columns: 1fr; gap: 18px;
+      padding-block: 32px; margin-bottom: 44px;
+    }
     .cols { grid-template-columns: 1fr 1fr; gap: 36px; }
     .about { grid-column: 1 / -1; }
     .baseline { flex-direction: column; gap: 6px; margin-top: 44px; }

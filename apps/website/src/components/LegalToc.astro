@@ -1,0 +1,108 @@
+---
+// Sticky right-hand table of contents for legal pages. The list is generated
+// client-side from the `h2[id]` headings inside `.legal .prose`, so it stays in
+// sync with the content automatically. Includes scroll-spy to highlight the
+// section currently in view.
+---
+<aside class="legal-toc">
+  <div class="toc-inner">
+    <p class="toc-title">On this page</p>
+    <nav aria-label="Table of contents"></nav>
+  </div>
+</aside>
+
+<script is:inline>
+  (() => {
+    const article = document.querySelector('.legal .prose');
+    const aside = document.querySelector('.legal-toc');
+    const nav = aside && aside.querySelector('nav');
+    if (!article || !nav) return;
+
+    const heads = Array.from(article.querySelectorAll('h2[id]'));
+    if (!heads.length) {
+      aside.remove();
+      return;
+    }
+
+    const ul = document.createElement('ul');
+    heads.forEach((h) => {
+      const li = document.createElement('li');
+      const a = document.createElement('a');
+      a.href = '#' + h.id;
+      a.textContent = h.textContent;
+      li.appendChild(a);
+      ul.appendChild(li);
+    });
+    nav.appendChild(ul);
+
+    const links = new Map(
+      Array.from(nav.querySelectorAll('a')).map((a) => [a.getAttribute('href').slice(1), a])
+    );
+    const setActive = (id) => {
+      links.forEach((a) => a.removeAttribute('data-active'));
+      const a = links.get(id);
+      if (a) a.setAttribute('data-active', 'true');
+    };
+
+    const obs = new IntersectionObserver(
+      (entries) => {
+        entries
+          .filter((e) => e.isIntersecting)
+          .forEach((e) => setActive(e.target.id));
+      },
+      { rootMargin: '-80px 0px -72% 0px', threshold: 0 }
+    );
+    heads.forEach((h) => obs.observe(h));
+  })();
+</script>
+
+<style is:global>
+  .legal-toc {
+    /* Placed as the second grid column by .legal-layout. Sticks to the grid
+       container (the tall article column), not its own short content box. */
+    position: sticky;
+    top: 96px;
+    align-self: start;
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
+  }
+  .legal-toc .toc-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted-2);
+    margin: 0 0 12px;
+  }
+  .legal-toc nav ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    border-left: 1px solid var(--border-soft);
+  }
+  .legal-toc nav li { margin: 0; }
+  .legal-toc nav a {
+    display: block;
+    padding: 5px 0 5px 14px;
+    margin-left: -1px;
+    border-left: 1px solid transparent;
+    color: var(--muted-2);
+    font-size: 13px;
+    line-height: 1.4;
+    text-decoration: none;
+    transition: color 0.15s ease, border-color 0.15s ease;
+  }
+  .legal-toc nav a:hover {
+    color: var(--text);
+    text-decoration: none;
+  }
+  .legal-toc nav a[data-active='true'] {
+    color: var(--link);
+    border-left-color: var(--link);
+  }
+  @media (max-width: 1024px) {
+    .legal-toc { display: none; }
+  }
+</style>
