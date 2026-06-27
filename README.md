@@ -14,6 +14,7 @@ Crawl any site for broken links, redirects, missing metadata, and 40+ SEO & Gene
   <a href="#setup">Setup</a> ·
   <a href="#how-to-use-cli">CLI</a> ·
   <a href="#use-with-agents-mcp">MCP &amp; agents</a> ·
+   <a href="https://crawlie.dev/changelog" target="_blank">Changelog</a> ·
   <a href="#use-cases">Use cases</a> ·
   <a href="#why-i-built-this">Why I built this</a> ·
   <a href="#desktop-app">Desktop app</a> ·
@@ -22,7 +23,9 @@ Crawl any site for broken links, redirects, missing metadata, and 40+ SEO & Gene
   <a href="#architecture">Architecture</a>
 </p>
 
-*[Read the docs → crawlie.dev](https://crawlie.dev/docs)*
+*[Read the docs → crawlie.dev](https://crawlie.dev/docs)* 
+
+[💡Share feedback & suggestions here](https://github.com/spronta/crawlie/discussions/2)
 
 </div>
 
