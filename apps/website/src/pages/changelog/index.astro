@@ -3,6 +3,7 @@ import { getCollection, render } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import SiteHeader from '../../components/SiteHeader.astro';
 import SiteFooter from '../../components/SiteFooter.astro';
+import SubscribeForm from '../../components/SubscribeForm.astro';
 import '../../styles/prose.css';
 
 // Sort by semantic version, newest first — dates collide when we ship more than
@@ -22,8 +23,8 @@ const fmt = (d: Date) =>
 ---
 
 <BaseLayout
-  title="Changelog · crawlie — SEO & GEO crawler"
-  description="Every notable change to crawlie — new checks, MCP improvements, custom extraction, and more, newest first. Subscribe to get an email on each release."
+  title="Changelog · Crawlie SEO & GEO crawler"
+  description="Every notable change to Crawlie: new checks, MCP improvements, custom extraction, and more, newest first. Subscribe to the biweekly digest."
   canonical="/changelog"
 >
   <SiteHeader />
@@ -31,9 +32,17 @@ const fmt = (d: Date) =>
   <main class="container changelog">
     <header class="cl-head">
       <p class="eyebrow">Changelog</p>
-      <h1>What's new in crawlie</h1>
+      <h1>What's new in Crawlie</h1>
       <p class="lede">We ship suspiciously often. If we were a legacy SEO audit tool, we'd be a little concerned.</p>
     </header>
+
+    <aside class="cl-subscribe">
+      <div class="cl-subscribe-copy">
+        <h2>Get the biweekly digest</h2>
+        <p>New checks, MCP improvements, and fixes, rounded up every couple of weeks. No spam, unsubscribe anytime.</p>
+      </div>
+      <SubscribeForm />
+    </aside>
 
     <div class="cl-list">
       {rendered.map((e) => {
@@ -82,6 +91,41 @@ const fmt = (d: Date) =>
     color: var(--muted);
     font-size: 17px;
     margin: 0;
+  }
+
+  /* Subscribe panel — sits between the page header and the entry list. */
+  .cl-subscribe {
+    max-width: 860px;
+    margin: 40px auto 0;
+    padding: 24px 26px;
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-sm);
+    background: var(--panel);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 340px);
+    align-items: center;
+    gap: 18px 32px;
+  }
+  .cl-subscribe-copy h2 {
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: 19px;
+    letter-spacing: -0.01em;
+    margin: 0 0 4px;
+    color: #fff;
+  }
+  .cl-subscribe-copy p {
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  @media (max-width: 680px) {
+    .cl-subscribe {
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
   }
 
   /* Centred as a block; the entries inside stay left-aligned. */

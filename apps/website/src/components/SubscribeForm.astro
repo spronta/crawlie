@@ -37,7 +37,7 @@
         if (res.ok) {
           form.reset();
           msg.dataset.ok = 'true';
-          msg.textContent = "You're subscribed — we'll email you when crawlie ships.";
+          msg.textContent = "You're subscribed. Look out for the biweekly digest.";
         } else {
           msg.dataset.ok = 'false';
           msg.textContent = data.error || 'Something went wrong. Please try again.';
