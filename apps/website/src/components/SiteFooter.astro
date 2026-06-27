@@ -57,12 +57,41 @@ const year = 2026;
   </div>
   <div class="container baseline">
     <span>© {year} Spronta Ltd</span>
-    <nav class="legal-links" aria-label="Legal">
-      <a href="/legal/terms">Terms of Service</a>
-      <a href="/legal/privacy">Privacy Policy</a>
-    </nav>
+    <div class="baseline-right">
+      <nav class="legal-links" aria-label="Legal">
+        <a href="/legal/terms">Terms of Service</a>
+        <a href="/legal/privacy">Privacy Policy</a>
+      </nav>
+      <button class="theme-toggle" type="button" aria-label="Toggle light or dark theme" title="Toggle theme">
+        <svg class="ic-sun" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="4" />
+          <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+        </svg>
+        <svg class="ic-moon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+        </svg>
+      </button>
+    </div>
   </div>
 </footer>
+
+<script is:inline>
+  (() => {
+    const btn = document.querySelector('.theme-toggle');
+    if (!btn) return;
+    const meta = document.querySelector('meta[name="theme-color"]');
+    btn.addEventListener('click', () => {
+      const root = document.documentElement;
+      const current =
+        root.dataset.theme ||
+        (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+      const next = current === 'dark' ? 'light' : 'dark';
+      root.dataset.theme = next;
+      try { localStorage.setItem('theme', next); } catch (_) {}
+      if (meta) meta.setAttribute('content', next === 'light' ? '#ffffff' : '#080a0f');
+    });
+  })();
+</script>
 
 <style>
   .site-footer {
@@ -113,7 +142,7 @@ const year = 2026;
     font-family: var(--font-display); font-weight: 500;
     font-feature-settings: 'calt' 1;
     font-size: clamp(24px, 3vw, 32px); letter-spacing: -0.01em;
-    color: #fff; margin: 0 0 8px;
+    color: var(--heading); margin: 0 0 8px;
   }
   .foot-subscribe-copy p {
     color: var(--muted); font-size: 16px; line-height: 1.55;
@@ -158,6 +187,24 @@ const year = 2026;
   .legal-links { display: flex; gap: 18px; }
   .legal-links a { color: var(--muted-2); transition: color 0.15s ease; }
   .legal-links a:hover { color: var(--text); text-decoration: none; }
+  .baseline-right { display: flex; align-items: center; gap: 18px; }
+  .theme-toggle {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 30px; height: 30px; padding: 0;
+    border: 1px solid var(--border-soft); border-radius: 999px;
+    background: transparent; color: var(--muted-2); cursor: pointer;
+    transition: color 0.15s ease, border-color 0.15s ease;
+  }
+  .theme-toggle:hover { color: var(--text); border-color: var(--border); }
+  /* Show the icon for the theme you'd switch TO: sun in dark, moon in light. */
+  .theme-toggle .ic-moon { display: none; }
+  .theme-toggle .ic-sun { display: block; }
+  :global(:root[data-theme='light']) .theme-toggle .ic-sun { display: none; }
+  :global(:root[data-theme='light']) .theme-toggle .ic-moon { display: block; }
+  @media (prefers-color-scheme: light) {
+    :global(:root:not([data-theme='dark'])) .theme-toggle .ic-sun { display: none; }
+    :global(:root:not([data-theme='dark'])) .theme-toggle .ic-moon { display: block; }
+  }
   @media (max-width: 760px) {
     .site-footer { padding: 0 0 40px; }
     .foot-subscribe {

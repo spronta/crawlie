@@ -43,6 +43,52 @@
   --maxw: 1080px;
   --radius: 12px;
   --radius-sm: 8px;
+
+  /* Heading ink (pure white in dark; near-black in light). */
+  --heading: #ffffff;
+  color-scheme: dark;
+}
+
+/* ── Light theme ─────────────────────────────────────────────────────
+   Applied when the user picks Light, or by system preference when they
+   haven't overridden it. The footer toggle sets `data-theme` on <html>. */
+:root[data-theme='light'] {
+  --bg: #ffffff;
+  --bg-soft: #f6f8fb;
+  --panel: #f3f5f9;
+  --panel-2: #e9edf3;
+  --text: #1b2230;
+  --muted: #586273;
+  --muted-2: #8b94a3;
+  --border: #d7dde7;
+  --border-soft: #e6eaf1;
+  --link: #0a52e0;
+  --baby-blue: #2f6fe0;
+  --green: #169c5f;
+  --amber: #b9770c;
+  --red: #db3b40;
+  --heading: #0b1220;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) {
+    --bg: #ffffff;
+    --bg-soft: #f6f8fb;
+    --panel: #f3f5f9;
+    --panel-2: #e9edf3;
+    --text: #1b2230;
+    --muted: #586273;
+    --muted-2: #8b94a3;
+    --border: #d7dde7;
+    --border-soft: #e6eaf1;
+    --link: #0a52e0;
+    --baby-blue: #2f6fe0;
+    --green: #169c5f;
+    --amber: #b9770c;
+    --red: #db3b40;
+    --heading: #0b1220;
+    color-scheme: light;
+  }
 }
 
 *,
@@ -92,17 +138,35 @@ code, pre, kbd {
   border-radius: 6px;
   padding: 0.12em 0.4em;
   font-size: 0.875em;
-  color: #cdd5e1;
+  color: var(--text);
 }
 
 pre {
-  background: var(--bg-soft) !important;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   padding: 16px 18px;
   overflow-x: auto;
   font-size: 13.5px;
   line-height: 1.7;
+}
+
+/* Shiki dual-theme code blocks: tokens + background follow the active theme. */
+.astro-code,
+.astro-code span {
+  color: var(--shiki-dark);
+  background-color: var(--shiki-dark-bg);
+}
+:root[data-theme='light'] .astro-code,
+:root[data-theme='light'] .astro-code span {
+  color: var(--shiki-light);
+  background-color: var(--shiki-light-bg);
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) .astro-code,
+  :root:not([data-theme='dark']) .astro-code span {
+    color: var(--shiki-light);
+    background-color: var(--shiki-light-bg);
+  }
 }
 
 hr {

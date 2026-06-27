@@ -375,7 +375,7 @@ const cell = (v: string) =>
   .hero h1 {
     font-size: clamp(38px, 6.2vw, 66px);
     margin: 0 0 20px;
-    color: #fff;
+    color: var(--heading);
   }
   .lede {
     max-width: 600px;
@@ -480,11 +480,13 @@ const cell = (v: string) =>
     font-size: 13px; line-height: 1.85; padding: 18px;
     color: #c2cad6;
   }
-  .term-body .u { color: var(--muted); }
-  .term-body .t { color: var(--link); }
-  .term-body .b { color: var(--text); font-weight: 600; }
-  .term-body .g { color: var(--green); }
-  .term-body .a { color: var(--link); }
+  /* The terminal is always dark (fixed #06080c bg), so pin its text to the dark
+     palette rather than theme tokens (which would vanish in light mode). */
+  .term-body .u { color: #9aa3b2; }
+  .term-body .t { color: #3b9eff; }
+  .term-body .b { color: #f5f7fb; font-weight: 600; }
+  .term-body .g { color: #3ddc91; }
+  .term-body .a { color: #3b9eff; }
   .term-body .r { color: var(--red); }
   .term-body .y { color: var(--amber); }
 

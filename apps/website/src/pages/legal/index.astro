@@ -41,7 +41,7 @@ import SiteFooter from '../../components/SiteFooter.astro';
   .li-head h1 {
     font-family: var(--font-display); font-weight: 500;
     font-size: clamp(30px, 5vw, 42px); letter-spacing: -0.01em;
-    color: #fff; margin: 6px 0 10px;
+    color: var(--heading); margin: 6px 0 10px;
   }
   .li-head .lede { color: var(--muted); font-size: 16.5px; margin: 0; }
   .li-cards {
@@ -55,7 +55,7 @@ import SiteFooter from '../../components/SiteFooter.astro';
     transition: border-color 0.15s ease;
   }
   .li-card:hover { text-decoration: none; border-color: color-mix(in srgb, var(--blue) 50%, transparent); }
-  .li-card h2 { font-family: var(--font-display); font-weight: 500; font-size: 19px; margin: 0 0 6px; color: #fff; }
+  .li-card h2 { font-family: var(--font-display); font-weight: 500; font-size: 19px; margin: 0 0 6px; color: var(--heading); }
   .li-card p { color: var(--muted); font-size: 14.5px; line-height: 1.55; margin: 0 0 14px; }
   .li-go { color: var(--link); font-size: 14px; font-weight: 500; }
   @media (max-width: 640px) { .li-cards { grid-template-columns: 1fr; } }

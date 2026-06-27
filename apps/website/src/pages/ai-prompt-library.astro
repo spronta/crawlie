@@ -315,7 +315,7 @@ const agents: Agent[] = [
     font-family: var(--font-display); font-weight: 500;
     font-feature-settings: 'calt' 1;
     font-size: clamp(32px, 5vw, 46px); letter-spacing: -0.01em;
-    color: #fff; margin: 8px 0 14px;
+    color: var(--heading); margin: 8px 0 14px;
   }
   .pl-head .lede { color: var(--muted); font-size: 18px; line-height: 1.6; margin: 0; }
 
@@ -372,7 +372,7 @@ const agents: Agent[] = [
   .agent-code pre { margin: 0; overflow-x: auto; }
   .agent-code code {
     font-family: var(--font-mono); font-size: 12.5px; line-height: 1.55;
-    color: #cdd6e2; white-space: pre;
+    color: var(--text); white-space: pre;
   }
   .pl-connect .pl-cat-head p code {
     font-family: var(--font-mono); font-size: 12.5px; color: var(--text);
@@ -407,7 +407,7 @@ const agents: Agent[] = [
   .pl-cat-head { max-width: 680px; margin-bottom: 22px; }
   .pl-cat-head h2 {
     font-family: var(--font-display); font-weight: 500;
-    font-size: 24px; letter-spacing: -0.01em; color: #fff; margin: 0 0 6px;
+    font-size: 24px; letter-spacing: -0.01em; color: var(--heading); margin: 0 0 6px;
   }
   .pl-cat-head p { color: var(--muted); font-size: 15.5px; margin: 0; }
 
@@ -461,7 +461,7 @@ const agents: Agent[] = [
   }
   .pl-prompt p {
     font-family: var(--font-mono); font-size: 13px; line-height: 1.6;
-    color: #cdd6e2; margin: 0; white-space: pre-wrap;
+    color: var(--text); margin: 0; white-space: pre-wrap;
   }
 
   .pl-card-foot {
@@ -478,11 +478,11 @@ const agents: Agent[] = [
   .pl-copy {
     flex: 0 0 auto;
     font-family: var(--font-mono); font-size: 12px; font-weight: 600;
-    color: #0a0d14; background: #fff; border: 0;
+    color: var(--bg); background: var(--text); border: 0;
     border-radius: 8px; padding: 7px 14px; cursor: pointer;
     transition: background 0.15s ease;
   }
-  .pl-copy:hover { background: color-mix(in srgb, #000 7%, #fff); }
+  .pl-copy:hover { background: color-mix(in srgb, var(--text) 86%, var(--bg)); }
 
   .pl-note {
     margin-top: 56px; padding-top: 24px;

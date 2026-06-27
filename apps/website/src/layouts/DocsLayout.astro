@@ -98,7 +98,7 @@ const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
     display: flex; align-items: center; justify-content: center; gap: 7px;
     margin-bottom: 22px; padding: 9px 12px;
     font-size: 13.5px; font-weight: 600;
-    color: var(--blue-ink); border-radius: 7px;
+    color: var(--bg); border-radius: 7px;
     border: 1px solid transparent;
     background: var(--text);
     box-shadow: 0 1px 10px rgba(0, 0, 0, 0.3);
@@ -106,8 +106,8 @@ const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
   }
   .sidebar-download:hover {
     text-decoration: none;
-    color: var(--blue-ink);
-    background: #fff;
+    color: var(--bg);
+    background: color-mix(in srgb, var(--text) 86%, var(--bg));
   }
   .sidebar-download:active { transform: translateY(1px); }
   .group { margin-bottom: 22px; }

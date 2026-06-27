@@ -71,8 +71,18 @@ const { class: cls = '' } = Astro.props;
       ctx.textBaseline = 'top';
     }
 
+    function isLight(): boolean {
+      const t = document.documentElement.dataset.theme;
+      if (t === 'light') return true;
+      if (t === 'dark') return false;
+      return window.matchMedia('(prefers-color-scheme: light)').matches;
+    }
+
     function draw(step: number) {
       const T = step * 0.07; // slow advance per retro step
+      // Light boxes need a stronger blue so the texture reads (recomputed each
+      // frame so it reacts to the theme toggle live).
+      const aMul = isLight() ? 2.1 : 1;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       // Diagonal scan wavefront, wraps across the grid.
       const span = cols + rows;
@@ -94,7 +104,7 @@ const { class: cls = '' } = Astro.props;
           if (level <= 0) continue;
 
           const [r, g, b] = PALETTE[level];
-          const alpha = 0.05 + level * 0.05;
+          const alpha = Math.min(0.6, (0.05 + level * 0.05) * aMul);
           ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
           ctx.fillText(BLOCKS[level], x * CELL, y * CELL);
         }

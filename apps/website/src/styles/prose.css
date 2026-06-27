@@ -1,5 +1,5 @@
 /* Shared markdown (prose) styles — used by the docs layout and changelog pages. */
-.prose { font-size: 15.5px; color: #d6dde7; }
+.prose { font-size: 15.5px; color: var(--text); }
 .prose h2 {
   font-size: 23px; margin: 44px 0 14px; padding-top: 8px;
   border-top: 1px solid var(--border-soft); color: var(--text);
@@ -40,14 +40,14 @@
   padding: 11px 20px;
   border-radius: var(--radius-sm);
   background: var(--text);
-  color: var(--blue-ink);
+  color: var(--bg);
   border: 1px solid transparent;
   box-shadow: 0 2px 16px rgba(0, 0, 0, 0.35);
   transition: background 0.15s ease, transform 0.05s ease, box-shadow 0.2s ease;
 }
 .prose a.download-btn:hover {
   text-decoration: none;
-  background: #fff;
+  background: color-mix(in srgb, var(--text) 86%, var(--bg));
   box-shadow: 0 4px 22px rgba(0, 0, 0, 0.45);
 }
 .prose a.download-btn:active { transform: translateY(1px); }

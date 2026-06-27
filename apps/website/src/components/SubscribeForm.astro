@@ -82,14 +82,15 @@
     outline: none;
     border-color: var(--blue);
   }
-  /* Inline, borderless button joined to the input: white fill, blue label. */
+  /* Inline, borderless button joined to the input: high-contrast inverted pill
+     (white-on-dark in dark theme, dark-on-light in light theme). */
   .subscribe-btn {
     flex: 0 0 auto;
     border: 0;
     border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
     padding: 0 20px;
-    background: #fff;
-    color: #0a0d14;
+    background: var(--text);
+    color: var(--bg);
     font-family: inherit;
     font-size: 14.5px;
     font-weight: 600;
@@ -97,7 +98,7 @@
     transition: background 0.15s ease;
   }
   .subscribe-btn:hover {
-    background: color-mix(in srgb, #000 7%, #fff);
+    background: color-mix(in srgb, var(--text) 86%, var(--bg));
   }
   .subscribe-btn:disabled {
     opacity: 0.6;

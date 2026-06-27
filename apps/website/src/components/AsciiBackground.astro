@@ -62,8 +62,16 @@ const { class: cls = '' } = Astro.props;
       ctx.textBaseline = 'top';
     }
 
+    function isLight(): boolean {
+      const th = document.documentElement.dataset.theme;
+      if (th === 'light') return true;
+      if (th === 'dark') return false;
+      return window.matchMedia('(prefers-color-scheme: light)').matches;
+    }
+
     function draw(t: number) {
       const time = t * 0.0006;
+      const aMul = isLight() ? 1.5 : 1;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       for (let y = 0; y < rows; y++) {
         for (let x = 0; x < cols; x++) {
@@ -77,7 +85,7 @@ const { class: cls = '' } = Astro.props;
           const ci = Math.min(RAMP.length - 1, Math.floor(n * RAMP.length));
           const ch = RAMP[ci];
           if (ch === ' ') continue;
-          const alpha = 0.05 + n * 0.4;
+          const alpha = Math.min(0.7, (0.05 + n * 0.4) * aMul);
           // Opulent blue, lifting toward sky-blue at the peaks.
           const g = 70 + Math.floor(n * 100);
           const b = 235 + Math.floor(n * 20);
