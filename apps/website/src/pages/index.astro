@@ -80,8 +80,10 @@ const cell = (v: string) =>
   <!-- ── Hero ──────────────────────────────────────────────────────── -->
   <main>
     <section class="hero">
-      <PixelGridBackground />
       <div class="container">
+        <div class="hero-box">
+          <PixelGridBackground />
+          <div class="hero-inner">
         <p class="hero-eyebrow">#1 open-source SEO audit tool</p>
         <h1>Ship sites that rank in search<br />and get cited by AI.</h1>
         <p class="lede">
@@ -102,6 +104,8 @@ const cell = (v: string) =>
         </div>
 
         <p class="trust">Rust · MIT · macOS / Linux / Windows · CLI + MCP · 46 checks</p>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -327,16 +331,27 @@ const cell = (v: string) =>
 
   /* hero */
   .hero {
+    margin-top: 0; /* nav stays vertically centered in its 60px bar */
+    padding: 0; /* cancel the global `section` vertical padding */
+  }
+  /* Match the header's full-bleed container so the box lines up with the nav. */
+  .hero > .container {
+    max-width: none;
+    padding-inline: clamp(24px, 4vw, 56px);
+  }
+  /* Rounded panel whose edges line up with the nav. */
+  .hero-box {
     position: relative;
     overflow: hidden;
-    margin-top: -60px; /* slide up behind the transparent header */
-    padding: 124px 0 64px;
+    border: 1px solid var(--border-soft);
+    border-radius: 24px;
+    padding: 76px clamp(20px, 4vw, 48px) 44px;
     background:
       radial-gradient(900px 420px at 50% -120px, rgba(0,85,238,0.15), transparent 70%),
-      var(--bg);
+      var(--bg-subtle);
     text-align: center;
   }
-  .hero > .container { position: relative; z-index: 1; }
+  .hero-inner { position: relative; z-index: 1; }
   .hero-eyebrow {
     font-family: var(--font-mono);
     font-size: 11.5px;

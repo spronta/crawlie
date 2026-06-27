@@ -1,0 +1,501 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import SiteHeader from '../components/SiteHeader.astro';
+import SiteFooter from '../components/SiteFooter.astro';
+
+// Copy-ready prompts for driving the Crawlie MCP from an AI agent.
+//   mode 'diagnose'      → read-only; works in any MCP client (Claude Desktop,
+//                          web, Cursor). It crawls and reports.
+//   mode 'diagnose-fix'  → agentic, end-to-end. In Claude Code (which has the
+//                          MCP *and* your repo) it edits the code and re-crawls
+//                          to verify. In a chat client it hands the changes back.
+type Mode = 'diagnose' | 'diagnose-fix';
+type Prompt = { title: string; desc: string; mode: Mode; tools: string[]; prompt: string };
+type Category = { id: string; label: string; blurb: string; prompts: Prompt[] };
+
+const categories: Category[] = [
+  {
+    id: 'audit',
+    label: 'Audit & fix',
+    blurb: 'Crawl a site, surface what is broken, and turn findings into concrete changes.',
+    prompts: [
+      {
+        title: 'Full site audit',
+        desc: 'A prioritised overview of a whole site in one shot.',
+        mode: 'diagnose',
+        tools: ['crawl_site', 'top_fixes'],
+        prompt:
+          'Use the crawlie MCP to crawl https://example.com. Give me the one-line headline, the Health and GEO scores, and the top 5 fixes in priority order. Keep it tight.',
+      },
+      {
+        title: 'Audit a single page',
+        desc: 'Deep-check one important URL without crawling the whole site.',
+        mode: 'diagnose',
+        tools: ['audit_url'],
+        prompt:
+          'Audit https://example.com/pricing with the crawlie MCP. List every issue grouped by severity, and for each one tell me exactly how to fix it.',
+      },
+      {
+        title: 'Audit, fix, verify, PR',
+        desc: 'Close the whole loop in your repo with Claude Code.',
+        mode: 'diagnose-fix',
+        tools: ['crawl_site', 'top_fixes', 'diff_reports'],
+        prompt:
+          'Crawl https://example.com with the crawlie MCP, fix the top 10 issues directly in this repo, then re-crawl and diff to confirm the Health and GEO scores went up. Open a PR summarising what changed and the score delta.',
+      },
+      {
+        title: 'Clear every error-level issue',
+        desc: 'Hunt down and resolve the must-fix problems in code.',
+        mode: 'diagnose-fix',
+        tools: ['crawl_site', 'affected_urls', 'explain_issue'],
+        prompt:
+          'Crawl https://example.com with the crawlie MCP. For every error-level issue, find the affected pages in this codebase, apply the fix, and re-crawl to confirm zero error-level issues remain.',
+      },
+    ],
+  },
+  {
+    id: 'geo',
+    label: 'GEO · AI-search readiness',
+    blurb: 'Make pages answerable and citable by ChatGPT, Perplexity, and Google AI Overviews.',
+    prompts: [
+      {
+        title: 'GEO gap analysis',
+        desc: 'See which AI-readiness signals your pages are missing, at scale.',
+        mode: 'diagnose',
+        tools: ['crawl_site', 'geo_gaps'],
+        prompt:
+          'Crawl https://example.com with the crawlie MCP and break down the GEO gaps: how many indexable pages are missing authorship, dates, structured data, semantic HTML, answer-readiness, and question headings. Then tell me what to fix first for the biggest GEO score gain.',
+      },
+      {
+        title: 'Top GEO fixes only',
+        desc: 'Skip the SEO noise and rank just the GEO work.',
+        mode: 'diagnose',
+        tools: ['top_fixes', 'geo_gaps'],
+        prompt:
+          'Using the crawlie MCP on the latest report, give me only the GEO fixes (category = geo), ranked by impact, with a one-line action for each.',
+      },
+      {
+        title: 'Make a page citable by AI',
+        desc: 'Rewrite one page in code so answer engines will quote it.',
+        mode: 'diagnose-fix',
+        tools: ['audit_url', 'explain_issue'],
+        prompt:
+          'Audit https://example.com/blog/my-post with the crawlie MCP, focused on GEO. Edit the page source in this repo so ChatGPT, Perplexity, and Google AI Overviews can understand and cite it: fix the headings, add the missing structured data and byline, then re-audit to confirm the GEO issues cleared.',
+      },
+      {
+        title: 'Site-wide GEO sweep',
+        desc: 'Add structured data and authorship everywhere it is missing.',
+        mode: 'diagnose-fix',
+        tools: ['crawl_site', 'geo_gaps', 'diff_reports'],
+        prompt:
+          'Use the crawlie MCP to find every page missing structured data or authorship. Add the correct JSON-LD and bylines in the source for each, then diff a fresh crawl to prove the GEO gaps closed.',
+      },
+    ],
+  },
+  {
+    id: 'monitor',
+    label: 'Monitoring & trends',
+    blurb: 'Track scores over time and prove that your fixes actually landed.',
+    prompts: [
+      {
+        title: 'Did my fixes land?',
+        desc: 'Diff a fresh crawl against the previous one.',
+        mode: 'diagnose',
+        tools: ['crawl_site', 'diff_reports'],
+        prompt:
+          'Re-crawl https://example.com with the crawlie MCP and diff it against the previous report. Did the issues I fixed actually resolve? Call out any new regressions and any score changes.',
+      },
+      {
+        title: 'Weekly health check',
+        desc: 'A repeatable status read you can run on a schedule.',
+        mode: 'diagnose',
+        tools: ['crawl_site', 'list_reports'],
+        prompt:
+          'Crawl https://example.com with the crawlie MCP, compare it to last week’s report, and summarise: current Health and GEO scores, what changed, and the single most important thing to fix this week.',
+      },
+      {
+        title: 'Catch and fix a regression',
+        desc: 'Find what newly broke and repair it in code.',
+        mode: 'diagnose-fix',
+        tools: ['diff_reports', 'affected_urls'],
+        prompt:
+          'Re-crawl https://example.com with the crawlie MCP and diff against the last report. For any newly-introduced issue, fix it in this repo and re-crawl to confirm the regression is gone.',
+      },
+    ],
+  },
+  {
+    id: 'extract',
+    label: 'Custom extraction',
+    blurb: 'Pull structured data off every page while you crawl.',
+    prompts: [
+      {
+        title: 'Scrape a field site-wide',
+        desc: 'Use a CSS or regex extractor across the crawl.',
+        mode: 'diagnose',
+        tools: ['crawl_site'],
+        prompt:
+          'Crawl https://example.com with the crawlie MCP and add a custom extractor that pulls the product price from the CSS selector .price on every page. Return a table of URL and price, sorted high to low.',
+      },
+      {
+        title: 'Audit canonical tags',
+        desc: 'Extract and validate an attribute across the site.',
+        mode: 'diagnose',
+        tools: ['crawl_site'],
+        prompt:
+          'Crawl https://example.com with the crawlie MCP, extracting the href attribute of link[rel="canonical"] on each page. Flag any pages whose canonical does not match their own URL.',
+      },
+    ],
+  },
+  {
+    id: 'learn',
+    label: 'Learn the checks',
+    blurb: 'Understand any rule and what crawlie looks for, in plain English.',
+    prompts: [
+      {
+        title: 'Explain a rule',
+        desc: 'Why a finding matters and how to resolve it.',
+        mode: 'diagnose',
+        tools: ['explain_issue'],
+        prompt:
+          'Using the crawlie MCP, explain the rule "geo-not-answerable": why it matters for AI search, how to fix it, and what happens if I ignore it.',
+      },
+      {
+        title: 'List everything crawlie checks',
+        desc: 'The full rule catalogue with severity and category.',
+        mode: 'diagnose',
+        tools: ['list_rules'],
+        prompt:
+          'Ask the crawlie MCP to list every audit rule it checks, with category and severity, then group them by category so I can see the coverage.',
+      },
+    ],
+  },
+];
+
+const SETUP = 'claude mcp add crawlie crawlie-mcp';
+const MODE_LABEL: Record<Mode, string> = { diagnose: 'Diagnose', 'diagnose-fix': 'Diagnose + fix' };
+
+// MCP clients ("agents") and how to install the Crawlie MCP in each. Most use
+// the standard `mcpServers` JSON; VS Code uses a `servers` key.
+const MCP_JSON = `{
+  "mcpServers": {
+    "crawlie": { "command": "crawlie-mcp" }
+  }
+}`;
+const VSCODE_JSON = `{
+  "servers": {
+    "crawlie": { "command": "crawlie-mcp" }
+  }
+}`;
+type Agent = { name: string; logo: string; hint: string; snippet: string };
+const agents: Agent[] = [
+  { name: 'Claude Code', logo: '/logos/claude.svg', hint: 'Run in your terminal', snippet: SETUP },
+  { name: 'Claude Desktop', logo: '/logos/claude.svg', hint: 'Add to claude_desktop_config.json', snippet: MCP_JSON },
+  { name: 'Cursor', logo: '/logos/cursor.svg', hint: 'Add to ~/.cursor/mcp.json', snippet: MCP_JSON },
+  { name: 'Windsurf', logo: '/logos/windsurf.svg', hint: 'Add to ~/.codeium/windsurf/mcp_config.json', snippet: MCP_JSON },
+  { name: 'Cline', logo: '/logos/cline.svg', hint: 'Add via MCP Servers → Configure', snippet: MCP_JSON },
+  { name: 'VS Code', logo: '/logos/visualstudiocode.svg', hint: 'Add to .vscode/mcp.json', snippet: VSCODE_JSON },
+];
+---
+
+<BaseLayout
+  title="AI Prompt Library · Crawlie MCP"
+  description="Copy-paste prompts for driving the Crawlie MCP from Claude (or any MCP client) — diagnose-only audits for any chat client, plus end-to-end diagnose-and-fix prompts for Claude Code."
+  canonical="/ai-prompt-library"
+>
+  <SiteHeader />
+
+  <main class="container pl">
+    <header class="pl-head">
+      <p class="eyebrow">Prompt library</p>
+      <h1>Drive Crawlie from your AI agent</h1>
+      <p class="lede">
+        Battle-tested prompts for the Crawlie <a href="/docs/mcp">MCP server</a>. Connect it once,
+        then pick a prompt and swap in your URL.
+      </p>
+
+      <div class="pl-modes">
+        <div class="pl-mode-note">
+          <span class="pl-dot diagnose"></span>
+          <span><strong>Diagnose</strong> — read-only. Works in any client (Claude Desktop, web, Cursor). It crawls and reports.</span>
+        </div>
+        <div class="pl-mode-note">
+          <span class="pl-dot diagnose-fix"></span>
+          <span><strong>Diagnose + fix</strong> — agentic, end-to-end. In <a href="/docs/skills-and-plugin">Claude Code</a> it edits your repo and re-crawls to verify; a chat client hands the changes back.</span>
+        </div>
+      </div>
+
+    </header>
+
+    <section class="pl-connect" id="connect">
+      <div class="pl-cat-head">
+        <h2>Connect your agent</h2>
+        <p>Install the Crawlie MCP once. Run <code>npm i -g crawlie</code> first to put <code>crawlie-mcp</code> on your PATH, then add it to your client. <a href="/docs/mcp">Full setup →</a></p>
+      </div>
+      <div class="agent-grid">
+        {agents.map((a) => (
+          <article class="agent-card">
+            <div class="agent-head">
+              <img class="agent-logo" src={a.logo} alt="" width="22" height="22" loading="lazy" />
+              <h3>{a.name}</h3>
+              <button class="agent-copy" type="button" data-copy={a.snippet} aria-label={`Copy ${a.name} config`}>Copy</button>
+            </div>
+            <p class="agent-hint">{a.hint}</p>
+            <div class="agent-code"><pre><code>{a.snippet}</code></pre></div>
+          </article>
+        ))}
+      </div>
+    </section>
+
+    <div class="pl-filter" role="group" aria-label="Filter prompts by mode">
+      <span class="pl-filter-label">Browse prompts</span>
+      <button type="button" data-filter="all" data-active>All</button>
+      <button type="button" data-filter="diagnose">Diagnose</button>
+      <button type="button" data-filter="diagnose-fix">Diagnose + fix</button>
+    </div>
+
+    {categories.map((c) => (
+      <section class="pl-cat" id={c.id}>
+        <div class="pl-cat-head">
+          <h2>{c.label}</h2>
+          <p>{c.blurb}</p>
+        </div>
+        <div class="pl-grid">
+          {c.prompts.map((p) => (
+            <article class="pl-card" data-mode={p.mode}>
+              <div class="pl-card-top">
+                <h3>{p.title}</h3>
+                <span class={`pl-badge ${p.mode}`}>{MODE_LABEL[p.mode]}</span>
+              </div>
+              <p class="pl-desc">{p.desc}</p>
+              <div class="pl-prompt">
+                <p>{p.prompt}</p>
+              </div>
+              <div class="pl-card-foot">
+                <div class="pl-tools">
+                  {p.tools.map((t) => <code class="pl-tool">{t}</code>)}
+                </div>
+                <button type="button" class="pl-copy" data-copy={p.prompt}>Copy prompt</button>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+    ))}
+
+    <p class="pl-note">
+      Prompts use <code>https://example.com</code> as a placeholder — swap in your own site.
+      New to the MCP? Start with the <a href="/docs/mcp">MCP docs</a> or the
+      <a href="/docs/skills-and-plugin">Claude Code plugin</a> for one-step setup.
+    </p>
+  </main>
+
+  <SiteFooter />
+</BaseLayout>
+
+<script is:inline>
+  (() => {
+    const pills = Array.from(document.querySelectorAll('.pl-filter [data-filter]'));
+    const cards = Array.from(document.querySelectorAll('.pl-card[data-mode]'));
+    const cats = Array.from(document.querySelectorAll('.pl-cat'));
+    if (!pills.length) return;
+    const apply = (mode) => {
+      cards.forEach((c) => { c.hidden = !(mode === 'all' || c.dataset.mode === mode); });
+      cats.forEach((cat) => { cat.hidden = !cat.querySelector('.pl-card:not([hidden])'); });
+      pills.forEach((p) => p.toggleAttribute('data-active', p.dataset.filter === mode));
+    };
+    pills.forEach((p) => p.addEventListener('click', () => apply(p.dataset.filter)));
+  })();
+</script>
+
+<style>
+  .pl { padding-block: 56px 96px; }
+
+  .pl-head { max-width: 760px; }
+  .pl-head h1 {
+    font-family: var(--font-display); font-weight: 500;
+    font-feature-settings: 'calt' 1;
+    font-size: clamp(32px, 5vw, 46px); letter-spacing: -0.01em;
+    color: #fff; margin: 8px 0 14px;
+  }
+  .pl-head .lede { color: var(--muted); font-size: 18px; line-height: 1.6; margin: 0; }
+
+  .pl-modes {
+    margin-top: 24px;
+    display: grid; gap: 10px;
+    padding: 18px 20px;
+    background: var(--panel); border: 1px solid var(--border-soft);
+    border-radius: 12px;
+  }
+  .pl-mode-note {
+    display: flex; align-items: flex-start; gap: 11px;
+    color: var(--muted); font-size: 14px; line-height: 1.5;
+  }
+  .pl-mode-note strong { color: var(--text); font-weight: 600; }
+  .pl-dot {
+    flex: 0 0 auto; width: 9px; height: 9px; border-radius: 999px; margin-top: 6px;
+  }
+  .pl-dot.diagnose { background: var(--baby-blue); }
+  .pl-dot.diagnose-fix { background: var(--green); }
+
+  /* Connect-your-agent install widget */
+  .pl-connect { margin-top: 44px; scroll-margin-top: 84px; }
+  .agent-grid {
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px;
+  }
+  .agent-card {
+    display: flex; flex-direction: column;
+    background: var(--panel); border: 1px solid var(--border-soft);
+    border-radius: 14px; padding: 18px 18px 16px;
+    transition: border-color 0.15s ease;
+  }
+  .agent-card:hover { border-color: color-mix(in srgb, var(--baby-blue) 24%, transparent); }
+  .agent-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .agent-logo { width: 22px; height: 22px; flex: 0 0 auto; opacity: 0.95; }
+  .agent-head h3 { font-size: 15px; font-weight: 600; color: var(--text); margin: 0; letter-spacing: -0.01em; }
+  .agent-copy {
+    margin-left: auto; flex: 0 0 auto;
+    font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+    color: var(--muted); background: var(--panel-2);
+    border: 1px solid var(--border); border-radius: 7px;
+    padding: 4px 10px; cursor: pointer;
+    transition: color 0.15s ease, border-color 0.15s ease;
+  }
+  .agent-copy:hover { color: var(--text); border-color: #3a4658; }
+  .agent-hint {
+    font-family: var(--font-mono); font-size: 12px; color: var(--muted-2);
+    margin: 0 0 12px;
+  }
+  .agent-code {
+    background: var(--bg-soft); border: 1px solid var(--border-soft);
+    border-radius: 10px; padding: 12px 13px; flex: 1;
+  }
+  .agent-code pre { margin: 0; overflow-x: auto; }
+  .agent-code code {
+    font-family: var(--font-mono); font-size: 12.5px; line-height: 1.55;
+    color: #cdd6e2; white-space: pre;
+  }
+  .pl-connect .pl-cat-head p code {
+    font-family: var(--font-mono); font-size: 12.5px; color: var(--text);
+    background: var(--bg-soft); border: 1px solid var(--border-soft);
+    border-radius: 5px; padding: 1px 6px;
+  }
+
+  .pl-filter {
+    margin-top: 48px;
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  }
+  .pl-filter-label {
+    font-family: var(--font-mono); font-size: 12px; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--muted-2); margin-right: 4px;
+  }
+  .pl-filter button {
+    font-family: var(--font-mono); font-size: 12.5px;
+    color: var(--muted); background: transparent; cursor: pointer;
+    padding: 7px 14px;
+    border: 1px solid var(--border-soft); border-radius: 999px;
+    transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+  }
+  .pl-filter button:hover { color: var(--text); }
+  .pl-filter button[data-active] {
+    color: var(--baby-blue);
+    border-color: color-mix(in srgb, var(--baby-blue) 55%, transparent);
+    background: color-mix(in srgb, var(--baby-blue) 10%, transparent);
+  }
+
+  .pl-cat { margin-top: 56px; scroll-margin-top: 84px; }
+  .pl-cat[hidden] { display: none; }
+  .pl-cat-head { max-width: 680px; margin-bottom: 22px; }
+  .pl-cat-head h2 {
+    font-family: var(--font-display); font-weight: 500;
+    font-size: 24px; letter-spacing: -0.01em; color: #fff; margin: 0 0 6px;
+  }
+  .pl-cat-head p { color: var(--muted); font-size: 15.5px; margin: 0; }
+
+  .pl-grid {
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px;
+  }
+
+  .pl-card {
+    display: flex; flex-direction: column;
+    padding: 22px 22px 18px;
+    background: var(--panel);
+    border: 1px solid var(--border-soft);
+    border-radius: 14px;
+    transition: border-color 0.15s ease;
+  }
+  .pl-card[hidden] { display: none; }
+  .pl-card:hover { border-color: color-mix(in srgb, var(--baby-blue) 28%, transparent); }
+  .pl-card-top {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    margin-bottom: 4px;
+  }
+  .pl-card h3 {
+    font-size: 16px; font-weight: 600; color: var(--text); margin: 0;
+    letter-spacing: -0.01em;
+  }
+  .pl-badge {
+    flex: 0 0 auto;
+    font-family: var(--font-mono); font-size: 10.5px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.04em;
+    padding: 3px 8px; border-radius: 6px; white-space: nowrap;
+  }
+  .pl-badge.diagnose {
+    color: var(--baby-blue);
+    background: color-mix(in srgb, var(--baby-blue) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--baby-blue) 24%, transparent);
+  }
+  .pl-badge.diagnose-fix {
+    color: var(--green);
+    background: color-mix(in srgb, var(--green) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--green) 26%, transparent);
+  }
+  .pl-desc { color: var(--muted); font-size: 13.5px; line-height: 1.5; margin: 0 0 14px; }
+
+  .pl-prompt {
+    background: var(--bg-soft);
+    border: 1px solid var(--border-soft);
+    border-radius: 10px;
+    padding: 14px 15px;
+    margin-bottom: 14px;
+    flex: 1;
+  }
+  .pl-prompt p {
+    font-family: var(--font-mono); font-size: 13px; line-height: 1.6;
+    color: #cdd6e2; margin: 0; white-space: pre-wrap;
+  }
+
+  .pl-card-foot {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  }
+  .pl-tools { display: flex; flex-wrap: wrap; gap: 6px; }
+  .pl-tool {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--muted);
+    background: var(--bg-soft);
+    border: 1px solid var(--border-soft);
+    border-radius: 6px; padding: 2px 7px;
+  }
+  .pl-copy {
+    flex: 0 0 auto;
+    font-family: var(--font-mono); font-size: 12px; font-weight: 600;
+    color: #0a0d14; background: #fff; border: 0;
+    border-radius: 8px; padding: 7px 14px; cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  .pl-copy:hover { background: color-mix(in srgb, #000 7%, #fff); }
+
+  .pl-note {
+    margin-top: 56px; padding-top: 24px;
+    border-top: 1px solid var(--border-soft);
+    color: var(--muted-2); font-size: 14px; line-height: 1.6;
+  }
+  .pl-note code {
+    font-family: var(--font-mono); font-size: 12.5px;
+    color: var(--muted); background: var(--panel);
+    border: 1px solid var(--border-soft); border-radius: 5px; padding: 1px 6px;
+  }
+
+  @media (max-width: 760px) {
+    .pl-grid { grid-template-columns: 1fr; }
+  }
+</style>

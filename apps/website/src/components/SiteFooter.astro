@@ -19,7 +19,18 @@ const year = 2026;
   <div class="container cols">
     <div class="about">
       <a href="/" class="brand" aria-label="crawlie home"><BrandLockup height={30} /></a>
-      <p>The free, open-source technical-SEO &amp; GEO crawler — built for humans and agents.</p>
+      <p>The free, open-source technical-SEO &amp; GEO crawler, built for humans and agents.</p>
+      <div class="social-icons">
+        <a class="social-icon" href="https://x.com/CrawlieDev" target="_blank" rel="noopener" aria-label="Crawlie on X">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z"/></svg>
+        </a>
+        <a class="social-icon" href={GITHUB} target="_blank" rel="noopener" aria-label="Crawlie on GitHub">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+        </a>
+        <a class="social-icon" href="https://www.npmjs.com/package/crawlie" target="_blank" rel="noopener" aria-label="crawlie on npm">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M1.763 0C.786 0 0 .786 0 1.763v20.474C0 23.214.786 24 1.763 24h20.474c.977 0 1.763-.786 1.763-1.763V1.763C24 .786 23.214 0 22.237 0zM5.13 5.323l13.837.019-.009 13.836h-3.464l.01-10.382h-3.456L12.04 19.17H5.113z"/></svg>
+        </a>
+      </div>
     </div>
     <div class="group">
       <h4>Product</h4>
@@ -33,6 +44,7 @@ const year = 2026;
       <a href="/docs/getting-started">Getting started</a>
       <a href="/docs/cli">CLI</a>
       <a href="/docs/mcp">MCP server</a>
+      <a href="/ai-prompt-library">Prompt library</a>
       <a href="/docs/skills-and-plugin">Skills &amp; plugin</a>
       <a href="/changelog">Changelog</a>
     </div>
@@ -41,13 +53,6 @@ const year = 2026;
       <a href="/compare">All comparisons</a>
       <a href="/compare/screaming-frog">vs Screaming Frog</a>
       <a href="/compare/sitebulb">vs Sitebulb</a>
-    </div>
-    <div class="group">
-      <h4>Project</h4>
-      <a href={GITHUB} target="_blank" rel="noopener">GitHub</a>
-      <a href="https://www.npmjs.com/package/crawlie" target="_blank" rel="noopener">npm</a>
-      <a href={`${GITHUB}/releases`} target="_blank" rel="noopener">Releases</a>
-      <a href="https://linkedin.com/in/sean-exe" target="_blank" rel="noopener">LinkedIn</a>
     </div>
   </div>
   <div class="container baseline">
@@ -73,7 +78,7 @@ const year = 2026;
   }
   .cols {
     display: grid;
-    grid-template-columns: 1.8fr 1fr 1fr 1fr 1fr;
+    grid-template-columns: 1.8fr 1fr 1fr 1fr;
     gap: 48px;
   }
   .brand {
@@ -129,6 +134,20 @@ const year = 2026;
     padding: 6px 0; transition: color 0.15s ease;
   }
   .group a:hover { color: var(--text); text-decoration: none; }
+  .social-icons { display: flex; gap: 10px; margin-top: 20px; }
+  .about .social-icon {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 38px; height: 38px; padding: 0;
+    border: 1px solid var(--border-soft); border-radius: 999px;
+    color: var(--muted);
+    transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+  }
+  .about .social-icon:hover {
+    color: var(--text); text-decoration: none;
+    border-color: color-mix(in srgb, var(--baby-blue) 50%, transparent);
+    background: color-mix(in srgb, var(--baby-blue) 8%, transparent);
+  }
+  .about .social-icon svg { width: 17px; height: 17px; fill: currentColor; display: block; }
   .baseline {
     display: flex; justify-content: space-between; align-items: center;
     margin-top: 64px; padding-top: 28px;
