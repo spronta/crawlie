@@ -1,5 +1,6 @@
 ---
 import BrandLockup from './BrandLockup.astro';
+import SubscribeForm from './SubscribeForm.astro';
 const GITHUB = 'https://github.com/spronta/crawlie';
 const year = 2026;
 ---
@@ -8,6 +9,10 @@ const year = 2026;
     <div class="about">
       <a href="/" class="brand" aria-label="crawlie home"><BrandLockup height={30} /></a>
       <p>The free, open-source technical-SEO &amp; GEO crawler — built for humans and agents.</p>
+      <div class="foot-subscribe">
+        <h4>Get the biweekly digest</h4>
+        <SubscribeForm />
+      </div>
     </div>
     <div class="group">
       <h4>Product</h4>
@@ -68,6 +73,14 @@ const year = 2026;
   .about p {
     color: var(--muted); font-size: 16.5px; line-height: 1.6;
     max-width: 34ch; margin: 22px 0 0;
+  }
+  .foot-subscribe {
+    margin-top: 26px;
+    max-width: 360px;
+  }
+  .foot-subscribe h4 {
+    font-size: 14.5px; color: var(--text); font-weight: 600;
+    letter-spacing: -0.01em; margin: 0 0 12px;
   }
   .group h4 {
     font-size: 14.5px; color: var(--text); font-weight: 600;

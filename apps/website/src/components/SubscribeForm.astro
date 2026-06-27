@@ -2,7 +2,7 @@
 // Email subscribe form. Posts JSON to the /api/subscribe serverless function,
 // which adds the contact to a Resend audience. Enhanced inline; shows feedback.
 ---
-<form class="subscribe" id="subscribe-form">
+<form class="subscribe">
   <input
     type="email"
     name="email"
@@ -16,38 +16,42 @@
 </form>
 
 <script is:inline>
+  // Bind every subscribe form on the page. Idempotent: the :not([data-bound])
+  // filter means this is safe even when the component renders more than once
+  // (e.g. the changelog panel + the footer), each emitting this inline script.
   (() => {
-    const form = document.getElementById('subscribe-form');
-    if (!form) return;
-    const msg = form.querySelector('[data-msg]');
-    const btn = form.querySelector('button');
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const email = new FormData(form).get('email');
-      btn.disabled = true;
-      msg.textContent = '';
-      delete msg.dataset.ok;
-      try {
-        const res = await fetch('/api/subscribe', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email }),
-        });
-        const data = await res.json().catch(() => ({}));
-        if (res.ok) {
-          form.reset();
-          msg.dataset.ok = 'true';
-          msg.textContent = "You're subscribed. Look out for the biweekly digest.";
-        } else {
+    document.querySelectorAll('form.subscribe:not([data-bound])').forEach((form) => {
+      form.dataset.bound = 'true';
+      const msg = form.querySelector('[data-msg]');
+      const btn = form.querySelector('button');
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = new FormData(form).get('email');
+        btn.disabled = true;
+        msg.textContent = '';
+        delete msg.dataset.ok;
+        try {
+          const res = await fetch('/api/subscribe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (res.ok) {
+            form.reset();
+            msg.dataset.ok = 'true';
+            msg.textContent = "You're subscribed. Look out for the biweekly digest.";
+          } else {
+            msg.dataset.ok = 'false';
+            msg.textContent = data.error || 'Something went wrong. Please try again.';
+          }
+        } catch {
           msg.dataset.ok = 'false';
-          msg.textContent = data.error || 'Something went wrong. Please try again.';
+          msg.textContent = 'Network error. Please try again.';
+        } finally {
+          btn.disabled = false;
         }
-      } catch {
-        msg.dataset.ok = 'false';
-        msg.textContent = 'Network error. Please try again.';
-      } finally {
-        btn.disabled = false;
-      }
+      });
     });
   })();
 </script>
