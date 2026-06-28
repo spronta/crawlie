@@ -4,6 +4,22 @@ All notable changes to crawlie are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.2] - 2026-06-28
+
+Internal link graphs, and crawlie stops tripping over the www redirect.
+
+### Added
+- **Internal link graph.** Every crawl now maps how your pages link to each other: orphan pages (nothing links in), dead ends (nothing links out), reciprocal links, click depth, and your biggest hubs and highest-authority pages by internal PageRank. It shows in the CLI summary and the JSON (`linkGraph`), agents can query it with the new `link_graph` MCP tool, and the desktop app has a new **Link graph** tab you can drag, zoom, and click into.
+- **`dead-end` check.** Flags indexable pages with no internal outlinks: visitors and crawlers arrive and can't go anywhere, and the page passes none of its authority on.
+- **`--no-resolve-host` flag** (and `resolveHost` in config / the MCP) to skip canonical-host resolution and audit the literal start host.
+
+### Changed
+- **Crawls resolve to the canonical host by default.** If your start URL redirects to another host (apex to www, or http to https), crawlie re-bases the audit on the destination and tells you it did, instead of auditing a host that only redirects. The same thing Screaming Frog and Sitebulb do.
+- **Desktop: a page opens as a full view with a breadcrumb**, not a side drawer. Saved Reports gained a sticky header, per-site favicons, and a fixed compare layout.
+
+### Fixed
+- **robots.txt, sitemap.xml and llms.txt behind a redirect are detected now.** Sites that 301/308 these files from the apex to www (or http to https) were wrongly reported as missing. crawlie now follows the redirect, the way search engines do. Thanks to [@fakebizprez](https://github.com/fakebizprez) for reporting it ([#3](https://github.com/spronta/crawlie/issues/3)).
+
 ## [0.5.1] - 2026-06-26
 
 The desktop app got a glow-up, and crawlie finally learned some manners about what not to crawl.
