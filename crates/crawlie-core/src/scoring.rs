@@ -1,9 +1,7 @@
 //! Scoring: a per-page GEO (Generative Engine Optimization) readiness score and
 //! an overall site health score. Both are 0–100 and intentionally explainable.
 
-use crate::types::{
-    Category, CrawlResult, GeoGaps, Issue, LinkGraph, LinkNode, Page, Severity,
-};
+use crate::types::{Category, CrawlResult, GeoGaps, Issue, LinkGraph, LinkNode, Page, Severity};
 use std::collections::{HashMap, HashSet};
 use url::Url;
 
