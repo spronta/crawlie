@@ -74,6 +74,10 @@ struct CrawlArgs {
     /// Don't seed the crawl from sitemap.xml.
     #[arg(long)]
     no_sitemap: bool,
+    /// Don't follow the seed's redirect to its canonical host (apex→www,
+    /// http→https). Audit the literal start host instead.
+    #[arg(long)]
+    no_resolve_host: bool,
     /// Only crawl URLs matching this glob (repeatable).
     #[arg(long)]
     include: Vec<String>,
@@ -360,6 +364,7 @@ async fn run_crawl(a: CrawlArgs) -> ExitCode {
         check_external: !a.no_external,
         respect_robots: !a.no_robots,
         use_sitemap: !a.no_sitemap,
+        resolve_host: !a.no_resolve_host,
         include: a.include,
         exclude: a.exclude,
         exclude_hosts: filters(a.exclude_host, a.exclude_host_regex),
@@ -992,6 +997,12 @@ fn render_pretty(r: &CrawlResult, min: Option<u8>) -> String {
         },
         if r.llms_txt_found { "found" } else { "none" }
     ));
+    if let Some(from) = &r.seed_redirected_from {
+        out.push_str(&format!(
+            "  ↪ {from} redirects to its canonical host — audited {}\n",
+            r.config.url
+        ));
+    }
     out.push('\n');
 
     // Prioritized action plan — the highest-impact fixes first.
@@ -1011,6 +1022,39 @@ fn render_pretty(r: &CrawlResult, min: Option<u8>) -> String {
         out.push_str("  Status codes\n");
         for (code, n) in &s.by_status {
             out.push_str(&format!("    {code:<6} {n}\n"));
+        }
+        out.push('\n');
+    }
+
+    let g = &r.link_graph;
+    if !g.nodes.is_empty() {
+        out.push_str("  Link graph\n");
+        out.push_str(&format!(
+            "    {} nodes · {} edges · {:.1} avg outlinks · max depth {}\n",
+            g.nodes.len(),
+            g.edges.len(),
+            g.avg_outlinks,
+            g.max_depth
+        ));
+        out.push_str(&format!(
+            "    {} orphans · {} dead ends · {} reciprocal pairs\n",
+            g.orphans, g.dead_ends, g.reciprocal_pairs
+        ));
+        let auth: Vec<_> = g
+            .top_authorities
+            .iter()
+            .filter_map(|&i| g.nodes.get(i as usize))
+            .take(3)
+            .collect();
+        if !auth.is_empty() {
+            out.push_str("    Top authority\n");
+            for node in auth {
+                out.push_str(&format!(
+                    "      {:>3.0}  {}\n",
+                    node.link_score,
+                    truncate(&node.url, 58)
+                ));
+            }
         }
         out.push('\n');
     }

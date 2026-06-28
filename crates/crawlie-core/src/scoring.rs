@@ -1,7 +1,9 @@
 //! Scoring: a per-page GEO (Generative Engine Optimization) readiness score and
 //! an overall site health score. Both are 0–100 and intentionally explainable.
 
-use crate::types::{Category, CrawlResult, GeoGaps, Issue, Page, Severity};
+use crate::types::{
+    Category, CrawlResult, GeoGaps, Issue, LinkGraph, LinkNode, Page, Severity,
+};
 use std::collections::{HashMap, HashSet};
 use url::Url;
 
@@ -39,6 +41,93 @@ pub fn link_scores(pages: &[Page]) -> Vec<f32> {
         }
     }
     pagerank(&out)
+}
+
+/// Assemble the internal-link graph from finished pages: a node per page, a
+/// directed edge per resolved internal link, plus structure analytics (orphans,
+/// dead-ends, reciprocity, top hubs/authorities). Uses the same URL resolution
+/// as [`link_scores`], so the edges match the PageRank adjacency.
+pub fn build_link_graph(pages: &[Page]) -> LinkGraph {
+    let n = pages.len();
+    if n == 0 {
+        return LinkGraph::default();
+    }
+    let mut idx: HashMap<String, usize> = HashMap::new();
+    for (i, p) in pages.iter().enumerate() {
+        idx.entry(norm(&p.final_url)).or_insert(i);
+        idx.entry(norm(&p.url)).or_insert(i);
+    }
+    // Resolved adjacency (dedup, no self-loops) — same shape PageRank uses.
+    let mut adj: Vec<Vec<usize>> = vec![Vec::new(); n];
+    for (i, p) in pages.iter().enumerate() {
+        let mut seen = HashSet::new();
+        for l in &p.internal_links {
+            if let Some(&j) = idx.get(&norm(l)) {
+                if j != i && seen.insert(j) {
+                    adj[i].push(j);
+                }
+            }
+        }
+    }
+    let mut edge_set: HashSet<(usize, usize)> = HashSet::new();
+    let mut edges: Vec<[u32; 2]> = Vec::new();
+    for (i, outs) in adj.iter().enumerate() {
+        for &j in outs {
+            edge_set.insert((i, j));
+            edges.push([i as u32, j as u32]);
+        }
+    }
+    let reciprocal_pairs = edge_set
+        .iter()
+        .filter(|&&(i, j)| i < j && edge_set.contains(&(j, i)))
+        .count();
+
+    let mut nodes: Vec<LinkNode> = Vec::with_capacity(n);
+    let (mut orphans, mut dead_ends, mut max_depth, mut total_out) = (0, 0, 0, 0usize);
+    for (i, p) in pages.iter().enumerate() {
+        let outlinks = adj[i].len();
+        total_out += outlinks;
+        let orphan = p.depth > 0 && p.inlinks == 0;
+        let dead_end = p.status == 200 && p.indexable && p.internal_links.is_empty();
+        orphans += orphan as usize;
+        dead_ends += dead_end as usize;
+        max_depth = max_depth.max(p.depth);
+        nodes.push(LinkNode {
+            url: p.final_url.clone(),
+            depth: p.depth,
+            inlinks: p.inlinks,
+            outlinks,
+            link_score: p.link_score,
+            indexable: p.indexable,
+            status: p.status,
+            orphan,
+            dead_end,
+        });
+    }
+
+    let mut top_authorities: Vec<u32> = (0..n as u32).collect();
+    top_authorities.sort_by(|&a, &b| {
+        nodes[b as usize]
+            .link_score
+            .partial_cmp(&nodes[a as usize].link_score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+    top_authorities.truncate(10);
+    let mut top_hubs: Vec<u32> = (0..n as u32).collect();
+    top_hubs.sort_by(|&a, &b| nodes[b as usize].outlinks.cmp(&nodes[a as usize].outlinks));
+    top_hubs.truncate(10);
+
+    LinkGraph {
+        nodes,
+        edges,
+        orphans,
+        dead_ends,
+        max_depth,
+        avg_outlinks: total_out as f32 / n as f32,
+        reciprocal_pairs,
+        top_authorities,
+        top_hubs,
+    }
 }
 
 /// PageRank over an explicit adjacency list (`adj[i]` = the page indices that
@@ -170,6 +259,7 @@ pub fn recompute(result: &mut CrawlResult) {
     }
     result.summary.geo_score = site_geo_score(&result.pages);
     result.summary.health_score = health_score(&result.pages, &result.issues);
+    result.link_graph = build_link_graph(&result.pages);
 }
 
 /// Count how many indexable HTML pages lack each GEO signal, so agents get the

@@ -286,6 +286,7 @@ fn robots_path(u: &Url) -> String {
 struct Prep {
     seed: Url,
     host: String,
+    seed_redirected_from: Option<String>,
     client: reqwest::Client,
     renderer: Option<Arc<Renderer>>,
     filters: ExcludeFilters,
@@ -311,21 +312,40 @@ where
     let filters = ExcludeFilters::build(config).map_err(CrawlError::Config)?;
 
     // Resolve the seed(s) and host depending on mode.
-    let seeds: Vec<String> = match config.mode {
+    let mut seeds: Vec<String> = match config.mode {
         CrawlMode::List if !config.urls.is_empty() => config.urls.clone(),
         _ => vec![config.url.clone()],
     };
     let first = seeds.first().cloned().unwrap_or_default();
-    let seed = Url::parse(&first).map_err(|e| CrawlError::InvalidUrl(e.to_string()))?;
+    let mut seed = Url::parse(&first).map_err(|e| CrawlError::InvalidUrl(e.to_string()))?;
     if seed.scheme() != "http" && seed.scheme() != "https" {
         return Err(CrawlError::InvalidUrl("URL must be http or https".into()));
     }
-    let host = seed
+    let mut host = seed
         .host_str()
         .ok_or_else(|| CrawlError::InvalidUrl("URL is missing a host".into()))?
         .to_string();
     let client = build_client(&config.user_agent, config.timeout_secs)
         .map_err(|e| CrawlError::Client(e.to_string()))?;
+
+    // Resolve the seed to its canonical host. Many sites 301/308 the apex to
+    // `www` (or http→https); without this the audit keys robots/sitemap/llms and
+    // scope off a host that only redirects. Disable with `resolve_host = false`.
+    let mut seed_redirected_from: Option<String> = None;
+    if config.resolve_host && config.mode != CrawlMode::List {
+        if let Ok(outcome) = crate::fetch::fetch(&client, &seed, 6).await {
+            if let Some(fhost) = outcome.final_url.host_str() {
+                if !fhost.eq_ignore_ascii_case(&host) {
+                    seed_redirected_from = Some(seed.to_string());
+                    host = fhost.to_string();
+                    seed = outcome.final_url.clone();
+                    if let Some(first) = seeds.first_mut() {
+                        *first = seed.to_string();
+                    }
+                }
+            }
+        }
+    }
 
     // Launch the headless browser once, up front, so a misconfigured render mode
     // fails the crawl immediately instead of after fetching the seed.
@@ -425,6 +445,7 @@ where
     Ok(Prep {
         seed,
         host,
+        seed_redirected_from,
         client,
         renderer,
         filters,
@@ -444,7 +465,7 @@ where
 /// Run a full crawl + audit. `on_event` receives streaming progress; `cancel`
 /// can stop the crawl early (the partial result is still returned).
 pub async fn crawl<F>(
-    config: CrawlConfig,
+    mut config: CrawlConfig,
     mut on_event: F,
     cancel: CancelToken,
 ) -> Result<CrawlResult, CrawlError>
@@ -456,6 +477,7 @@ where
     let Prep {
         seed,
         host,
+        seed_redirected_from,
         client,
         renderer,
         filters,
@@ -691,6 +713,12 @@ where
     }
 
     let summary = build_summary(&pages, &issues, start.elapsed().as_millis() as u64);
+    let link_graph = crate::scoring::build_link_graph(&pages);
+    // Reflect the resolved host in the stored config so the report is about the
+    // host we actually audited; `seed_redirected_from` keeps the original.
+    if seed_redirected_from.is_some() {
+        config.url = seed.to_string();
+    }
     on_event(CrawlEvent::Done {
         summary: summary.clone(),
     });
@@ -705,6 +733,8 @@ where
         sitemap_found,
         robots_blocked,
         llms_txt_found,
+        link_graph,
+        seed_redirected_from,
         started_at,
     })
 }
@@ -720,7 +750,7 @@ where
 /// `pages`** — the pages are the store, which is returned alongside it as the
 /// queryable artifact. Audit output is identical to [`crawl`].
 pub async fn crawl_to_store<F>(
-    config: CrawlConfig,
+    mut config: CrawlConfig,
     store_path: impl AsRef<std::path::Path>,
     mut on_event: F,
     cancel: CancelToken,
@@ -735,6 +765,7 @@ where
     let Prep {
         seed,
         host,
+        seed_redirected_from,
         client,
         renderer,
         filters,
@@ -1011,6 +1042,9 @@ where
         summary: summary.clone(),
     });
 
+    if seed_redirected_from.is_some() {
+        config.url = seed.to_string();
+    }
     let result = CrawlResult {
         config,
         pages: Vec::new(),
@@ -1021,6 +1055,10 @@ where
         sitemap_found,
         robots_blocked,
         llms_txt_found,
+        // Streaming crawls keep pages on disk, not in RAM, so the in-memory graph
+        // is left empty here (this path is for sites too large to hold anyway).
+        link_graph: crate::types::LinkGraph::default(),
+        seed_redirected_from,
         started_at,
     };
     // Persist the findings + metadata so the .db is a complete, queryable crawl.

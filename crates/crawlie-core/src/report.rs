@@ -492,6 +492,8 @@ mod tests {
             sitemap_found: false,
             robots_blocked: vec![],
             llms_txt_found: false,
+            link_graph: Default::default(),
+            seed_redirected_from: None,
             started_at,
         }
     }

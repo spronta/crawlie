@@ -129,10 +129,10 @@ export function App() {
 
       <div className="content">
         <UpdateBanner />
-        <main className={`main${phase.name === "done" ? " flush" : ""}`}>
+        <main className={`main${phase.name === "done" || phase.name === "reports" ? " flush" : ""}`}>
         {phase.name === "idle" && <StartView onStart={start} />}
         {phase.name === "crawling" && <CrawlingView config={phase.config} progress={phase.progress} onCancel={cancel} />}
-        {phase.name === "done" && <ResultsView result={phase.result} onReset={reset} />}
+        {phase.name === "done" && <ResultsView result={phase.result} onReset={reset} onReports={() => setPhase({ name: "reports" })} />}
         {phase.name === "reports" && <ReportsView onBack={reset} onOpen={(r) => setPhase({ name: "done", result: r })} />}
         {phase.name === "settings" && <SettingsView onBack={reset} />}
         {phase.name === "error" && (

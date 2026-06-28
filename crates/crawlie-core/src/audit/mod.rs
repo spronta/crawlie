@@ -471,6 +471,16 @@ pub fn audit_one(
                 Some("No internal inlinks".into()),
             ));
         }
+        if p.status == 200 && p.indexable && is_html && p.internal_links.is_empty() {
+            out.push(issue(
+                "dead-end",
+                "Dead End",
+                Links,
+                Notice,
+                u,
+                Some("No internal outlinks".into()),
+            ));
+        }
         if p.depth > DEEP {
             out.push(issue(
                 "deep-page",

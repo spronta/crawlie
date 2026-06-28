@@ -336,6 +336,11 @@ a:hover {
   flex-direction: column;
   gap: var(--sp-4);
 }
+/* Breadcrumb-only bar (page detail) has no tabs sitting on the border, so it
+   needs its own bottom padding to breathe above the divider. */
+.report-bar-inner.crumbs-only {
+  padding-bottom: var(--sp-4);
+}
 .report-bar .tabs {
   border-bottom: none;
 }
@@ -344,6 +349,38 @@ a:hover {
   font: var(--heading-16);
   font-weight: 600;
   letter-spacing: -0.01em;
+}
+/* Breadcrumb in the page-detail bar. */
+.crumbs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 13px;
+}
+.crumb-link {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--text-tertiary);
+  font-size: 13px;
+  transition: color var(--t-fast, 0.12s) ease;
+}
+.crumb-link:hover {
+  color: var(--text);
+}
+.crumb-sep {
+  color: var(--text-tertiary);
+  user-select: none;
+}
+.crumb-current {
+  color: var(--text);
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 420px;
 }
 .report-body {
   flex: 1;
@@ -1113,8 +1150,16 @@ table.grid tbody tr:last-child td {
   cursor: pointer;
   transition: background var(--t-fast);
 }
+/* Compare mode prepends a select dot, so the flexible column moves to the main
+   cell (otherwise the dot lands in the 1fr slot and shoves everything right). */
+.report-row.compare { grid-template-columns: auto 1fr auto auto; }
 .report-row:hover { background: var(--bg-subtle); }
 .report-row:last-child { border-bottom: none; }
+.report-main { display: flex; align-items: center; gap: var(--sp-3); min-width: 0; }
+.report-fav {
+  width: 22px; height: 22px; flex: none; border-radius: 5px;
+  background: var(--bg-2); object-fit: contain;
+}
 .report-row .ru { font: var(--label-14); }
 .report-row .rd { font: var(--label-12); color: var(--text-tertiary); font-family: var(--font-mono); }
 .mini-score { display: flex; align-items: baseline; gap: 4px; font-family: var(--font-mono); }

@@ -62,6 +62,10 @@ entries! {
         "No internal links point to this page, so users and crawlers can only reach it via the sitemap or external links. Orphans get crawled rarely and rank poorly.",
         "Add internal links to the page from relevant, in-context locations (navigation, related content, hub pages).",
         "Reduced discoverability, crawl frequency, and ranking potential.";
+    "dead-end" => "Dead End", Links, Notice,
+        "This page links out to no other internal pages, so it's a dead end: visitors and crawlers that arrive have nowhere to go next, and the page passes none of its authority (PageRank) on to the rest of the site.",
+        "Add relevant, in-context internal links to related content, hub pages, or logical next steps so authority and visitors flow onward.",
+        "Trapped crawl paths, wasted link equity, and dead-end user journeys.";
     "deep-page" => "Deep Page", Links, Notice,
         "This page is many clicks from the homepage. Pages buried deep in the architecture receive less crawl attention and less internal link equity.",
         "Flatten your site architecture so important pages sit within ~3 clicks of the homepage via hub pages and contextual links.",

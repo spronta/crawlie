@@ -59,18 +59,24 @@ export function ReportsView({ onBack, onOpen }: { onBack: () => void; onOpen: (r
   const canDiff = selected.length === 2;
 
   return (
-    <div className="section-gap" style={{ maxWidth: 860, margin: "0 auto" }}>
-      <div className="row between">
-        <h1 className="h1">Saved reports</h1>
-        <div className="row" style={{ gap: 8 }}>
-          {reports && reports.length >= 2 && (
-            <button className={`btn btn-sm ${compare ? "btn-primary" : "btn-secondary"}`} onClick={toggleCompare}>
-              <IconCompare size={15} /> {compare ? "Cancel" : "Compare"}
-            </button>
-          )}
-          <button className="btn btn-secondary btn-sm" onClick={onBack}><IconBack size={15} /> Back</button>
+    <>
+      <div className="report-bar">
+        <div className="report-bar-inner crumbs-only">
+          <div className="row between" style={{ alignItems: "center" }} data-tauri-drag-region>
+            <h1 style={{ margin: 0, font: "var(--heading-16)", letterSpacing: "-0.01em" }}>Saved reports</h1>
+            <div className="row" style={{ gap: 8 }}>
+              {reports && reports.length >= 2 && (
+                <button className={`btn btn-sm ${compare ? "btn-primary" : "btn-secondary"}`} onClick={toggleCompare}>
+                  <IconCompare size={15} /> {compare ? "Cancel" : "Compare"}
+                </button>
+              )}
+              <button className="btn btn-secondary btn-sm" onClick={onBack}><IconBack size={15} /> Back</button>
+            </div>
+          </div>
         </div>
       </div>
+      <div className="report-body">
+        <div className="section-gap" style={{ maxWidth: 860, margin: "0 auto", width: "100%", padding: "var(--sp-5)" }}>
 
       {compare && (
         <div className="card card-pad row between" style={{ alignItems: "center" }}>
@@ -98,15 +104,24 @@ export function ReportsView({ onBack, onOpen }: { onBack: () => void; onOpen: (r
           {reports.map((r) => {
             const sel = selected.includes(r.id);
             return (
-              <div className={`report-row${compare && sel ? " selected" : ""}`} key={r.id} onClick={() => rowClick(r.id)}>
+              <div className={`report-row${compare ? " compare" : ""}${compare && sel ? " selected" : ""}`} key={r.id} onClick={() => rowClick(r.id)}>
                 {compare && (
                   <span className={`select-dot${sel ? " on" : ""}`} aria-hidden>
                     {sel && <IconCheck />}
                   </span>
                 )}
-                <div className="col" style={{ gap: 3, minWidth: 0, flex: 1 }}>
-                  <span className="ru">{hostOf(r.url)}</span>
-                  <span className="rd">{fmtDate(r.createdAt)} · {r.totalPages} pages · {r.errors} errors</span>
+                <div className="report-main">
+                  <img
+                    className="report-fav"
+                    src={faviconUrl(r.url)}
+                    alt=""
+                    loading="lazy"
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = "hidden"; }}
+                  />
+                  <div className="col" style={{ gap: 3, minWidth: 0 }}>
+                    <span className="ru">{hostOf(r.url)}</span>
+                    <span className="rd">{fmtDate(r.createdAt)} · {r.totalPages} pages · {r.errors} errors</span>
+                  </div>
                 </div>
                 <Score label="Health" value={r.healthScore} />
                 <Score label="GEO" value={r.geoScore} />
@@ -135,7 +150,9 @@ export function ReportsView({ onBack, onOpen }: { onBack: () => void; onOpen: (r
         .diff-item { display: flex; align-items: center; gap: 8px; }
         .diff-url { font-family: var(--font-mono, monospace); font-size: 12px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       `}</style>
-    </div>
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -245,6 +262,14 @@ function hostOf(url: string): string {
     return new URL(url).host;
   } catch {
     return url;
+  }
+}
+function faviconUrl(url: string): string {
+  try {
+    const host = new URL(url).host;
+    return `https://www.google.com/s2/favicons?domain=${host}&sz=64`;
+  } catch {
+    return "";
   }
 }
 function pathOf(url: string): string {

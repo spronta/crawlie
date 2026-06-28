@@ -203,23 +203,47 @@ pub async fn fetch(
     }
 }
 
-/// Cheap liveness check for link verification: HEAD, falling back to GET when a
-/// server rejects HEAD. Returns `0` for connection-level failures.
+/// Liveness check that follows redirects (the client has auto-redirects
+/// disabled), returning the *final* HTTP status. Uses HEAD, falling back to GET
+/// when a server rejects HEAD; returns `0` for connection-level failures.
+///
+/// Following redirects matters for special-file detection (robots.txt,
+/// sitemap.xml, llms.txt): many sites 301 the apex to `www` (or http→https), so
+/// `https://example.com/llms.txt` → 301 → `https://www.example.com/llms.txt`
+/// (200). The file still exists, so the chain must resolve to its terminal 200.
 pub async fn check_status(client: &Client, url: &Url) -> u16 {
-    match client.head(url.clone()).send().await {
-        Ok(r) => {
-            let s = r.status().as_u16();
-            if s == 405 || s == 501 {
-                match client.get(url.clone()).send().await {
-                    Ok(r2) => r2.status().as_u16(),
-                    Err(_) => 0,
+    let mut current = url.clone();
+    for _ in 0..6 {
+        let resp = match client.head(current.clone()).send().await {
+            Ok(r) => r,
+            Err(_) => return 0,
+        };
+        // Some servers reject HEAD — retry the same URL with GET.
+        let (status, resp) = if matches!(resp.status().as_u16(), 405 | 501) {
+            match client.get(current.clone()).send().await {
+                Ok(r) => (r.status().as_u16(), r),
+                Err(_) => return 0,
+            }
+        } else {
+            (resp.status().as_u16(), resp)
+        };
+
+        if (300..400).contains(&status) {
+            if let Some(next) = resp
+                .headers()
+                .get(header::LOCATION)
+                .and_then(|v| v.to_str().ok())
+                .and_then(|loc| current.join(loc).ok())
+            {
+                if next != current {
+                    current = next;
+                    continue;
                 }
-            } else {
-                s
             }
         }
-        Err(_) => 0,
+        return status;
     }
+    0
 }
 
 #[cfg(test)]

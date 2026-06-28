@@ -157,6 +157,31 @@ export interface Summary {
   durationMs: number;
 }
 
+export interface LinkNode {
+  url: string;
+  depth: number;
+  inlinks: number;
+  outlinks: number;
+  linkScore: number;
+  indexable: boolean;
+  status: number;
+  orphan: boolean;
+  deadEnd: boolean;
+}
+
+export interface LinkGraph {
+  nodes: LinkNode[];
+  /** Directed edges as [fromIndex, toIndex] into `nodes`. */
+  edges: [number, number][];
+  orphans: number;
+  deadEnds: number;
+  maxDepth: number;
+  avgOutlinks: number;
+  reciprocalPairs: number;
+  topAuthorities: number[];
+  topHubs: number[];
+}
+
 export interface CrawlResult {
   config: CrawlConfig;
   pages: Page[];
@@ -166,6 +191,7 @@ export interface CrawlResult {
   sitemapUrls: number;
   robotsBlocked: string[];
   llmsTxtFound: boolean;
+  linkGraph?: LinkGraph;
   startedAt: number;
 }
 

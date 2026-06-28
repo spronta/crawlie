@@ -76,6 +76,11 @@ pub struct CrawlConfig {
     /// Seed the crawl from the site's sitemap.xml in addition to the homepage.
     #[serde(default = "default_true")]
     pub use_sitemap: bool,
+    /// Resolve the seed's redirect to its canonical host before crawling (e.g.
+    /// apex → www, http → https). Re-bases scope and the robots/sitemap/llms
+    /// checks on the destination host. Disable to audit the literal start host.
+    #[serde(default = "default_true")]
+    pub resolve_host: bool,
     /// Only crawl URLs whose path contains one of these (substring/glob, `*` ok).
     #[serde(default)]
     pub include: Vec<String>,
@@ -160,6 +165,7 @@ impl CrawlConfig {
             check_external: true,
             respect_robots: true,
             use_sitemap: true,
+            resolve_host: true,
             include: Vec::new(),
             exclude: Vec::new(),
             exclude_hosts: Vec::new(),
@@ -473,8 +479,62 @@ pub struct CrawlResult {
     /// Whether the site publishes an `/llms.txt` (AI-engine guidance file).
     #[serde(default)]
     pub llms_txt_found: bool,
+    /// The internal-link graph: nodes, edges, and structure analytics. Rebuilt
+    /// on report load, so older reports gain it without a re-crawl.
+    #[serde(default)]
+    pub link_graph: LinkGraph,
+    /// When the seed redirected to a different host and the crawl re-based on it
+    /// (apex → www, http → https), the original start URL. `None` otherwise.
+    #[serde(default)]
+    pub seed_redirected_from: Option<String>,
     /// Unix-ms timestamp the crawl started.
     pub started_at: u64,
+}
+
+/// The internal-link graph for a crawl: every crawled page as a node, every
+/// resolved internal link as a directed edge, plus structure analytics. The
+/// raw signals (`inlinks`, `linkScore`, `depth`) live on each [`Page`]; this
+/// assembles them into a graph the desktop can draw and agents can query.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LinkGraph {
+    /// One node per crawled page, in `pages` order (so `nodes[i]` ↔ `pages[i]`).
+    pub nodes: Vec<LinkNode>,
+    /// Directed internal-link edges as `[fromIndex, toIndex]` into `nodes`.
+    pub edges: Vec<[u32; 2]>,
+    /// Indexable pages with no internal inlinks (reachable only via sitemap).
+    pub orphans: usize,
+    /// Indexable pages with no internal outlinks (they pass on no authority).
+    pub dead_ends: usize,
+    /// Greatest click depth from the seed.
+    pub max_depth: usize,
+    /// Mean resolved internal outlinks per page.
+    pub avg_outlinks: f32,
+    /// Count of A→B pairs where B also links back to A.
+    pub reciprocal_pairs: usize,
+    /// Node indices of the highest-authority pages (by `linkScore`), descending.
+    pub top_authorities: Vec<u32>,
+    /// Node indices of the biggest hubs (by outlinks), descending.
+    pub top_hubs: Vec<u32>,
+}
+
+/// One page as a node in the [`LinkGraph`].
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LinkNode {
+    pub url: String,
+    pub depth: usize,
+    pub inlinks: usize,
+    /// Resolved internal outlinks (edges to other crawled pages).
+    pub outlinks: usize,
+    /// Internal PageRank authority, 0–100.
+    pub link_score: f32,
+    pub indexable: bool,
+    pub status: u16,
+    /// No internal inlinks point here.
+    pub orphan: bool,
+    /// No internal outlinks leave here.
+    pub dead_end: bool,
 }
 
 /// Site-wide GEO gap analysis: how many indexable pages lack each AI-readiness

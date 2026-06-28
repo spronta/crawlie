@@ -22,16 +22,41 @@ impl Robots {
     /// Fetch and parse `/robots.txt` for `base`. Always returns a value; on any
     /// failure it's an empty (allow-all) ruleset with `found = false`.
     pub async fn fetch(client: &Client, base: &Url, user_agent: &str) -> Robots {
-        let Ok(robots_url) = base.join("/robots.txt") else {
+        let Ok(mut current) = base.join("/robots.txt") else {
             return Robots::default();
         };
-        let body = match client.get(robots_url).send().await {
-            Ok(r) if r.status().is_success() => r.text().await.unwrap_or_default(),
-            _ => return Robots::default(),
-        };
-        let mut robots = Robots::parse(&body, user_agent);
-        robots.found = true;
-        robots
+        // The client has auto-redirects disabled, so follow them by hand: many
+        // sites 301 the apex to `www` (or http→https), and the robots.txt still
+        // exists at the destination. Without this it reads as missing.
+        for _ in 0..6 {
+            let resp = match client.get(current.clone()).send().await {
+                Ok(r) => r,
+                Err(_) => return Robots::default(),
+            };
+            let status = resp.status();
+            if status.is_redirection() {
+                let next = resp
+                    .headers()
+                    .get(reqwest::header::LOCATION)
+                    .and_then(|v| v.to_str().ok())
+                    .and_then(|loc| current.join(loc).ok());
+                match next {
+                    Some(n) if n != current => {
+                        current = n;
+                        continue;
+                    }
+                    _ => return Robots::default(),
+                }
+            }
+            if status.is_success() {
+                let body = resp.text().await.unwrap_or_default();
+                let mut robots = Robots::parse(&body, user_agent);
+                robots.found = true;
+                return robots;
+            }
+            return Robots::default();
+        }
+        Robots::default()
     }
 
     /// Parse robots.txt text, selecting the most specific matching user-agent

@@ -4,14 +4,15 @@ import type { Category, CrawlResult, GeoSignals, Issue, Page, Severity } from ".
 import { CATEGORY_LABELS } from "../lib/types";
 import { ruleInfo } from "../lib/rules";
 import { Donut, StackedBars, ProportionBar } from "../components/charts";
-import { IconDownload, IconRefresh, IconShare, IconX, ScoreRing, SeverityBadge, StatusPill } from "../components/ui";
-import { exportHtml, isTauri } from "../lib/api";
+import { IconDownload, IconExternal, IconRefresh, IconShare, IconX, ScoreRing, SeverityBadge, StatusPill } from "../components/ui";
+import { exportHtml, isTauri, openExternal } from "../lib/api";
 import { topFixes } from "../lib/priority";
 import { bytes, ms, num, severityRank, shortUrl } from "../lib/format";
+import { LinkGraphView } from "./LinkGraphView";
 
-type Tab = "overview" | "issues" | "pages";
+type Tab = "overview" | "issues" | "pages" | "graph";
 
-export function ResultsView({ result, onReset }: { result: CrawlResult; onReset: () => void }) {
+export function ResultsView({ result, onReset, onReports }: { result: CrawlResult; onReset: () => void; onReports: () => void }) {
   const [tab, setTab] = useState<Tab>("overview");
   const [page, setPage] = useState<Page | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -58,12 +59,36 @@ export function ResultsView({ result, onReset }: { result: CrawlResult; onReset:
 
   const issueCount = result.issues.filter((i) => i.severity !== "good").length;
 
+  // Clicking a page opens a dedicated full-screen detail view (with a sticky
+  // breadcrumb), not a side drawer.
+  if (page) {
+    return (
+      <PageDetail
+        page={page}
+        issues={result.issues.filter((i) => i.url === page.url)}
+        reportName={hostOf(result.config.url)}
+        crumb={tab === "graph" ? "Link graph" : tab === "issues" ? "Issues" : "Pages"}
+        onBack={() => setPage(null)}
+        onReports={onReports}
+      />
+    );
+  }
+
   return (
     <>
       <div className="report-bar">
         <div className="report-bar-inner">
           <div className="row between wrap" style={{ gap: "var(--sp-3)" }} data-tauri-drag-region>
-        <div className="col" style={{ gap: 4 }} data-tauri-drag-region>
+        <div className="row" style={{ gap: 12, alignItems: "center", minWidth: 0 }} data-tauri-drag-region>
+        <img
+          className="report-fav"
+          style={{ width: 28, height: 28 }}
+          src={faviconUrl(result.config.url)}
+          alt=""
+          loading="lazy"
+          onError={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = "hidden"; }}
+        />
+        <div className="col" style={{ gap: 4, minWidth: 0 }} data-tauri-drag-region>
           <h1 className="h1" data-tauri-drag-region>{hostOf(result.config.url)}</h1>
           <span className="mono muted" style={{ fontSize: 13 }} data-tauri-drag-region>
             {result.startedAt ? `${fmtWhen(result.startedAt)} · ` : ""}
@@ -72,6 +97,7 @@ export function ResultsView({ result, onReset }: { result: CrawlResult; onReset:
             {result.sitemapUrls > 0 ? ` · ${num(result.sitemapUrls)} sitemap URLs` : ""}
             {result.llmsTxtFound ? " · llms.txt ✓" : ""}
           </span>
+        </div>
         </div>
         <div className="row">
           <button className="btn btn-secondary btn-sm" onClick={() => download("csv")}><IconDownload size={15} /> CSV</button>
@@ -85,13 +111,16 @@ export function ResultsView({ result, onReset }: { result: CrawlResult; onReset:
             <Tabish id="overview" tab={tab} set={setTab}>Overview</Tabish>
             <Tabish id="issues" tab={tab} set={setTab} count={issueCount}>Issues</Tabish>
             <Tabish id="pages" tab={tab} set={setTab} count={result.pages.length}>Pages</Tabish>
+            {result.linkGraph && result.linkGraph.nodes.length > 0 && (
+              <Tabish id="graph" tab={tab} set={setTab}>Link graph</Tabish>
+            )}
           </div>
         </div>
       </div>
 
       {toast && <div className="toast">{toast}</div>}
 
-      <div className={`report-body${tab === "pages" ? " wide" : ""}`}>
+      <div className={`report-body${tab === "pages" || tab === "graph" ? " wide" : ""}`}>
       {tab === "overview" && <Overview result={result} onCategory={goCategory} onSeverity={goSeverity} onStatus={goStatus} onDepth={goDepth} />}
       {tab === "issues" && (
         <Issues
@@ -113,9 +142,11 @@ export function ResultsView({ result, onReset }: { result: CrawlResult; onReset:
           onOpen={setPage}
         />
       )}
+      {tab === "graph" && (
+        <LinkGraphView result={result} onOpenUrl={(u) => openByUrl(result, u, setPage, setTab)} />
+      )}
 
       </div>
-      {page && <PageDrawer page={page} issues={result.issues.filter((i) => i.url === page.url)} onClose={() => setPage(null)} />}
     </>
   );
 }
@@ -500,25 +531,54 @@ function Pages({
 }
 
 /* ---------------- Drawer ---------------- */
-function PageDrawer({ page, issues, onClose }: { page: Page; issues: Issue[]; onClose: () => void }) {
+function PageDetail({
+  page,
+  issues,
+  reportName,
+  crumb,
+  onBack,
+  onReports,
+}: {
+  page: Page;
+  issues: Issue[];
+  reportName: string;
+  crumb: string;
+  onBack: () => void;
+  onReports: () => void;
+}) {
   const problems = issues.filter((i) => i.severity !== "good");
   return (
     <>
-      <div className="scrim" onClick={onClose} />
-      <aside className="drawer">
-        <div className="drawer-head">
-          <div className="col" style={{ gap: 6, minWidth: 0 }}>
-            <div className="row" style={{ gap: 8 }}>
-              <StatusPill status={page.status} />
-              <span className="muted mono" style={{ fontSize: 12 }}>depth {page.depth}</span>
-              {page.status === 200 && <span className="mono" style={{ fontSize: 12, color: scoreColor(page.seoScore) }}>SEO {page.seoScore}</span>}
-              {page.status === 200 && <span className="mono" style={{ fontSize: 12, color: scoreColor(page.geo.score) }}>GEO {page.geo.score}</span>}
-            </div>
-            <span className="mono" style={{ fontSize: 13, wordBreak: "break-all" }}>{page.url}</span>
-          </div>
-          <button className="icon-btn" onClick={onClose}><IconX /></button>
+      <div className="report-bar">
+        <div className="report-bar-inner crumbs-only">
+          <nav className="crumbs" data-tauri-drag-region>
+            <button className="crumb-link" onClick={onReports}>Reports</button>
+            <span className="crumb-sep">/</span>
+            <button className="crumb-link" onClick={onBack}>{reportName}</button>
+            <span className="crumb-sep">/</span>
+            <button className="crumb-link" onClick={onBack}>{crumb}</button>
+            <span className="crumb-sep">/</span>
+            <span className="crumb-current mono">{shortUrl(page.url)}</span>
+          </nav>
         </div>
-        <div className="drawer-body section-gap">
+      </div>
+      <div className="report-body">
+        <div className="section-gap" style={{ maxWidth: 960, margin: "0 auto", width: "100%", padding: "var(--sp-5) var(--sp-5) var(--sp-7)" }}>
+          <div className="row between wrap" style={{ gap: "var(--sp-3)", alignItems: "flex-start" }}>
+            <div className="col" style={{ gap: 10, minWidth: 0 }}>
+              <h1 style={{ margin: 0, font: "var(--heading-24)", letterSpacing: "-0.01em" }}>{page.title ?? shortUrl(page.url)}</h1>
+              <div className="row" style={{ gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+                <StatusPill status={page.status} />
+                <MetaPill>depth {page.depth}</MetaPill>
+                {page.status === 200 && <MetaPill color={scoreColor(page.seoScore)}>SEO {page.seoScore}</MetaPill>}
+                {page.status === 200 && <MetaPill color={scoreColor(page.geo.score)}>GEO {page.geo.score}</MetaPill>}
+              </div>
+              <span className="mono tertiary" style={{ fontSize: 12.5, wordBreak: "break-all" }}>{page.url}</span>
+            </div>
+            <button className="btn btn-secondary btn-sm" onClick={() => openExternal(page.finalUrl)} style={{ flex: "0 0 auto" }}>
+              <IconExternal size={15} /> Open URL
+            </button>
+          </div>
           {problems.length > 0 && (
             <div className="col" style={{ gap: 8 }}>
               <span className="h3">Issues <span className="mono muted">{problems.length}</span></span>
@@ -564,8 +624,28 @@ function PageDrawer({ page, issues, onClose }: { page: Page; issues: Issue[]; on
             {page.error && <Row k="Error" v={page.error} />}
           </dl>
         </div>
-      </aside>
+      </div>
     </>
+  );
+}
+
+function MetaPill({ children, color }: { children: React.ReactNode; color?: string }) {
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        fontFamily: "var(--font-mono)",
+        fontSize: 12,
+        padding: "2px 8px",
+        borderRadius: "var(--radius-full)",
+        background: "var(--bg-2)",
+        border: "1px solid var(--border)",
+        color: color ?? "var(--text-secondary)",
+      }}
+    >
+      {children}
+    </span>
   );
 }
 
@@ -611,6 +691,13 @@ function hostOf(url: string): string {
     return new URL(url).host;
   } catch {
     return url;
+  }
+}
+function faviconUrl(url: string): string {
+  try {
+    return `https://www.google.com/s2/favicons?domain=${new URL(url).host}&sz=64`;
+  } catch {
+    return "";
   }
 }
 function fmtWhen(ms: number): string {

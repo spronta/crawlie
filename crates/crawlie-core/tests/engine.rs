@@ -111,7 +111,8 @@ fn ok_page(url: &str) -> Page {
         canonicalized: false,
         images_total: 1,
         images_missing_alt: 0,
-        internal_links: vec![],
+        // A realistic page links out internally (so it isn't a structural dead end).
+        internal_links: vec!["https://example.com/".into()],
         external_links: vec![],
         inlinks: 3,
         link_score: 50.0,
@@ -259,6 +260,8 @@ fn recompute_heals_stale_scores_from_signals() {
         sitemap_found: false,
         robots_blocked: vec![],
         llms_txt_found: false,
+        link_graph: Default::default(),
+        seed_redirected_from: None,
         started_at: 0,
     };
     crawlie_core::scoring::recompute(&mut result);

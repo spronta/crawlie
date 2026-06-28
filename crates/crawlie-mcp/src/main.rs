@@ -8,6 +8,10 @@
 //! Transport: newline-delimited JSON-RPC 2.0 on stdin/stdout. Diagnostics go to
 //! stderr so stdout stays pure protocol.
 
+// The tools_list `json!` literal is large; the default macro recursion limit is
+// too low once every tool's schema is inlined.
+#![recursion_limit = "256"]
+
 use crawlie_core::{
     all_rules, crawl, geo_gaps, group_issues, rule_info, top_fixes, top_fixes_filtered,
     CancelToken, Category, CrawlConfig, CrawlMode, CrawlResult, ReportStore,
@@ -146,6 +150,11 @@ fn tools_list() -> Value {
             "inputSchema": { "type": "object", "properties": { "reportId": { "type": "string", "description": "Report id, or 'latest' (default)." } } }
         },
         {
+            "name": "link_graph",
+            "description": "Internal-link graph analytics for a saved report: node/edge counts, average outlinks, max click depth, reciprocal-link pairs, the highest-authority pages (by internal PageRank), the biggest hubs (by outlinks), plus the orphan pages (no inlinks) and dead-end pages (no internal outlinks). Operates on the latest report by default — no re-crawl.",
+            "inputSchema": { "type": "object", "properties": { "reportId": { "type": "string", "description": "Report id, or 'latest' (default)." } } }
+        },
+        {
             "name": "affected_urls",
             "description": "List the URLs affected by a specific rule in a saved report (e.g. rule='geo-no-author').",
             "inputSchema": { "type": "object", "properties": {
@@ -279,6 +288,57 @@ async fn tools_call(params: Value) -> Result<Value, String> {
             let report =
                 load_report_or_latest(id).ok_or("no saved report found — run crawl_site first")?;
             text_result(serde_json::to_string_pretty(&geo_gaps(&report.pages)).unwrap_or_default())
+        }
+        "link_graph" => {
+            let id = args.get("reportId").and_then(|v| v.as_str());
+            let report =
+                load_report_or_latest(id).ok_or("no saved report found — run crawl_site first")?;
+            let g = &report.link_graph;
+            let node = |i: &u32| g.nodes.get(*i as usize);
+            let authorities: Vec<Value> = g
+                .top_authorities
+                .iter()
+                .filter_map(node)
+                .take(10)
+                .map(|n| json!({ "url": n.url, "linkScore": n.link_score, "inlinks": n.inlinks }))
+                .collect();
+            let hubs: Vec<Value> = g
+                .top_hubs
+                .iter()
+                .filter_map(node)
+                .take(10)
+                .map(|n| json!({ "url": n.url, "outlinks": n.outlinks }))
+                .collect();
+            let orphan_urls: Vec<&str> = g
+                .nodes
+                .iter()
+                .filter(|n| n.orphan)
+                .map(|n| n.url.as_str())
+                .take(50)
+                .collect();
+            let dead_end_urls: Vec<&str> = g
+                .nodes
+                .iter()
+                .filter(|n| n.dead_end)
+                .map(|n| n.url.as_str())
+                .take(50)
+                .collect();
+            text_result(
+                serde_json::to_string_pretty(&json!({
+                    "nodes": g.nodes.len(),
+                    "edges": g.edges.len(),
+                    "orphans": g.orphans,
+                    "deadEnds": g.dead_ends,
+                    "maxDepth": g.max_depth,
+                    "avgOutlinks": g.avg_outlinks,
+                    "reciprocalPairs": g.reciprocal_pairs,
+                    "topAuthorities": authorities,
+                    "topHubs": hubs,
+                    "orphanUrls": orphan_urls,
+                    "deadEndUrls": dead_end_urls,
+                }))
+                .unwrap_or_default(),
+            )
         }
         "affected_urls" => {
             let rule = args
