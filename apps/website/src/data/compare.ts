@@ -146,4 +146,59 @@ export const COMPETITORS: Competitor[] = [
     ],
     updated: UPDATED,
   },
+  {
+    slug: "siteimprove",
+    name: "Siteimprove",
+    product: "Siteimprove Accessibility",
+    title: "crawlie vs Siteimprove — free, open-source accessibility & SEO checker alternative",
+    description:
+      "How crawlie compares to Siteimprove for accessibility: free and open-source, runs locally, gives you a separate WCAG accessibility score inside the same crawl as your SEO and AI-search checks, with a CLI and MCP server for CI and AI agents — plus an honest look at where Siteimprove's enterprise platform still wins.",
+    tagline: "A free, open-source, agent-native way to get automated WCAG checks — without an enterprise contract.",
+    answer:
+      "crawlie is a free, open-source crawler that checks technical SEO, AI-search (GEO) readiness, and accessibility in one pass, and reports a separate WCAG accessibility score. Against Siteimprove it's free instead of a quote-only enterprise contract, runs locally, and is built for developers — a scriptable CLI you can gate CI on and an MCP server so AI agents can run audits. Siteimprove is a much deeper, dedicated accessibility platform: far broader automated WCAG 2.1/2.2 coverage (including colour contrast and ARIA), PDF accessibility, assisted manual review, remediation workflows, compliance reporting and org-wide dashboards. crawlie runs a focused set of static WCAG checks, so it catches the common machine-detectable failures early and free — it isn't a full enterprise compliance programme.",
+    rows: [
+      { feature: "Price", crawlie: "Free & open-source (MIT)", them: "Enterprise SaaS, quote-only (commonly $15k+/yr)", win: "crawlie" },
+      { feature: "Open source", crawlie: "Yes — read & extend it", them: "No (closed source)", win: "crawlie" },
+      { feature: "Runs locally / data stays on your machine", crawlie: "Yes (local-first)", them: "Cloud SaaS", win: "crawlie" },
+      { feature: "Separate accessibility score", crawlie: "Yes (0–100, kept apart from SEO)", them: "Yes", win: "tie" },
+      { feature: "Automated WCAG coverage", crawlie: "Focused static checks", them: "Broad WCAG 2.1 / 2.2", win: "them" },
+      { feature: "Colour-contrast & deep ARIA checks", crawlie: "Not yet", them: "Yes", win: "them" },
+      { feature: "PDF accessibility", crawlie: "No", them: "Yes", win: "them" },
+      { feature: "Assisted manual review & remediation workflow", crawlie: "No", them: "Yes", win: "them" },
+      { feature: "Accessibility + SEO + AI-search in one crawl", crawlie: "Yes", them: "Separate paid modules", win: "crawlie" },
+      { feature: "CLI + CI gating", crawlie: "Yes (JSON, --fail-on)", them: "API (enterprise tier)", win: "crawlie" },
+      { feature: "MCP server (agent-native)", crawlie: "Yes", them: "No", win: "crawlie" },
+      { feature: "Plain-English fix for every issue", crawlie: "Yes", them: "Yes (+ AI suggestions)", win: "tie" },
+      { feature: "Compliance reporting / VPAT", crawlie: "No", them: "Yes", win: "them" },
+      { feature: "Time to first result", crawlie: "Install & run in seconds", them: "Sales call + onboarding", win: "crawlie" },
+    ],
+    reasons: [
+      {
+        h: "Is crawlie a Siteimprove alternative?",
+        p: "For a full enterprise accessibility programme — org-wide governance, manual audits, VPATs, remediation tracking — no, and crawlie doesn't pretend to be. For a developer or small team that wants automated WCAG checks for free, in the same crawl as their SEO and AI-search audit, and gateable in CI, yes. crawlie catches the common machine-detectable failures (links and buttons with no accessible name, unlabelled form fields, untitled iframes, zoom-blocking viewports, positive tabindex, skipped headings) early and at no cost — the work you'd otherwise wait for a quarterly Siteimprove scan to surface.",
+      },
+      {
+        h: "What does crawlie do that Siteimprove doesn't?",
+        p: "It's free and open-source, and it runs locally so nothing about your site leaves your machine. It checks accessibility, technical SEO, and AI-search (GEO) readiness in a single crawl instead of three paid modules. It has a scriptable CLI you can fail a build on and an MCP server so AI agents can run the audit and read the results. And it reports accessibility as its own score, kept deliberately apart from the SEO score so neither hides the other.",
+      },
+      {
+        h: "When should you still choose Siteimprove?",
+        p: "When you need depth and coverage crawlie doesn't offer: the full automated WCAG 2.1/2.2 ruleset including colour contrast and detailed ARIA, PDF accessibility, assisted manual review, remediation workflows and goal tracking, compliance reporting and VPATs, and dashboards for a whole organisation. Siteimprove is a dedicated accessibility platform with the breadth and support an enterprise compliance team needs; crawlie is a free, automated first line of defence.",
+      },
+    ],
+    strengths: [
+      "Far broader automated WCAG 2.1/2.2 coverage, including colour-contrast and detailed ARIA checks that crawlie's static checks don't attempt.",
+      "PDF accessibility scanning and assisted manual review — the parts of conformance that can't be decided from HTML alone.",
+      "Remediation workflows, goal tracking, role-based dashboards, and compliance/VPAT reporting built for an enterprise accessibility programme.",
+      "Site-wide scheduled monitoring across a whole organisation, with onboarding, training, and support.",
+    ],
+    faq: [
+      { q: "Is crawlie free?", a: "Yes — crawlie is free and open-source under the MIT licence, with no URL cap. Siteimprove is a quote-only enterprise SaaS, commonly priced in the five-to-six figures per year." },
+      { q: "Does crawlie replace Siteimprove for accessibility?", a: "Not for a full enterprise compliance programme. crawlie runs a focused set of static WCAG checks for free and in CI; Siteimprove offers far broader automated coverage plus manual review, remediation workflows, and compliance reporting. crawlie is the free, automated first line of defence; Siteimprove is the dedicated platform." },
+      { q: "What accessibility checks does crawlie run?", a: "Static, false-positive-resistant WCAG checks decidable from the markup: links and buttons with no accessible name, form controls with no label, iframes with no title, zoom-blocking viewports, positive tabindex, and skipped heading levels — reported as a separate accessibility score alongside Health and GEO." },
+      { q: "Does crawlie check colour contrast?", a: "Not yet. Contrast needs rendered styles, so it's outside crawlie's current static checks. Siteimprove does check contrast. crawlie focuses on the structural WCAG failures it can detect reliably from the HTML." },
+      { q: "Can I run crawlie's accessibility checks in CI?", a: "Yes. The CLI outputs JSON and sets exit codes (`--fail-on`), and the accessibility score is tracked in saved reports and crawl-over-crawl diffs, so you can gate a build on accessibility regressions — no enterprise contract required." },
+    ],
+    updated: "2026-06-29",
+  },
 ];
