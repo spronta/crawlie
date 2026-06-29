@@ -243,6 +243,36 @@ entries! {
         "Add the recommended properties where they apply (e.g. aggregateRating and brand on a Product, datePublished and author on an Article) to strengthen the listing.",
         "A thinner rich result that may lose to more complete competitors.";
 
+    // ---- Accessibility (WCAG) ----
+    "a11y-link-no-text" => "Links Without Discernible Text", Accessibility, Warning,
+        "A link with no text, aria-label, or alt-bearing image has no accessible name, so screen-reader users hear only \"link\" with no idea where it goes. Icon-only and image links are the usual culprits. Search engines also rely on link text to understand the destination.",
+        "Give every link a discernible name: visible text, an aria-label, or an <img> with descriptive alt text inside it. For icon links, add aria-label=\"...\" describing the destination.",
+        "Keyboard and screen-reader users can't tell where links lead (WCAG 2.4.4 / 4.1.2).";
+    "a11y-button-no-text" => "Buttons Without an Accessible Name", Accessibility, Warning,
+        "A button with no text content and no aria-label is announced as just \"button\" — assistive-tech users can't tell what it does. Icon-only buttons (hamburger menus, close \"×\", search) are the common offenders.",
+        "Add visible text, an aria-label, or a labelled image to each button. For <input type=\"submit\">, set a meaningful value attribute.",
+        "Controls become unusable for screen-reader and voice users (WCAG 4.1.2).";
+    "a11y-input-no-label" => "Form Controls Without a Label", Accessibility, Warning,
+        "A form field with no associated label leaves assistive-tech users guessing what to enter. A placeholder is not a label — it vanishes on input and is often skipped by screen readers. Unlabeled fields also break voice control and autofill.",
+        "Associate every input/select/textarea with a <label for=\"id\">, wrap it in a <label>, or add an aria-label/aria-labelledby. Don't rely on placeholder text alone.",
+        "Forms become hard or impossible to complete with assistive tech (WCAG 1.3.1 / 3.3.2).";
+    "a11y-zoom-disabled" => "Viewport Disables Zoom", Accessibility, Warning,
+        "The viewport meta tag uses user-scalable=no or a maximum-scale below 2, which stops users from pinch-zooming. Low-vision users depend on zoom to read; blocking it is a common, easily-fixed accessibility failure.",
+        "Remove user-scalable=no and any maximum-scale below 2 from the viewport meta. Use content=\"width=device-width, initial-scale=1\" and let users zoom.",
+        "Low-vision users can't enlarge the page to read it (WCAG 1.4.4).";
+    "a11y-iframe-no-title" => "Iframes Missing a Title", Accessibility, Notice,
+        "An <iframe> with no title attribute has no accessible name, so screen-reader users hear an unlabeled frame and can't tell what it contains (a video, a map, an ad).",
+        "Add a concise title attribute to every iframe describing its content, e.g. title=\"YouTube video: product demo\".",
+        "Embedded content is unidentifiable to screen-reader users (WCAG 4.1.2).";
+    "a11y-positive-tabindex" => "Positive tabindex", Accessibility, Notice,
+        "A tabindex greater than 0 forces an element to the front of the keyboard tab order, overriding the natural DOM order. This almost always produces a confusing, unpredictable focus sequence that's hard to maintain.",
+        "Remove positive tabindex values. Use tabindex=\"0\" to make a custom element focusable in DOM order, or restructure the markup so the natural order is correct.",
+        "Keyboard focus jumps around unpredictably, disorienting keyboard users (WCAG 2.4.3).";
+    "a11y-skipped-heading" => "Skipped Heading Level", Accessibility, Notice,
+        "Heading levels jump down by more than one (e.g. an h2 followed by an h4), breaking the document outline screen-reader users navigate by. Headings should describe structure, not be chosen for their visual size.",
+        "Use heading levels in order without skipping (h1 → h2 → h3). Style headings with CSS if you need a different visual size, rather than picking a level for its appearance.",
+        "The page outline is broken, making heading navigation confusing (WCAG 1.3.1).";
+
     // ---- GEO (Generative Engine Optimization) ----
     "geo-no-structured-data" => "GEO: No Machine-Readable Structure", Geo, Warning,
         "Generative engines (ChatGPT, Perplexity, Google AI Overviews) lean on structured data and clean semantics to understand and cite sources. Pages without it are harder to quote accurately.",

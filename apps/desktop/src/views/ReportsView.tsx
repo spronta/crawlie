@@ -125,6 +125,7 @@ export function ReportsView({ onBack, onOpen }: { onBack: () => void; onOpen: (r
                 </div>
                 <Score label="Health" value={r.healthScore} />
                 <Score label="GEO" value={r.geoScore} />
+                <Score label="A11y" value={r.a11yScore} />
                 {!compare && (
                   <button className="icon-btn" title="Delete" onClick={(e) => remove(e, r.id)}><IconTrash size={15} /></button>
                 )}
@@ -170,6 +171,7 @@ function DiffPanel({ diff, onClose }: { diff: CrawlDiff; onClose: () => void }) 
       <div className="row" style={{ gap: 28, flexWrap: "wrap" }}>
         <DeltaStat label="Health" before={diff.healthBefore} after={diff.healthAfter} delta={diff.healthDelta} />
         <DeltaStat label="GEO" before={diff.geoBefore} after={diff.geoAfter} delta={diff.geoDelta} />
+        <DeltaStat label="A11y" before={diff.a11yBefore} after={diff.a11yAfter} delta={diff.a11yDelta} />
         <DeltaStat label="Pages" before={diff.pagesBefore} after={diff.pagesAfter} delta={diff.pagesAfter - diff.pagesBefore} />
       </div>
 

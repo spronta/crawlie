@@ -95,7 +95,7 @@ crawlie explain geo-not-answerable
 | `--save` | Save to local report history (`crawlie reports`, `crawlie report <id>`) |
 | `--fail-on error\|warning` | Non-zero exit code for CI gating |
 
-Every crawl returns two scores: a **Health** score (technical SEO) and a **GEO** score (AI-search readiness).
+Every crawl returns three scores: a **Health** score (technical SEO), a **GEO** score (AI-search readiness), and an **Accessibility** score (WCAG conformance) — each reported separately so one kind of problem never hides another.
 
 ---
 
@@ -198,7 +198,7 @@ pnpm tauri dev          # live native crawls
 pnpm dev                # preview the UI in a browser (demo data, no backend)
 ```
 
-Whole-site / single-page / URL-list modes, live progress, **Health** & **GEO** score rings, issues with built-in *why-it-matters* guidance, a sortable pages table, a per-page drawer (GEO signals, headers, schema, hreflang…), auto-saved report history, and one-click shareable HTML export.
+Whole-site / single-page / URL-list modes, live progress, **Health**, **GEO** & **Accessibility** score rings, issues with built-in *why-it-matters* guidance, a sortable pages table, a per-page drawer (GEO signals, headers, schema, hreflang…), auto-saved report history, and one-click shareable HTML export.
 
 > First run, generate the icon set: `cd src-tauri/icons && python3 generate.py && cd .. && pnpm tauri icon icons/source.png`
 
@@ -206,11 +206,13 @@ Whole-site / single-page / URL-list modes, live progress, **Health** & **GEO** s
 
 ## What it checks
 
-*50 rules and counting.*
+*57 rules and counting.*
 
 **Technical SEO** — broken links · 4xx/5xx · redirects & chains · titles & meta descriptions (missing / duplicate / length) · H1s · canonicals · noindex / nofollow / X-Robots-Tag · robots.txt blocking · images missing alt · thin & duplicate content · orphan & deep pages
 
 **Performance & security** — slow responses · large pages · missing compression · HTTPS · mixed content · HSTS
+
+**Accessibility (WCAG)** — links & buttons without an accessible name · form controls without a label · iframes missing a title · zoom-blocking viewport · positive `tabindex` · skipped heading levels
 
 **Mobile, international & social** — viewport · `lang` · hreflang · Open Graph · Twitter cards · structured data
 

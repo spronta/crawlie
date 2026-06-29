@@ -1,11 +1,11 @@
 ---
 title: Scoring
-description: How crawlie calculates its two scores — a Health score for classic technical SEO and a GEO score for how citable your pages are by AI search.
+description: How crawlie calculates its three scores — a Health score for classic technical SEO, a GEO score for how citable your pages are by AI search, and an Accessibility score for WCAG conformance.
 section: Reference
 order: 6
 ---
 
-Every crawl returns two scores, each out of 100.
+Every crawl returns three scores, each out of 100.
 
 ## Health score
 
@@ -28,6 +28,19 @@ and rank this cleanly?"
 A page that's great for classic SEO can still score low on GEO, which is exactly why
 crawlie reports them separately.
 
+## Accessibility score
+
+**WCAG conformance**, scored from static accessibility checks that are decidable from the
+markup alone (no rendering or contrast analysis). It starts at 100 and deducts for each
+failure — links and buttons with no accessible name, form controls with no label, iframes
+without a title, zoom-blocking viewports, positive `tabindex`, and skipped heading levels.
+The count-based checks scale by how many of the page's elements are affected, so one bad
+link in a hundred barely moves the needle while a wholly unlabeled form does.
+
+Accessibility is **kept out of the Health score on purpose** — a11y issues don't lower your
+technical-SEO number, and SEO issues don't lower your a11y number. See the full check list
+in the [Accessibility section of What it checks](/docs/checks#accessibility-wcag).
+
 ## Severity levels
 
 Findings are graded **error → warning → notice**. Use `--severity` to filter output and
@@ -35,9 +48,9 @@ Findings are graded **error → warning → notice**. Use `--severity` to filter
 
 ## Per-page scores
 
-Beyond the site-wide rollup, crawlie computes per-page Health and GEO scores so you can
-see exactly which URLs drag the average down — surfaced in the desktop app's pages table
-and available in the JSON output.
+Beyond the site-wide rollup, crawlie computes per-page Health, GEO, and Accessibility
+scores so you can see exactly which URLs drag the average down — surfaced in the desktop
+app's pages table and available in the JSON output.
 
 ## How the scores are weighted
 

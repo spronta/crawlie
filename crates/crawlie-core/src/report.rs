@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS crawls (
     warnings     INTEGER NOT NULL,
     health_score INTEGER NOT NULL,
     geo_score    INTEGER NOT NULL,
+    a11y_score   INTEGER NOT NULL DEFAULT 100,
     result       TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS pages (
@@ -106,6 +107,14 @@ impl ReportStore {
         fs::create_dir_all(&self.dir)?;
         let conn = Connection::open(self.dir.join("crawlie.db")).map_err(ioerr)?;
         conn.execute_batch(SCHEMA).map_err(ioerr)?;
+        // Add columns introduced after the original schema to pre-existing DBs.
+        // `CREATE TABLE IF NOT EXISTS` won't alter an existing table, so do it
+        // explicitly; the duplicate-column error on an already-migrated DB is
+        // expected and ignored.
+        let _ = conn.execute(
+            "ALTER TABLE crawls ADD COLUMN a11y_score INTEGER NOT NULL DEFAULT 100",
+            [],
+        );
         self.migrate_legacy(&conn);
         Ok(conn)
     }
@@ -157,7 +166,7 @@ impl ReportStore {
         let conn = self.open()?;
         let mut stmt = conn
             .prepare(
-                "SELECT id, url, created_at, total_pages, errors, warnings, health_score, geo_score \
+                "SELECT id, url, created_at, total_pages, errors, warnings, health_score, geo_score, a11y_score \
                  FROM crawls ORDER BY created_at DESC",
             )
             .map_err(ioerr)?;
@@ -172,6 +181,7 @@ impl ReportStore {
                     warnings: r.get::<_, i64>(5)? as usize,
                     health_score: r.get::<_, i64>(6)? as u8,
                     geo_score: r.get::<_, i64>(7)? as u8,
+                    a11y_score: r.get::<_, i64>(8)? as u8,
                 })
             })
             .map_err(ioerr)?;
@@ -239,6 +249,9 @@ impl ReportStore {
             geo_before: old.geo_score,
             geo_after: new.geo_score,
             geo_delta: new.geo_score as i16 - old.geo_score as i16,
+            a11y_before: old.a11y_score,
+            a11y_after: new.a11y_score,
+            a11y_delta: new.a11y_score as i16 - old.a11y_score as i16,
             pages_before: old.total_pages,
             pages_after: new.total_pages,
             pages_added,
@@ -250,7 +263,7 @@ impl ReportStore {
 
     fn meta(&self, conn: &Connection, id: &str) -> rusqlite::Result<Option<ReportMeta>> {
         conn.query_row(
-            "SELECT id, url, created_at, total_pages, errors, warnings, health_score, geo_score \
+            "SELECT id, url, created_at, total_pages, errors, warnings, health_score, geo_score, a11y_score \
              FROM crawls WHERE id = ?1",
             params![id],
             |r| {
@@ -263,6 +276,7 @@ impl ReportStore {
                     warnings: r.get::<_, i64>(5)? as usize,
                     health_score: r.get::<_, i64>(6)? as u8,
                     geo_score: r.get::<_, i64>(7)? as u8,
+                    a11y_score: r.get::<_, i64>(8)? as u8,
                 })
             },
         )
@@ -283,8 +297,8 @@ fn insert_result(conn: &Connection, r: &CrawlResult) -> rusqlite::Result<ReportM
 
     conn.execute(
         "INSERT INTO crawls \
-         (id, url, created_at, total_pages, errors, warnings, health_score, geo_score, result) \
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+         (id, url, created_at, total_pages, errors, warnings, health_score, geo_score, a11y_score, result) \
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
         params![
             id,
             r.config.url,
@@ -294,6 +308,7 @@ fn insert_result(conn: &Connection, r: &CrawlResult) -> rusqlite::Result<ReportM
             r.summary.warnings as i64,
             r.summary.health_score as i64,
             r.summary.geo_score as i64,
+            r.summary.a11y_score as i64,
             blob,
         ],
     )?;
@@ -339,6 +354,7 @@ fn insert_result(conn: &Connection, r: &CrawlResult) -> rusqlite::Result<ReportM
         warnings: r.summary.warnings,
         health_score: r.summary.health_score,
         geo_score: r.summary.geo_score,
+        a11y_score: r.summary.a11y_score,
     })
 }
 
@@ -457,6 +473,7 @@ mod tests {
                     invalid_jsonld: 0,
                     hreflang: vec![],
                     mixed_content: 0,
+                    a11y: Default::default(),
                     geo: Default::default(),
                     extractions: vec![],
                     content_hash: None,
@@ -479,6 +496,7 @@ mod tests {
                 good: 0,
                 health_score: 90,
                 geo_score: 50,
+                a11y_score: 100,
                 avg_response_ms: 1,
                 indexable_pages: page_urls.len(),
                 duplicate_pages: 0,
@@ -573,6 +591,33 @@ mod tests {
         assert!(diff.new_issues.is_empty());
 
         assert!(store.diff(&old_meta.id, "nope").unwrap().is_none());
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn a11y_score_persists_in_meta_and_diff() {
+        let tmp = std::env::temp_dir().join(format!("crawlie-a11ytest-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        let store = ReportStore::new(&tmp);
+
+        let mut old = sample("https://c.example", 1000, vec![], &["https://c.example/"]);
+        old.summary.a11y_score = 60;
+        let mut new = sample("https://c.example", 2000, vec![], &["https://c.example/"]);
+        new.summary.a11y_score = 85;
+
+        let old_meta = store.save(&old).unwrap();
+        let new_meta = store.save(&new).unwrap();
+
+        // The score survives the round-trip into the listing metadata...
+        assert_eq!(old_meta.a11y_score, 60);
+        let listed = store.list();
+        assert!(listed.iter().any(|m| m.a11y_score == 85));
+
+        // ...and the diff reports the improvement.
+        let diff = store.diff(&old_meta.id, &new_meta.id).unwrap().unwrap();
+        assert_eq!(diff.a11y_before, 60);
+        assert_eq!(diff.a11y_after, 85);
+        assert_eq!(diff.a11y_delta, 25);
         let _ = fs::remove_dir_all(&tmp);
     }
 }

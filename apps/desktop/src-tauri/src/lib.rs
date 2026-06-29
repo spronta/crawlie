@@ -84,7 +84,9 @@ async fn start_crawl(app: AppHandle, config: CrawlConfig) -> Result<CrawlResult,
         let _ = emitter.emit("crawl-event", evt);
     };
 
-    let result = crawl(config, on_event, token).await.map_err(|e| e.to_string());
+    let result = crawl(config, on_event, token)
+        .await
+        .map_err(|e| e.to_string());
 
     {
         let state = app.state::<CrawlState>();
@@ -122,7 +124,11 @@ fn delete_report(app: AppHandle, id: String) -> Result<(), String> {
 /// Compare two saved crawls (crawl-over-crawl trend). Returns `None` if either
 /// id is unknown.
 #[tauri::command]
-fn diff_reports(app: AppHandle, old_id: String, new_id: String) -> Result<Option<CrawlDiff>, String> {
+fn diff_reports(
+    app: AppHandle,
+    old_id: String,
+    new_id: String,
+) -> Result<Option<CrawlDiff>, String> {
     store(&app)
         .diff(&old_id, &new_id)
         .map_err(|e| e.to_string())

@@ -128,6 +128,7 @@ pub fn render(r: &CrawlResult) -> String {
 <section class="scores">
   <div class="score big"><div class="k">Health</div><div class="v">{health}<small>/100</small></div></div>
   <div class="score big geo"><div class="k">GEO readiness</div><div class="v">{geo}<small>/100</small></div></div>
+  <div class="score big a11y"><div class="k">Accessibility</div><div class="v">{a11y}<small>/100</small></div></div>
   <div class="score"><div class="k">Pages</div><div class="v">{pages}</div></div>
   <div class="score"><div class="k">Errors</div><div class="v e">{errors}</div></div>
   <div class="score"><div class="k">Warnings</div><div class="v w">{warnings}</div></div>
@@ -151,6 +152,7 @@ pub fn render(r: &CrawlResult) -> String {
         date = esc(&date),
         health = s.health_score,
         geo = s.geo_score,
+        a11y = s.a11y_score,
         pages = s.total_pages,
         errors = s.errors,
         warnings = s.warnings,
@@ -188,6 +190,7 @@ header{display:flex;justify-content:space-between;align-items:flex-start;border-
 .score .v small{font-size:14px;color:var(--mut);font-weight:400}
 .score .v.e{color:var(--red)}.score .v.w{color:var(--amber)}
 .score.geo .v{color:var(--blue)}
+.score.a11y .v{color:var(--green)}
 h2{font-size:20px;letter-spacing:-.01em;margin:32px 0 4px}
 .issues{margin-top:16px}
 .grp{border:1px solid var(--bd);border-radius:12px;margin-bottom:10px;overflow:hidden;background:#fff}

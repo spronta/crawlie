@@ -174,7 +174,8 @@ pub fn pagerank(adj: &[Vec<usize>]) -> Vec<f32> {
 pub fn page_seo_scores(pages: &[Page], issues: &[Issue]) -> Vec<u8> {
     let mut penalty: HashMap<String, f32> = HashMap::new();
     for i in issues {
-        if i.category == Category::Geo {
+        // GEO and Accessibility each have their own dedicated score.
+        if matches!(i.category, Category::Geo | Category::Accessibility) {
             continue;
         }
         let w = match i.severity {
@@ -217,6 +218,59 @@ pub fn geo_score(p: &Page) -> u8 {
     score.min(100) as u8
 }
 
+/// Whether a page is an HTML document the on-page rules (and the a11y score)
+/// apply to — a 200 response that's either typed as HTML or carries page content.
+pub fn is_html_page(p: &Page) -> bool {
+    p.status == 200
+        && (p
+            .content_type
+            .as_deref()
+            .map(|c| c.contains("html"))
+            .unwrap_or(false)
+            || !p.h1.is_empty()
+            || p.word_count > 0)
+}
+
+/// Accessibility score for one page, 0–100. Starts at 100 and subtracts weighted
+/// penalties for each WCAG failure; the count-based checks scale by how many of
+/// the page's elements are affected. Returns 0 for non-HTML pages (excluded from
+/// the site average). Kept separate from the SEO/health score on purpose.
+pub fn a11y_score(p: &Page) -> u8 {
+    if !is_html_page(p) {
+        return 0;
+    }
+    let a = &p.a11y;
+    let prop = |bad: usize, total: usize| {
+        if total > 0 {
+            bad as f32 / total as f32
+        } else {
+            0.0
+        }
+    };
+    let mut penalty = 0f32;
+    penalty += 25.0 * prop(a.links_no_text, a.links_total);
+    penalty += 25.0 * prop(a.inputs_no_label, a.controls_total);
+    penalty += 15.0 * prop(a.buttons_no_text, a.buttons_total);
+    penalty += if a.viewport_blocks_zoom { 15.0 } else { 0.0 };
+    penalty += if a.iframes_no_title > 0 { 8.0 } else { 0.0 };
+    penalty += if a.positive_tabindex > 0 { 6.0 } else { 0.0 };
+    penalty += if a.skipped_heading { 6.0 } else { 0.0 };
+    (100.0 - penalty).clamp(0.0, 100.0).round() as u8
+}
+
+/// Average accessibility score across HTML pages, 0–100.
+pub fn site_a11y_score(pages: &[Page]) -> u8 {
+    let scored: Vec<u8> = pages
+        .iter()
+        .filter(|p| is_html_page(p))
+        .map(|p| p.a11y.score)
+        .collect();
+    if scored.is_empty() {
+        return 0;
+    }
+    (scored.iter().map(|&s| s as u32).sum::<u32>() / scored.len() as u32) as u8
+}
+
 /// Overall technical-SEO health, 0–100, from weighted issue density.
 pub fn health_score(pages: &[Page], issues: &[Issue]) -> u8 {
     health_score_n(pages.len(), issues)
@@ -227,8 +281,12 @@ pub fn health_score(pages: &[Page], issues: &[Issue]) -> u8 {
 pub fn health_score_n(page_count: usize, issues: &[Issue]) -> u8 {
     let n = page_count.max(1) as f32;
     let mut weight = 0f32;
-    // GEO has its own dedicated score; don't let it drag down technical health.
-    for i in issues.iter().filter(|i| i.category != Category::Geo) {
+    // GEO and Accessibility each have their own dedicated score; don't let them
+    // drag down technical health.
+    for i in issues
+        .iter()
+        .filter(|i| !matches!(i.category, Category::Geo | Category::Accessibility))
+    {
         weight += match i.severity {
             Severity::Error => 3.0,
             Severity::Warning => 1.0,
@@ -250,12 +308,14 @@ pub fn recompute(result: &mut CrawlResult) {
     for (i, p) in result.pages.iter_mut().enumerate() {
         p.link_score = link.get(i).copied().unwrap_or(0.0);
         p.geo.score = geo_score(p);
+        p.a11y.score = a11y_score(p);
     }
     let seo = page_seo_scores(&result.pages, &result.issues);
     for (i, p) in result.pages.iter_mut().enumerate() {
         p.seo_score = seo.get(i).copied().unwrap_or(0);
     }
     result.summary.geo_score = site_geo_score(&result.pages);
+    result.summary.a11y_score = site_a11y_score(&result.pages);
     result.summary.health_score = health_score(&result.pages, &result.issues);
     result.link_graph = build_link_graph(&result.pages);
 }

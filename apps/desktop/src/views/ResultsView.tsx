@@ -263,6 +263,13 @@ function Overview({
             <span className="d">How citable your pages are by AI search (ChatGPT, Perplexity, AI Overviews).</span>
           </div>
         </div>
+        <div className="card score-card">
+          <ScoreRing value={s.a11yScore} caption="A11Y" />
+          <div className="meta">
+            <span className="t">Accessibility</span>
+            <span className="d">WCAG conformance — accessible names, labels, zoom and heading order. Scored apart from SEO.</span>
+          </div>
+        </div>
       </div>
 
       <div className="stats">

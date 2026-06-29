@@ -802,10 +802,11 @@ async fn execute(
     };
     if !quiet {
         eprintln!(
-            "\r\x1b[2K  done · {} pages · health {}/100 · GEO {}/100 · {} ms",
+            "\r\x1b[2K  done · {} pages · health {}/100 · GEO {}/100 · a11y {}/100 · {} ms",
             result.summary.total_pages,
             result.summary.health_score,
             result.summary.geo_score,
+            result.summary.a11y_score,
             result.summary.duration_ms
         );
         if !result.config.extract.is_empty() {
@@ -972,8 +973,8 @@ fn render_pretty(r: &CrawlResult, min: Option<u8>) -> String {
     out.push_str(&format!("\n  crawlie · {}\n", r.config.url));
     out.push_str(&format!("  {}\n", "─".repeat(54)));
     out.push_str(&format!(
-        "  Health {}/100   GEO {}/100\n",
-        s.health_score, s.geo_score
+        "  Health {}/100   GEO {}/100   A11y {}/100\n",
+        s.health_score, s.geo_score, s.a11y_score
     ));
     out.push_str(&format!(
         "  {} pages · {} ms · {} indexable · {} duplicate\n",
@@ -1138,16 +1139,17 @@ fn list_reports() -> ExitCode {
     }
     println!("\n  Saved reports\n");
     println!(
-        "  {:<20} {:>6} {:>7} {:>5}  {:<34} URL",
-        "DATE", "PAGES", "HEALTH", "GEO", "ID"
+        "  {:<20} {:>6} {:>7} {:>5} {:>5}  {:<34} URL",
+        "DATE", "PAGES", "HEALTH", "GEO", "A11Y", "ID"
     );
     for m in reports {
         println!(
-            "  {:<20} {:>6} {:>6}/100 {:>3}/100  {:<34} {}",
+            "  {:<20} {:>6} {:>6}/100 {:>3}/100 {:>3}/100  {:<34} {}",
             crawlie_core::timefmt::format_utc(m.created_at),
             m.total_pages,
             m.health_score,
             m.geo_score,
+            m.a11y_score,
             m.id,
             m.url
         );
@@ -1262,13 +1264,16 @@ fn print_diff_pretty(d: &crawlie_core::CrawlDiff) {
         crawlie_core::timefmt::format_utc(d.new_created_at)
     );
     println!(
-        "  Health {} → {} ({})    GEO {} → {} ({})",
+        "  Health {} → {} ({})    GEO {} → {} ({})    A11y {} → {} ({})",
         d.health_before,
         d.health_after,
         signed(d.health_delta),
         d.geo_before,
         d.geo_after,
         signed(d.geo_delta),
+        d.a11y_before,
+        d.a11y_after,
+        signed(d.a11y_delta),
     );
     println!(
         "  Pages {} → {}   (+{} new, -{} gone)",

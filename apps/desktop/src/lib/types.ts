@@ -17,6 +17,7 @@ export type Category =
   | "international"
   | "social"
   | "structured-data"
+  | "accessibility"
   | "geo";
 
 export type CrawlMode = "site" | "page" | "list";
@@ -148,6 +149,7 @@ export interface Summary {
   good: number;
   healthScore: number;
   geoScore: number;
+  a11yScore: number;
   avgResponseMs: number;
   indexablePages: number;
   duplicatePages: number;
@@ -215,6 +217,7 @@ export interface ReportMeta {
   warnings: number;
   healthScore: number;
   geoScore: number;
+  a11yScore: number;
 }
 
 export interface IssueDelta {
@@ -237,6 +240,9 @@ export interface CrawlDiff {
   geoBefore: number;
   geoAfter: number;
   geoDelta: number;
+  a11yBefore: number;
+  a11yAfter: number;
+  a11yDelta: number;
   pagesBefore: number;
   pagesAfter: number;
   pagesAdded: string[];
@@ -265,6 +271,7 @@ export const CATEGORY_LABELS: Record<Category, string> = {
   international: "International",
   social: "Social",
   "structured-data": "Structured Data",
+  accessibility: "Accessibility",
   geo: "Generative Engine Optimization",
 };
 

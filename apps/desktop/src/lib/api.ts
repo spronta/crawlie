@@ -107,6 +107,7 @@ const DEMO_REPORTS: ReportMeta[] = [
     warnings: DEMO_RESULT.summary.warnings,
     healthScore: DEMO_RESULT.summary.healthScore,
     geoScore: DEMO_RESULT.summary.geoScore,
+    a11yScore: DEMO_RESULT.summary.a11yScore,
   },
   // An older crawl of the same site, so the compare flow has two to diff.
   {
@@ -118,6 +119,7 @@ const DEMO_REPORTS: ReportMeta[] = [
     warnings: DEMO_RESULT.summary.warnings + 3,
     healthScore: Math.max(0, DEMO_RESULT.summary.healthScore - 9),
     geoScore: Math.max(0, DEMO_RESULT.summary.geoScore - 4),
+    a11yScore: Math.max(0, DEMO_RESULT.summary.a11yScore - 6),
   },
 ];
 
@@ -132,6 +134,9 @@ const DEMO_DIFF: CrawlDiff = {
   geoBefore: DEMO_REPORTS[1].geoScore,
   geoAfter: DEMO_REPORTS[0].geoScore,
   geoDelta: DEMO_REPORTS[0].geoScore - DEMO_REPORTS[1].geoScore,
+  a11yBefore: DEMO_REPORTS[1].a11yScore,
+  a11yAfter: DEMO_REPORTS[0].a11yScore,
+  a11yDelta: DEMO_REPORTS[0].a11yScore - DEMO_REPORTS[1].a11yScore,
   pagesBefore: DEMO_REPORTS[1].totalPages,
   pagesAfter: DEMO_REPORTS[0].totalPages,
   pagesAdded: ["https://acme.example/pricing", "https://acme.example/blog/whats-new"],

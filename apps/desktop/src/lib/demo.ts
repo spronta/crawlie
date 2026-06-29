@@ -138,6 +138,7 @@ export const DEMO_RESULT: CrawlResult = {
     good: issues.filter((i) => i.severity === "good").length,
     healthScore: 68,
     geoScore: 57,
+    a11yScore: 86,
     avgResponseMs: 410,
     indexablePages: pages.filter((p) => p.indexable).length,
     duplicatePages: 0,

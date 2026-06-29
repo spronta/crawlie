@@ -447,8 +447,8 @@ fn headline(r: &CrawlResult) -> String {
         .map(|f| format!("{} ({} affected)", f.title, f.count))
         .unwrap_or_else(|| "no issues".into());
     format!(
-        "Health {}/100 · GEO {}/100 · {} pages · {} errors, {} warnings, {} notices. Top fix: {}.",
-        s.health_score, s.geo_score, s.total_pages, s.errors, s.warnings, s.notices, lead
+        "Health {}/100 · GEO {}/100 · A11y {}/100 · {} pages · {} errors, {} warnings, {} notices. Top fix: {}.",
+        s.health_score, s.geo_score, s.a11y_score, s.total_pages, s.errors, s.warnings, s.notices, lead
     )
 }
 

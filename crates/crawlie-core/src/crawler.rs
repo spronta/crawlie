@@ -9,7 +9,7 @@ use crate::pagestore::PageStore;
 use crate::parse::{parse_html, Parsed};
 use crate::render::Renderer;
 use crate::robots::Robots;
-use crate::scoring::{geo_score, health_score, site_geo_score};
+use crate::scoring::{a11y_score, geo_score, health_score, site_a11y_score, site_geo_score};
 use crate::sitemap;
 use crate::types::*;
 use futures::stream::{FuturesUnordered, StreamExt};
@@ -1098,6 +1098,8 @@ struct SummaryAcc {
     dupes: usize,
     geo_sum: u32,
     geo_count: u32,
+    a11y_sum: u32,
+    a11y_count: u32,
 }
 
 impl SummaryAcc {
@@ -1118,6 +1120,10 @@ impl SummaryAcc {
         if p.status == 200 && p.indexable {
             self.geo_sum += p.geo.score as u32;
             self.geo_count += 1;
+        }
+        if crate::scoring::is_html_page(p) {
+            self.a11y_sum += p.a11y.score as u32;
+            self.a11y_count += 1;
         }
     }
 
@@ -1146,6 +1152,11 @@ impl SummaryAcc {
             health_score: crate::scoring::health_score_n(self.n, issues),
             geo_score: if self.geo_count > 0 {
                 (self.geo_sum / self.geo_count) as u8
+            } else {
+                0
+            },
+            a11y_score: if self.a11y_count > 0 {
+                (self.a11y_sum / self.a11y_count) as u8
             } else {
                 0
             },
@@ -1277,6 +1288,7 @@ fn build_page(
             .map(|p| p.hreflang.clone())
             .unwrap_or_default(),
         mixed_content: parsed.as_ref().map(|p| p.mixed_content).unwrap_or(0),
+        a11y: parsed.as_ref().map(|p| p.a11y.clone()).unwrap_or_default(),
         geo,
         extractions: parsed
             .as_ref()
@@ -1288,6 +1300,7 @@ fn build_page(
     };
     // Score against the real signals now that they're on the page.
     page.geo.score = geo_score(&page);
+    page.a11y.score = a11y_score(&page);
     page
 }
 
@@ -1338,6 +1351,7 @@ fn error_page(url: &Url, depth: usize, error: String) -> Page {
         invalid_jsonld: 0,
         hreflang: Vec::new(),
         mixed_content: 0,
+        a11y: crate::types::A11ySignals::default(),
         geo: GeoSignals::default(),
         extractions: Vec::new(),
         content_hash: None,
@@ -1389,6 +1403,7 @@ fn build_summary(pages: &[Page], issues: &[Issue], duration_ms: u64) -> Summary 
         good,
         health_score: health_score(pages, issues),
         geo_score: site_geo_score(pages),
+        a11y_score: site_a11y_score(pages),
         avg_response_ms: if rt_count > 0 { total_rt / rt_count } else { 0 },
         indexable_pages: indexable,
         duplicate_pages: dupes,

@@ -3,7 +3,7 @@
 //! await point. Extracts the full on-page signal set, including GEO signals.
 
 use crate::structured_data;
-use crate::types::{ExtractValue, Extractor, GeoSignals, Hreflang, SchemaValidation};
+use crate::types::{A11ySignals, ExtractValue, Extractor, GeoSignals, Hreflang, SchemaValidation};
 use scraper::{ElementRef, Html, Node, Selector};
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashSet;
@@ -37,6 +37,7 @@ pub struct Parsed {
     pub hreflang: Vec<Hreflang>,
     pub mixed_content: usize,
     pub geo: GeoSignals,
+    pub a11y: A11ySignals,
     pub content_hash: Option<String>,
     pub extractions: Vec<ExtractValue>,
 }
@@ -77,6 +78,35 @@ mod extract_tests {
             attr: attr.map(Into::into),
             regex: regex.map(Into::into),
         }
+    }
+
+    #[test]
+    fn a11y_signals_detected() {
+        let html = "<!doctype html><html lang=\"en\"><head><title>t</title>\
+            <meta name=\"viewport\" content=\"width=device-width, initial-scale=1, user-scalable=no\"></head><body>\
+            <a href=\"/a\">Read more</a>\
+            <a href=\"/b\"><img src=\"i.png\" alt=\"\"></a>\
+            <button></button>\
+            <button aria-label=\"Close\"></button>\
+            <label for=\"named\">Email</label><input id=\"named\" type=\"text\">\
+            <input id=\"bare\" type=\"text\">\
+            <iframe src=\"/embed\"></iframe>\
+            <div tabindex=\"3\">x</div>\
+            <h2>Section</h2><h4>Skipped</h4></body></html>";
+        let url = Url::parse("https://example.com/p").unwrap();
+        let p = parse_html(html, &url, "example.com", &[]).a11y;
+        assert_eq!(p.links_total, 2);
+        assert_eq!(p.links_no_text, 1, "icon link with empty alt is unnamed");
+        assert_eq!(
+            p.buttons_no_text, 1,
+            "only the aria-labelled button is named"
+        );
+        assert_eq!(p.controls_total, 2);
+        assert_eq!(p.inputs_no_label, 1, "the bare input has no label");
+        assert_eq!(p.iframes_no_title, 1);
+        assert_eq!(p.positive_tabindex, 1);
+        assert!(p.skipped_heading, "h2 -> h4 skips a level");
+        assert!(p.viewport_blocks_zoom, "user-scalable=no blocks zoom");
     }
 
     #[test]
@@ -183,6 +213,42 @@ fn sel(s: &str) -> Selector {
     Selector::parse(s).expect("valid selector")
 }
 
+/// True if the element carries an explicit accessible name via an ARIA/`title`
+/// attribute (`aria-label`, `aria-labelledby`, or a non-empty `title`).
+fn has_aria_name(el: &ElementRef) -> bool {
+    let v = el.value();
+    ["aria-label", "aria-labelledby", "title"]
+        .iter()
+        .any(|a| v.attr(a).map(|s| !s.trim().is_empty()).unwrap_or(false))
+}
+
+/// True if a descendant `<img>` supplies a non-empty `alt` (so e.g. an icon link
+/// is still named for assistive tech).
+fn has_named_image(el: &ElementRef) -> bool {
+    el.select(&sel("img")).any(|img| {
+        img.value()
+            .attr("alt")
+            .map(|a| !a.trim().is_empty())
+            .unwrap_or(false)
+    })
+}
+
+/// Whether a viewport `content` value blocks the user from zooming —
+/// `user-scalable=no/0`, or `maximum-scale` below 2 (WCAG 1.4.4 wants 200%).
+fn viewport_blocks_zoom(content: &str) -> bool {
+    for part in content.split(',') {
+        let mut kv = part.splitn(2, '=');
+        let key = kv.next().unwrap_or("").trim().to_ascii_lowercase();
+        let val = kv.next().unwrap_or("").trim().to_ascii_lowercase();
+        match key.as_str() {
+            "user-scalable" if val == "no" || val == "0" => return true,
+            "maximum-scale" if val.parse::<f32>().map(|n| n < 2.0).unwrap_or(false) => return true,
+            _ => {}
+        }
+    }
+    false
+}
+
 /// `www.example.com` and `example.com` count as the same site.
 pub fn same_site(seed_host: &str, link_host: &str) -> bool {
     let bare = |h: &str| h.strip_prefix("www.").unwrap_or(h).to_string();
@@ -223,6 +289,7 @@ pub fn parse_html(body: &str, final_url: &Url, host: &str, extractors: &[Extract
     let mut meta_description = None;
     let mut meta_robots = None;
     let mut has_viewport = false;
+    let mut viewport_content: Option<String> = None;
     let mut og_title = None;
     let mut og_image = None;
     let mut twitter_card = None;
@@ -236,7 +303,10 @@ pub fn parse_html(body: &str, final_url: &Url, host: &str, extractors: &[Extract
         match name.as_str() {
             "description" => meta_description = Some(collapse(content)),
             "robots" => meta_robots = Some(content.to_ascii_lowercase()),
-            "viewport" => has_viewport = true,
+            "viewport" => {
+                has_viewport = true;
+                viewport_content = Some(content.to_string());
+            }
             "author" => meta_author = !content.trim().is_empty(),
             _ => {}
         }
@@ -435,6 +505,106 @@ pub fn parse_html(body: &str, final_url: &Url, host: &str, extractors: &[Extract
         score: 0, // filled by scoring::geo_score
     };
 
+    // --- Accessibility (static WCAG checks) ---
+    let mut a11y = A11ySignals::default();
+
+    // Links with no accessible name (no text, ARIA/title, or alt-bearing image).
+    for el in doc.select(&sel("a[href]")) {
+        a11y.links_total += 1;
+        let has_text = !collapse(&el.text().collect::<String>()).is_empty();
+        if !has_text && !has_aria_name(&el) && !has_named_image(&el) {
+            a11y.links_no_text += 1;
+        }
+    }
+
+    // Buttons with no accessible name. `<button>` reads its text; button-type
+    // `<input>` reads its `value` attribute.
+    for el in doc.select(&sel(
+        r#"button, input[type="button"], input[type="submit"], input[type="reset"]"#,
+    )) {
+        a11y.buttons_total += 1;
+        let v = el.value();
+        let has_text = if v.name() == "input" {
+            v.attr("value")
+                .map(|s| !s.trim().is_empty())
+                .unwrap_or(false)
+        } else {
+            !collapse(&el.text().collect::<String>()).is_empty()
+        };
+        if !has_text && !has_aria_name(&el) && !has_named_image(&el) {
+            a11y.buttons_no_text += 1;
+        }
+    }
+
+    // Form controls with no associated label. A control is named by a wrapping
+    // `<label>`, a `<label for=id>`, an `aria-label`/`aria-labelledby`, or `title`.
+    let label_for: HashSet<String> = doc
+        .select(&sel("label[for]"))
+        .filter_map(|l| l.value().attr("for").map(|s| s.to_string()))
+        .collect();
+    for el in doc.select(&sel("input, select, textarea")) {
+        let v = el.value();
+        // Inputs that take no visible label (hidden/buttons/image) don't apply.
+        if v.name() == "input" {
+            let ty = v.attr("type").unwrap_or("text").to_ascii_lowercase();
+            if matches!(
+                ty.as_str(),
+                "hidden" | "submit" | "button" | "reset" | "image"
+            ) {
+                continue;
+            }
+        }
+        a11y.controls_total += 1;
+        let labelled = has_aria_name(&el)
+            || v.attr("id")
+                .map(|id| label_for.contains(id))
+                .unwrap_or(false)
+            || el.ancestors().any(|n| {
+                n.value()
+                    .as_element()
+                    .map(|e| e.name() == "label")
+                    .unwrap_or(false)
+            });
+        if !labelled {
+            a11y.inputs_no_label += 1;
+        }
+    }
+
+    // Iframes with no accessible name.
+    for el in doc.select(&sel("iframe")) {
+        if !has_aria_name(&el) {
+            a11y.iframes_no_title += 1;
+        }
+    }
+
+    // Positive tabindex (anything > 0 hijacks the natural focus order).
+    for el in doc.select(&sel("[tabindex]")) {
+        if el
+            .value()
+            .attr("tabindex")
+            .and_then(|t| t.trim().parse::<i32>().ok())
+            .map(|n| n > 0)
+            .unwrap_or(false)
+        {
+            a11y.positive_tabindex += 1;
+        }
+    }
+
+    // Heading order: flag a downward jump of more than one level (e.g. h2 → h4).
+    let mut last_level = 0u8;
+    for el in doc.select(&sel("h1, h2, h3, h4, h5, h6")) {
+        let level = el.value().name().as_bytes()[1] - b'0';
+        if last_level != 0 && level > last_level + 1 {
+            a11y.skipped_heading = true;
+        }
+        last_level = level;
+    }
+
+    a11y.viewport_blocks_zoom = viewport_content
+        .as_deref()
+        .map(viewport_blocks_zoom)
+        .unwrap_or(false);
+
     let text = if normalized.is_empty() {
         None
     } else {
@@ -467,6 +637,7 @@ pub fn parse_html(body: &str, final_url: &Url, host: &str, extractors: &[Extract
         hreflang,
         mixed_content,
         geo,
+        a11y,
         content_hash,
         extractions: run_extractors(&doc, body, extractors),
     }

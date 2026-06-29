@@ -4,6 +4,17 @@ All notable changes to crawlie are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.3] - 2026-06-29
+
+crawlie can see your accessibility problems now — and it won't let them hide inside your SEO score.
+
+### Added
+- **Accessibility pillar (WCAG).** Seven new checks for the accessibility bugs lurking in your markup: links and buttons with no accessible name (hello, icon-only buttons), form fields with no label, iframes with no title, zoom-blocking viewports, positive `tabindex`, and skipped heading levels. No rendering or contrast guesswork — just the failures that are decidable from the HTML, so no false alarms.
+- **A separate Accessibility score** — a third number out of 100, on purpose. Accessibility problems don't drag down your technical-SEO score, and SEO problems don't hide your accessibility ones. It shows in the CLI, the JSON (`a11yScore`), the HTML report, and as a third score ring in the desktop app.
+- **Accessibility in history and diffs.** Saved reports and crawl-over-crawl comparisons track the a11y score too, so you can watch it climb over time — in the CLI, the `diff_reports` MCP tool, and the desktop compare view.
+
+That's crawlie up to 57 checks across SEO, GEO and accessibility.
+
 ## [0.5.2] - 2026-06-28
 
 Internal link graphs, and crawlie stops tripping over the www redirect.

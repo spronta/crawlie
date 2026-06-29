@@ -125,6 +125,7 @@ fn ok_page(url: &str) -> Page {
         invalid_jsonld: 0,
         hreflang: vec![],
         mixed_content: 0,
+        a11y: Default::default(),
         extractions: vec![],
         geo: GeoSignals {
             semantic_html: true,
@@ -228,6 +229,61 @@ fn page_seo_score_drops_with_issues() {
 }
 
 #[test]
+fn accessibility_has_its_own_score_and_doesnt_touch_health_or_seo() {
+    use crawlie_core::types::A11ySignals;
+    let seed = Url::parse("https://example.com/").unwrap();
+    let mut clean = ok_page("https://example.com/clean");
+    clean.a11y.score = crawlie_core::scoring::a11y_score(&clean); // no failures → 100
+    let mut bad = ok_page("https://example.com/bad");
+    // Distinct metadata so the only findings on this page are accessibility ones
+    // (identical titles/descriptions would otherwise trip the duplicate rules).
+    bad.title = Some("A different, perfectly reasonable page title here".into());
+    bad.meta_description = Some(
+        "A distinct meta description, comfortably within the recommended snippet length.".into(),
+    );
+    // Several WCAG failures, but no SEO problems.
+    bad.a11y = A11ySignals {
+        links_no_text: 5,
+        links_total: 10,
+        inputs_no_label: 2,
+        controls_total: 2,
+        viewport_blocks_zoom: true,
+        skipped_heading: true,
+        ..Default::default()
+    };
+    bad.a11y.score = crawlie_core::scoring::a11y_score(&bad);
+    let pages = vec![clean, bad];
+    let issues = crawlie_core::audit::audit(&pages, &HashMap::new(), &[], &seed);
+
+    // The a11y failures surface as Accessibility issues...
+    let a11y_issues = issues
+        .iter()
+        .filter(|i| i.category == crawlie_core::types::Category::Accessibility)
+        .count();
+    assert!(
+        a11y_issues >= 4,
+        "expected several a11y issues, got {a11y_issues}"
+    );
+
+    // ...but they leave the per-page SEO score and the site health score alone.
+    let seo = crawlie_core::scoring::page_seo_scores(&pages, &issues);
+    assert_eq!(seo[1], 100, "a11y issues must not lower the SEO score");
+    assert_eq!(
+        crawlie_core::scoring::health_score(&pages, &issues),
+        100,
+        "a11y issues must not lower health"
+    );
+
+    // The dedicated a11y score does drop, and the site score reflects it.
+    assert!(pages[1].a11y.score < 60, "bad page a11y score should drop");
+    let site = crawlie_core::scoring::site_a11y_score(&pages);
+    assert!(
+        site > pages[1].a11y.score && site < 100,
+        "site avg sits between, got {site}"
+    );
+}
+
+#[test]
 fn recompute_heals_stale_scores_from_signals() {
     // A report saved with the old stuck-8 GEO score but intact signals should
     // self-heal when reloaded (recompute).
@@ -247,6 +303,7 @@ fn recompute_heals_stale_scores_from_signals() {
             good: 0,
             health_score: 0,
             geo_score: 8,
+            a11y_score: 100,
             avg_response_ms: 0,
             indexable_pages: 1,
             duplicate_pages: 0,

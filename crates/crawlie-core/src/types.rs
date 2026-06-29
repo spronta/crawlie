@@ -279,6 +279,13 @@ pub struct Page {
     // --- security ---
     pub mixed_content: usize,
 
+    // --- accessibility (WCAG) signals ---
+    /// Static accessibility signals (missing labels, unnamed controls, zoom
+    /// blocking, heading-order breaks). `#[serde(default)]` so reports saved
+    /// before the a11y pillar load with an all-zero default.
+    #[serde(default)]
+    pub a11y: A11ySignals,
+
     // --- GEO (Generative Engine Optimization) signals ---
     pub geo: GeoSignals,
 
@@ -318,6 +325,41 @@ pub struct GeoSignals {
     /// Direct answer present near the top (heading immediately followed by prose).
     pub answerable: bool,
     /// 0–100 readiness score for generative engines.
+    pub score: u8,
+}
+
+/// Static accessibility signals extracted from one page's HTML. Every check here
+/// is decidable from markup alone (no rendering or contrast analysis), so it's
+/// cheap and false-positive-resistant. Counts are per-page; `*_total` fields give
+/// the denominator for "N of M" reporting.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct A11ySignals {
+    /// `<a href>` elements with no accessible name (no text, `aria-label`,
+    /// `title`, or alt-bearing image inside).
+    pub links_no_text: usize,
+    /// Total in-page links considered (denominator for `links_no_text`).
+    pub links_total: usize,
+    /// `<button>` / button-type `<input>` elements with no accessible name.
+    pub buttons_no_text: usize,
+    /// Total buttons considered (denominator for `buttons_no_text`).
+    pub buttons_total: usize,
+    /// Form controls (`input`/`select`/`textarea`) with no associated label,
+    /// `aria-label`/`aria-labelledby`, `title`, or wrapping `<label>`.
+    pub inputs_no_label: usize,
+    /// Total labelable form controls considered (denominator for `inputs_no_label`).
+    pub controls_total: usize,
+    /// `<iframe>` elements with no `title`/`aria-label` (frame has no name).
+    pub iframes_no_title: usize,
+    /// Elements with a positive `tabindex` (disrupts natural focus order).
+    pub positive_tabindex: usize,
+    /// A heading level was skipped going down the document (e.g. h2 → h4).
+    pub skipped_heading: bool,
+    /// The viewport meta blocks pinch-zoom (`user-scalable=no` or
+    /// `maximum-scale` below 2), a WCAG 1.4.4 failure.
+    pub viewport_blocks_zoom: bool,
+    /// 0–100 accessibility score for this page (100 minus weighted penalties for
+    /// the failures above). Filled by `scoring::a11y_score`; 0 for non-HTML pages.
     pub score: u8,
 }
 
@@ -376,6 +418,7 @@ pub enum Category {
     International,
     Social,
     StructuredData,
+    Accessibility,
     Geo,
 }
 
@@ -396,6 +439,7 @@ impl Category {
             Category::International => "International",
             Category::Social => "Social",
             Category::StructuredData => "Structured Data",
+            Category::Accessibility => "Accessibility",
             Category::Geo => "Generative Engine Optimization",
         }
     }
@@ -447,6 +491,10 @@ pub struct Summary {
     pub health_score: u8,
     /// Average GEO readiness across indexable HTML pages, 0–100.
     pub geo_score: u8,
+    /// Average accessibility score across HTML pages, 0–100. Reported separately
+    /// from health — a11y issues don't drag down the technical-SEO score.
+    #[serde(default)]
+    pub a11y_score: u8,
     pub avg_response_ms: u64,
     pub indexable_pages: usize,
     pub duplicate_pages: usize,
@@ -594,6 +642,10 @@ pub struct ReportMeta {
     pub warnings: usize,
     pub health_score: u8,
     pub geo_score: u8,
+    /// Average accessibility score, 0–100. `#[serde(default)]` so legacy report
+    /// indexes (and DB rows written before the a11y column) still deserialize.
+    #[serde(default)]
+    pub a11y_score: u8,
 }
 
 /// One rule's net change between two crawls — how many URLs newly triggered it
@@ -627,6 +679,13 @@ pub struct CrawlDiff {
     pub geo_before: u8,
     pub geo_after: u8,
     pub geo_delta: i16,
+    #[serde(default)]
+    pub a11y_before: u8,
+    #[serde(default)]
+    pub a11y_after: u8,
+    /// `a11y_after - a11y_before` (positive = improved).
+    #[serde(default)]
+    pub a11y_delta: i16,
     pub pages_before: usize,
     pub pages_after: usize,
     /// URLs present in the new crawl but not the old one.

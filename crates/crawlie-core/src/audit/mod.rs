@@ -585,6 +585,84 @@ pub fn audit_one(
             }
         }
 
+        // --- Accessibility (static WCAG checks) ---
+        // Runs on every 200 HTML page, indexable or not — accessibility matters
+        // regardless of whether the page is meant for search.
+        let a = &p.a11y;
+        if a.links_no_text > 0 {
+            out.push(issue(
+                "a11y-link-no-text",
+                "Links Without Discernible Text",
+                Accessibility,
+                Warning,
+                u,
+                Some(format!("{} of {} links", a.links_no_text, a.links_total)),
+            ));
+        }
+        if a.buttons_no_text > 0 {
+            out.push(issue(
+                "a11y-button-no-text",
+                "Buttons Without an Accessible Name",
+                Accessibility,
+                Warning,
+                u,
+                Some(format!("{} button(s)", a.buttons_no_text)),
+            ));
+        }
+        if a.inputs_no_label > 0 {
+            out.push(issue(
+                "a11y-input-no-label",
+                "Form Controls Without a Label",
+                Accessibility,
+                Warning,
+                u,
+                Some(format!(
+                    "{} of {} controls",
+                    a.inputs_no_label, a.controls_total
+                )),
+            ));
+        }
+        if a.viewport_blocks_zoom {
+            out.push(issue(
+                "a11y-zoom-disabled",
+                "Viewport Disables Zoom",
+                Accessibility,
+                Warning,
+                u,
+                None,
+            ));
+        }
+        if a.iframes_no_title > 0 {
+            out.push(issue(
+                "a11y-iframe-no-title",
+                "Iframes Missing a Title",
+                Accessibility,
+                Notice,
+                u,
+                Some(format!("{} iframe(s)", a.iframes_no_title)),
+            ));
+        }
+        if a.positive_tabindex > 0 {
+            out.push(issue(
+                "a11y-positive-tabindex",
+                "Positive tabindex",
+                Accessibility,
+                Notice,
+                u,
+                Some(format!("{} element(s)", a.positive_tabindex)),
+            ));
+        }
+        if a.skipped_heading {
+            out.push(issue(
+                "a11y-skipped-heading",
+                "Skipped Heading Level",
+                Accessibility,
+                Notice,
+                u,
+                None,
+            ));
+        }
+
         // Soft SEO/GEO rules only for indexable pages (no point on noindexed).
         if !p.indexable {
             return;

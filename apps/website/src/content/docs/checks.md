@@ -1,11 +1,11 @@
 ---
 title: What it checks
-description: The full catalogue of crawlie's 50 technical-SEO and GEO rules — broken links, metadata, canonicals, structured-data validation, JavaScript-rendering checks, AI-search readiness, and more.
+description: The full catalogue of crawlie's 57 technical-SEO, accessibility and GEO rules — broken links, metadata, canonicals, structured-data validation, WCAG accessibility checks, JavaScript-rendering checks, AI-search readiness, and more.
 section: Reference
 order: 5
 ---
 
-crawlie runs **50 rules and counting**. Every finding links to plain-English guidance —
+crawlie runs **57 rules and counting**. Every finding links to plain-English guidance —
 why it matters, how to fix it, and what happens if you ignore it. Get that for any rule
 with `crawlie explain <rule-id>` (or the `explain_issue` MCP tool).
 
@@ -27,6 +27,19 @@ Slow responses · large pages · missing compression · HTTPS · mixed content �
 
 Rule ids: `slow-response`, `large-page`, `no-compression`, `not-secure`,
 `mixed-content`, `no-hsts`.
+
+## Accessibility (WCAG)
+
+Static, false-positive-resistant accessibility checks — decided from the markup alone, no
+rendering or contrast analysis required. crawlie flags links and buttons with no accessible
+name (icon-only controls, empty `aria-label`s), form fields with no associated label
+(a placeholder isn't a label), iframes missing a `title`, viewports that block pinch-zoom
+(`user-scalable=no` / low `maximum-scale`), positive `tabindex` values that hijack focus
+order, and headings that skip a level. These run on every HTML page, indexable or not.
+
+Rule ids: `a11y-link-no-text`, `a11y-button-no-text`, `a11y-input-no-label`,
+`a11y-zoom-disabled`, `a11y-iframe-no-title`, `a11y-positive-tabindex`,
+`a11y-skipped-heading`.
 
 ## Mobile, international & social
 
