@@ -268,7 +268,11 @@ apps/
 
 ## License & author
 
-MIT © **[Spronta Ltd](https://crawlie.dev)**.
+**MIT** © **[Spronta Ltd](https://crawlie.dev)** — the crawler, CLI, MCP server,
+desktop app and website. The one exception is the [`ee/`](ee/) directory (the
+Crawlie Cloud service), which is licensed under the [Crawlie Enterprise Edition
+License](ee/LICENSE) and requires a subscription for production use. See the
+root [`LICENSE`](LICENSE) for the split.
 
 Built by Sean Ryan — Lead Marketing Engineer at Pendo.io, building AI for marketers on the side. **[Connect on LinkedIn →](https://linkedin.com/in/sean-exe)**
 

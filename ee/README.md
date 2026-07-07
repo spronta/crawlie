@@ -1,5 +1,12 @@
 # Crawlie Cloud — auth service
 
+> **License:** commercial. Everything in this `ee/` directory is licensed under
+> the Crawlie Enterprise Edition License ([`./LICENSE`](./LICENSE)) — **not** the
+> MIT license that covers the rest of the repo. You may read and modify it for
+> development and testing, but running it in production or offering it as a
+> service requires a Crawlie Enterprise subscription. The CLI, MCP and desktop
+> *clients* that talk to this service stay MIT.
+
 The account layer for Crawlie Cloud. One identity shared by the **web**, the
 **CLI** (`crawlie login`), the **MCP server**, and the **desktop app**.
 
@@ -26,7 +33,7 @@ Worker is the only thing that holds sessions.
 ## One-time setup
 
 ```bash
-cd cloud
+cd ee
 pnpm install
 
 # 1. Create the D1 database, then paste its id into wrangler.jsonc (database_id).

@@ -1,5 +1,9 @@
 // Crawlie Cloud auth Worker.
 //
+// Copyright (c) 2026 Spronta Ltd. Licensed under the Crawlie Enterprise Edition
+// License (see ee/LICENSE) — NOT the repo's MIT license. Production use requires
+// a Crawlie Enterprise subscription.
+//
 // Owns two surfaces on api.crawlie.dev:
 //   /api/auth/*   → Better Auth (sessions, GitHub OAuth, email OTP, device grant)
 //   /  and /device → the hosted sign-in / device-approval pages
