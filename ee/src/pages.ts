@@ -13,7 +13,7 @@ import type { Env } from "./env";
 
 const STYLE = `
   :root { color-scheme: light dark; --bg:#fff; --fg:#0a0a0a; --muted:#6b7280;
-    --border:#e5e7eb; --brand:#2563eb; --card:#fff; --ok:#059669; --err:#dc2626; }
+    --border:#e5e7eb; --brand:#0055ee; --card:#fff; --ok:#059669; --err:#dc2626; }
   @media (prefers-color-scheme: dark) { :root { --bg:#0a0a0a; --fg:#f5f5f5;
     --muted:#9ca3af; --border:#262626; --card:#111; } }
   * { box-sizing:border-box; }
