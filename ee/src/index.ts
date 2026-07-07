@@ -15,7 +15,7 @@ import { cors } from "hono/cors";
 import type { Env } from "./env";
 import { trustedOrigins } from "./env";
 import { createAuth } from "./auth";
-import { devicePage, webSignInPage } from "./pages";
+import { devicePage, errorPage, webSignInPage } from "./pages";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -31,6 +31,12 @@ app.use("/api/auth/*", async (c, next) => {
     maxAge: 600,
   })(c, next);
 });
+
+// Branded error screen — override Better Auth's default `/api/auth/error`
+// page. Registered before the catch-all so it wins for this exact route.
+app.get("/api/auth/error", (c) =>
+  c.html(errorPage(c.env, c.req.query("error") ?? "")),
+);
 
 // Hand every Better Auth route to the per-request auth instance.
 app.on(["GET", "POST"], "/api/auth/*", (c) =>

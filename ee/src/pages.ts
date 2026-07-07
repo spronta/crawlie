@@ -32,8 +32,8 @@ const LOGO = `<svg width="113" height="23.6" viewBox="0 0 2061 430" fill="none" 
 // GitHub mark (from the marketing site header).
 const GH_ICON = `<svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>`;
 
-// Small lock, footer trust mark.
-const LOCK_ICON = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>`;
+// Alert glyph for the error page.
+const ALERT_ICON = `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`;
 
 const STYLE = `
   :root{
@@ -96,9 +96,9 @@ const STYLE = `
     transition:background .15s, border-color .15s, transform .1s, box-shadow .15s; }
   button:hover,.btn:hover{ background:var(--panel); border-color:var(--muted-2); }
   button:active{ transform:translateY(1px); }
-  button.primary{ background:var(--blue); border-color:var(--blue); color:#fff;
-    box-shadow:0 8px 22px -8px rgba(0,85,238,.75); }
-  button.primary:hover{ background:var(--blue-hi); border-color:var(--blue-hi); }
+  .primary{ background:var(--blue); border-color:var(--blue); color:#fff;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.16); }
+  .primary:hover{ background:var(--blue-hi); border-color:var(--blue-hi); }
   button:disabled{ opacity:.6; cursor:progress; }
   button svg{ flex:0 0 auto; }
   .row{ margin-top:10px; }
@@ -111,7 +111,21 @@ const STYLE = `
     transition:border-color .15s, box-shadow .15s; }
   input::placeholder{ color:var(--muted-2); }
   input:focus{ border-color:var(--blue); box-shadow:0 0 0 3px rgba(0,85,238,.28); }
-  #otp{ text-align:center; font-family:var(--mono); letter-spacing:6px; font-size:17px; }
+  .otp{ display:grid; grid-template-columns:repeat(6,1fr); gap:8px; }
+  .otp input{ width:100%; height:52px; padding:0; text-align:center; border-radius:var(--radius-sm);
+    border:1px solid var(--border); background:var(--bg-soft); color:var(--fg);
+    font-family:var(--mono); font-size:21px; font-weight:600; letter-spacing:0;
+    outline:none; caret-color:var(--blue);
+    transition:border-color .15s, box-shadow .15s, background .15s; }
+  .otp input::placeholder{ color:transparent; }
+  .otp input.filled{ border-color:var(--muted-2); background:var(--panel-2); }
+  .otp input:focus{ border-color:var(--blue); box-shadow:0 0 0 3px rgba(0,85,238,.28); }
+  @media (max-width:360px){ .otp{ gap:6px; } .otp input{ height:48px; font-size:19px; } }
+  .resend{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:14px; }
+  .linklike{ width:auto; height:auto; min-height:0; padding:2px 0; border:1px solid transparent;
+    background:none; box-shadow:none; color:var(--link); font-size:13px; font-weight:500; cursor:pointer; }
+  .linklike:hover{ background:none; border-color:transparent; text-decoration:underline; }
+  .linklike:disabled{ color:var(--muted-2); cursor:default; opacity:1; text-decoration:none; }
   .msg{ margin-top:14px; font-size:13.5px; min-height:18px; text-align:center; color:var(--muted); }
   .msg.ok{ color:var(--ok); } .msg.err{ color:var(--err); }
   .consent{ margin:18px auto 0; max-width:32ch; font-size:11.5px; line-height:1.55;
@@ -121,6 +135,15 @@ const STYLE = `
     display:flex; align-items:center; justify-content:center; gap:7px; }
   .foot .sepdot{ opacity:.5; }
   a{ color:var(--link); text-decoration:none; } a:hover{ text-decoration:underline; }
+  .err-badge{ width:52px; height:52px; margin:0 auto 18px; border-radius:14px;
+    display:grid; place-items:center; color:var(--err);
+    background:color-mix(in srgb, var(--err) 12%, transparent);
+    border:1px solid color-mix(in srgb, var(--err) 32%, transparent); }
+  .errcode{ display:inline-flex; align-items:center; gap:8px; margin:0 auto 4px;
+    padding:7px 12px; border-radius:999px; background:var(--panel-2);
+    border:1px solid var(--border-soft); font-family:var(--mono); font-size:12.5px; }
+  .errcode b{ color:var(--fg); font-weight:600; }
+  .errcode span{ color:var(--muted-2); text-transform:uppercase; letter-spacing:.1em; font-size:11px; }
   @media (prefers-reduced-motion:no-preference){
     .card{ animation:rise .5s cubic-bezier(.2,.7,.2,1) both; }
     @keyframes rise{ from{ opacity:0; transform:translateY(10px) scale(.985); } }
@@ -157,23 +180,100 @@ function script(authBase: string, mode: "web" | "device"): string {
     var email=q('email').value.trim(); if(!email){ return; }
     q('send').disabled=true; say('Sending your code…');
     api('/email-otp/send-verification-otp',{email:email,type:'sign-in'})
-      .then(function(r){ if(!r.ok){ throw 0; } q('step1').style.display='none';
-        q('step2').style.display='block'; q('otp').focus(); say('Code sent to '+email, true); })
+      .then(function(r){ if(!r.ok){ throw 0; } enterStep2(email); })
       .catch(function(){ say('Could not send a code. Try GitHub instead.', false); })
       .finally(function(){ q('send').disabled=false; });
   }
 
-  function verifyCode(e){
+  // --- Step transitions + resend cooldown ---
+  var TITLE0='', SUB0='', cooldownTimer=null;
+  // Entering code-entry: collapse the GitHub / OR / marketing copy so the
+  // whole card is about the one thing left to do — type the code.
+  function enterStep2(email){
+    q('step1').style.display='none';
+    q('step2').style.display='block';
+    q('gh').style.display='none';
+    q('orsep').style.display='none';
+    q('title').textContent='Check your email';
+    q('sub').textContent='Enter the 6-digit code sent to '+email+'.';
+    say('');
+    otpFocus(0);
+    startCooldown(30);
+  }
+  function backToEmail(){
+    if(cooldownTimer){ clearInterval(cooldownTimer); cooldownTimer=null; }
+    q('step2').style.display='none';
+    q('step1').style.display='block';
+    q('gh').style.display='';
+    q('orsep').style.display='';
+    q('title').textContent=TITLE0;
+    q('sub').textContent=SUB0;
+    otpCells().forEach(function(c){ c.value=''; otpMark(c); });
+    say('');
+    q('email').focus();
+  }
+  function setResend(txt, enabled){ var b=q('resend'); if(b){ b.textContent=txt; b.disabled=!enabled; } }
+  function startCooldown(sec){
+    if(cooldownTimer){ clearInterval(cooldownTimer); }
+    var left=sec; setResend('Resend code in '+left+'s', false);
+    cooldownTimer=setInterval(function(){
+      left--;
+      if(left<=0){ clearInterval(cooldownTimer); cooldownTimer=null; setResend('Resend code', true); }
+      else { setResend('Resend code in '+left+'s', false); }
+    },1000);
+  }
+  function resendCode(){
+    var email=q('email').value.trim(); if(!email){ return; }
+    setResend('Sending…', false);
+    api('/email-otp/send-verification-otp',{email:email,type:'sign-in'})
+      .then(function(r){ if(!r.ok){ throw 0; }
+        otpCells().forEach(function(c){ c.value=''; otpMark(c); }); otpFocus(0);
+        say('New code sent to '+email+'.', true); startCooldown(30); })
+      .catch(function(){ say('Could not resend. Try again shortly.', false); setResend('Resend code', true); });
+  }
+
+  // --- Segmented 6-digit code input ---
+  function otpCells(){ return [q('d0'),q('d1'),q('d2'),q('d3'),q('d4'),q('d5')]; }
+  function otpValue(){ var v=''; otpCells().forEach(function(c){ v+=(c.value||''); }); return v; }
+  function otpFocus(i){ var c=otpCells()[i]; if(c){ c.focus(); c.select(); } }
+  function otpMark(c){ c.classList.toggle('filled', !!c.value); }
+  function otpInput(i){
+    var c=otpCells()[i];
+    c.value=(c.value||'').replace(/[^0-9]/g,'').slice(-1);
+    otpMark(c);
+    if(c.value && i<5){ otpFocus(i+1); }
+    if(otpValue().length===6){ doVerify(); }
+  }
+  function otpKey(i,e){
+    if(e.key==='Backspace' && !otpCells()[i].value && i>0){ e.preventDefault(); var p=otpCells()[i-1]; p.value=''; otpMark(p); otpFocus(i-1); }
+    else if(e.key==='ArrowLeft' && i>0){ e.preventDefault(); otpFocus(i-1); }
+    else if(e.key==='ArrowRight' && i<5){ e.preventDefault(); otpFocus(i+1); }
+  }
+  function otpPaste(e){
     e.preventDefault();
-    var email=q('email').value.trim(), otp=q('otp').value.trim();
-    q('verify').disabled=true; say('Verifying…');
+    var t=((e.clipboardData||window.clipboardData).getData('text')||'');
+    var d=t.replace(/[^0-9]/g,'').slice(0,6).split('');
+    otpCells().forEach(function(c,idx){ c.value=d[idx]||''; otpMark(c); });
+    otpFocus(Math.min(d.length,5));
+    if(otpValue().length===6){ doVerify(); }
+  }
+
+  var verifying=false;
+  function verifyCode(e){ if(e){ e.preventDefault(); } doVerify(); }
+  function doVerify(){
+    if(verifying){ return; }
+    var email=q('email').value.trim(), otp=otpValue();
+    if(otp.length!==6){ say('Enter the 6-digit code.', false); return; }
+    verifying=true; q('verify').disabled=true; say('Verifying…');
     api('/sign-in/email-otp',{email:email,otp:otp})
       .then(function(r){ if(!r.ok){ throw 0; } onSignedIn(); })
-      .catch(function(){ say('That code did not work. Check and retry.', false); })
-      .finally(function(){ q('verify').disabled=false; });
+      .catch(function(){ say('That code did not work. Check and retry.', false);
+        otpCells().forEach(function(c){ c.value=''; otpMark(c); }); otpFocus(0); })
+      .finally(function(){ verifying=false; q('verify').disabled=false; });
   }
 
   function onSignedIn(){
+    if(cooldownTimer){ clearInterval(cooldownTimer); cooldownTimer=null; }
     if(MODE==='device'){ approve(); }
     else { say('You are signed in. You can close this tab and return to Crawlie.', true);
       q('forms').style.display='none';
@@ -190,6 +290,9 @@ function script(authBase: string, mode: "web" | "device"): string {
         say('You are signed in. Return to your terminal — it will continue automatically.', true); })
       .catch(function(){ say('Could not approve this device. The code may have expired.', false); });
   }
+
+  // Capture the original heading/subtext so "use a different email" can restore them.
+  (function(){ var t=q('title'), s=q('sub'); TITLE0=t?t.textContent:''; SUB0=s?s.textContent:''; })();
 
   // On load: if already signed in, skip straight to approve/success.
   fetch(AUTH+'/get-session',{credentials:'include'})
@@ -210,11 +313,12 @@ function render(env: Env, mode: "web" | "device", userCode: string): string {
     mode === "device" && userCode
       ? `<div class="code" id="code">${escapeHtml(userCode)}</div>`
       : "";
-  // Represent newsletter consent at the point of signup (opt-out, unsubscribe anytime).
+  // Terms/Privacy acceptance at the point of signup.
   const consent =
     mode === "web"
-      ? `<p class="consent">By continuing you agree to occasional Crawlie product
-         updates by email. Unsubscribe anytime.</p>`
+      ? `<p class="consent">By continuing you agree to the
+         <a href="https://crawlie.dev/legal/terms">Terms</a> &amp;
+         <a href="https://crawlie.dev/legal/privacy">Privacy Policy</a>.</p>`
       : "";
   return `<!doctype html>
 <html lang="en"><head>
@@ -232,26 +336,37 @@ function render(env: Env, mode: "web" | "device", userCode: string): string {
   <div class="head">
     <a class="logo" href="https://crawlie.dev" aria-label="crawlie">${LOGO}</a>
     <h1 id="title">${title}</h1>
-    <p class="sub">${sub}</p>
+    <p class="sub" id="sub">${sub}</p>
   </div>
   ${codeBlock}
   <div id="forms">
     <button class="primary" onclick="github()" id="gh">
       ${GH_ICON} Continue with GitHub
     </button>
-    <div class="sep">or</div>
+    <div class="sep" id="orsep">or</div>
     <form id="step1" onsubmit="sendCode(event)">
       <input id="email" type="email" placeholder="you@company.com" autocomplete="email" required/>
       <div class="row"><button id="send" type="submit">Email me a sign-in code</button></div>
     </form>
     <form id="step2" onsubmit="verifyCode(event)" style="display:none">
-      <input id="otp" inputmode="numeric" autocomplete="one-time-code" placeholder="6-digit code" required/>
+      <div class="otp" onpaste="otpPaste(event)">
+        <input id="d0" inputmode="numeric" autocomplete="one-time-code" maxlength="1" aria-label="Digit 1" oninput="otpInput(0)" onkeydown="otpKey(0,event)"/>
+        <input id="d1" inputmode="numeric" maxlength="1" aria-label="Digit 2" oninput="otpInput(1)" onkeydown="otpKey(1,event)"/>
+        <input id="d2" inputmode="numeric" maxlength="1" aria-label="Digit 3" oninput="otpInput(2)" onkeydown="otpKey(2,event)"/>
+        <input id="d3" inputmode="numeric" maxlength="1" aria-label="Digit 4" oninput="otpInput(3)" onkeydown="otpKey(3,event)"/>
+        <input id="d4" inputmode="numeric" maxlength="1" aria-label="Digit 5" oninput="otpInput(4)" onkeydown="otpKey(4,event)"/>
+        <input id="d5" inputmode="numeric" maxlength="1" aria-label="Digit 6" oninput="otpInput(5)" onkeydown="otpKey(5,event)"/>
+      </div>
       <div class="row"><button id="verify" class="primary" type="submit">Verify &amp; continue</button></div>
+      <div class="resend">
+        <button type="button" class="linklike" onclick="backToEmail()">Use a different email</button>
+        <button type="button" class="linklike" id="resend" onclick="resendCode()">Resend code</button>
+      </div>
     </form>
   </div>
   <div class="msg" id="msg"></div>
   ${consent}
-  <div class="foot">${LOCK_ICON} Protected by Better Auth <span class="sepdot">·</span> <a href="https://crawlie.dev">crawlie.dev</a></div>
+  <div class="foot"><a href="https://crawlie.dev">crawlie.dev</a></div>
 </div>
 <script>${script(authBase, mode)}</script>
 </body></html>`;
@@ -269,4 +384,50 @@ export function webSignInPage(env: Env): string {
 
 export function devicePage(env: Env, userCode: string): string {
   return render(env, "device", userCode);
+}
+
+// Human-readable copy for the Better Auth error codes we actually surface.
+function errorCopy(code: string): string {
+  switch (code) {
+    case "state_mismatch":
+      return "Your sign-in link couldn't be verified — usually because cookies were blocked or the tab sat idle too long. Starting over almost always fixes it.";
+    case "access_denied":
+      return "The sign-in was cancelled before it finished. You can try again whenever you're ready.";
+    case "please_restart_the_process":
+      return "That sign-in attempt expired. Head back and start again.";
+    default:
+      return "We hit an unexpected error while signing you in. Please try again — if it keeps happening, reach out and we'll help.";
+  }
+}
+
+/** Branded error page that replaces Better Auth's default `/api/auth/error`. */
+export function errorPage(env: Env, code: string): string {
+  const safeCode = escapeHtml((code || "unknown").slice(0, 64));
+  const codeChip = code
+    ? `<div class="errcode"><span>Code</span><b>${safeCode}</b></div>`
+    : "";
+  return `<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta name="color-scheme" content="dark light"/>
+<meta name="robots" content="noindex"/>
+<title>Sign-in error · Crawlie</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@500;600&display=swap" rel="stylesheet"/>
+<style>${STYLE}</style>
+</head><body>
+<div class="card">
+  <div class="head">
+    <a class="logo" href="https://crawlie.dev" aria-label="crawlie">${LOGO}</a>
+    <div class="err-badge">${ALERT_ICON}</div>
+    <h1>Something went wrong</h1>
+  </div>
+  ${codeChip}
+  <p class="sub" style="text-align:center;margin:12px auto 22px">${errorCopy(code)}</p>
+  <a class="btn primary" href="/">Back to sign in</a>
+  <div class="foot"><a href="https://crawlie.dev">crawlie.dev</a></div>
+</div>
+</body></html>`;
 }
