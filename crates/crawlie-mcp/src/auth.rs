@@ -30,6 +30,9 @@ pub fn identity() -> Option<Identity> {
     }
     Some(Identity {
         email: v["user"]["email"].as_str().map(|s| s.to_string()),
-        endpoint: v.get("endpoint").and_then(|e| e.as_str()).map(|s| s.to_string()),
+        endpoint: v
+            .get("endpoint")
+            .and_then(|e| e.as_str())
+            .map(|s| s.to_string()),
     })
 }

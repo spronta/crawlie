@@ -45,8 +45,14 @@ pub fn save_token(endpoint: &str, token: &str, email: Option<&str>, name: Option
     if let Some(dir) = path.parent() {
         let _ = std::fs::create_dir_all(dir);
     }
-    if let Err(e) = std::fs::write(&path, serde_json::to_vec_pretty(&payload).unwrap_or_default()) {
-        eprintln!("  warning: could not save credentials to {}: {e}", path.display());
+    if let Err(e) = std::fs::write(
+        &path,
+        serde_json::to_vec_pretty(&payload).unwrap_or_default(),
+    ) {
+        eprintln!(
+            "  warning: could not save credentials to {}: {e}",
+            path.display()
+        );
     }
     // Best-effort: keep the token file private (owner read/write only).
     #[cfg(unix)]
@@ -112,7 +118,9 @@ pub async fn run_login(no_browser: bool) -> u8 {
     let device_code = body["device_code"].as_str().unwrap_or_default().to_string();
     let user_code = body["user_code"].as_str().unwrap_or_default().to_string();
     let verify_uri = body["verification_uri"].as_str().unwrap_or_default();
-    let verify_complete = body["verification_uri_complete"].as_str().unwrap_or(verify_uri);
+    let verify_complete = body["verification_uri_complete"]
+        .as_str()
+        .unwrap_or(verify_uri);
     let mut interval = body["interval"].as_u64().unwrap_or(5).max(1);
     if device_code.is_empty() || user_code.is_empty() {
         eprintln!("  sign-in service returned an unexpected response.");
