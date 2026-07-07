@@ -25,9 +25,9 @@
     // the desktop app, and localhost dev servers.
     "TRUSTED_ORIGINS": "https://crawlie.dev,https://www.crawlie.dev,https://crawlie.app,https://www.crawlie.app,http://localhost:4321,http://localhost:5173,tauri://localhost",
     // Loops mailing list id for the Crawlie product newsletter.
-    "LOOPS_NEWSLETTER_MAILING_LIST_ID": "",
+    "LOOPS_NEWSLETTER_MAILING_LIST_ID": "cmqw5b5y06otv0jybbg8x30xj",
     // Loops transactional email id used to deliver the sign-in code.
-    "LOOPS_OTP_TRANSACTIONAL_ID": "",
+    "LOOPS_OTP_TRANSACTIONAL_ID": "cmrb5h8dy00qb0jx3qsb2wqfx",
     // Whether to subscribe new cloud signups to the newsletter (opt-out).
     "LOOPS_NEWSLETTER_ON_SIGNUP": "true"
   },
@@ -35,8 +35,8 @@
     {
       "binding": "DB",
       "database_name": "crawlie-auth",
-      // Replace with the real id from `wrangler d1 create crawlie-auth`.
-      "database_id": "REPLACE_WITH_D1_DATABASE_ID",
+      // Created via `wrangler d1 create crawlie-auth` (region WEUR).
+      "database_id": "d0130009-7642-44df-bbc9-acf9cc1f926e",
       "migrations_dir": "migrations"
     }
   ]
