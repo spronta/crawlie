@@ -9,6 +9,7 @@ use crawlie_core::{
     all_rules, crawl, crawl_to_store, report_html, rule_info, top_fixes, CancelToken, CrawlConfig,
     CrawlMode, CrawlResult, Extractor, PageStore, ReportStore, Severity, UrlFilter,
 };
+mod auth;
 mod update;
 
 use crawlie_rules::{Ledger, Resolver, SLOP_DEFAULT_SRC};
@@ -51,6 +52,12 @@ enum Command {
     Diff(DiffArgs),
     /// Inspect a streamed crawl database (created with `crawl --store <path>`).
     Store(StoreArgs),
+    /// Sign in to Crawlie Cloud (opens your browser).
+    Login(LoginArgs),
+    /// Sign out of Crawlie Cloud and remove the local token.
+    Logout,
+    /// Show the signed-in Crawlie Cloud account.
+    Whoami,
 }
 
 #[derive(Parser)]
@@ -148,6 +155,13 @@ struct AuditArgs {
     output: Option<String>,
     #[arg(long, short = 'q')]
     quiet: bool,
+}
+
+#[derive(Parser)]
+struct LoginArgs {
+    /// Print the URL + code instead of auto-opening a browser.
+    #[arg(long)]
+    no_browser: bool,
 }
 
 #[derive(Parser)]
@@ -316,6 +330,9 @@ async fn main() -> ExitCode {
         Command::Report(a) => show_report(a),
         Command::Diff(a) => diff_reports(a),
         Command::Store(a) => show_store(a),
+        Command::Login(a) => ExitCode::from(auth::run_login(a.no_browser).await),
+        Command::Logout => ExitCode::from(auth::run_logout().await),
+        Command::Whoami => ExitCode::from(auth::run_whoami().await),
         Command::Update(_) => unreachable!("handled above"),
     };
     // Best-effort, interactive-human-only nudge. Never touches stdout.
