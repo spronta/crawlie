@@ -1,0 +1,18 @@
+[package]
+name = "crawlie-crawler-service"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Crawlie Cloud hosted-crawl service — HTTP wrapper around crawlie-core, run in a Cloudflare Container. Commercial (see ee/LICENSE)."
+
+[dependencies]
+crawlie-core = { path = "../../crates/crawlie-core" }
+tokio = { version = "1", features = ["full"] }
+axum = "0.7"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio-stream = "0.1"
+
+[[bin]]
+name = "crawlie-crawler-service"
+path = "src/main.rs"

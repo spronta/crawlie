@@ -43,7 +43,7 @@ v1.post("/crawls", async (c) => {
     (async () => {
       try {
         const result = await runCrawl(c.env, body.config, (ev) => send(ev));
-        await saveReport(c.env, userId, result);
+        await saveReport(c.env, userId, result as Parameters<typeof saveReport>[2]);
         await send({ type: "result", result });
       } catch (err) {
         await send({ type: "error", message: String(err) });

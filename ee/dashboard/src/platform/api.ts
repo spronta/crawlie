@@ -17,8 +17,8 @@ import { DEMO_RESULT } from "@ui/lib/demo";
 
 // Hosted crawler API base (the Worker in front of the container crawlers).
 const API = import.meta.env.VITE_CRAWLIE_API ?? "https://api.crawlie.app";
-// Flip to true once the hosted crawler backend is deployed (Phase 2).
-const HOSTED = false;
+// Hosted crawler backend is live (crawlie.app/v1 → Cloudflare Container).
+const HOSTED = true;
 
 /** Always false on the web — kept so views can branch on desktop-only affordances. */
 export function isTauri(): boolean {
@@ -51,38 +51,50 @@ export async function startCrawl(
 ): Promise<CrawlResult> {
   if (!HOSTED) return runDemo(config, onEvent);
 
-  // Create the job, then stream Server-Sent Events until it resolves.
-  const { id } = await req<{ id: string }>("/v1/crawls", {
+  // POST the config; the Worker streams Server-Sent Events back (progress
+  // events, then a final `result`). Read the response body directly — EventSource
+  // can't POST, so we parse the SSE frames ourselves.
+  activeCrawl?.abort();
+  const controller = new AbortController();
+  activeCrawl = controller;
+  const res = await fetch(`${API}/v1/crawls`, {
     method: "POST",
+    credentials: "include",
+    headers: { "content-type": "application/json" },
     body: JSON.stringify({ config }),
+    signal: controller.signal,
   });
-  return new Promise<CrawlResult>((resolve, reject) => {
-    const es = new EventSource(`${API}/v1/crawls/${id}/events`, { withCredentials: true });
-    es.onmessage = (m) => {
-      const e = JSON.parse(m.data) as CrawlEvent | { type: "result"; result: CrawlResult };
-      if ((e as { type: string }).type === "result") {
-        es.close();
-        resolve((e as { result: CrawlResult }).result);
-      } else {
-        onEvent(e as CrawlEvent);
-      }
-    };
-    es.onerror = () => {
-      es.close();
-      reject(new Error("Crawl stream interrupted"));
-    };
-    activeCrawlId = id;
-  });
+  if (!res.ok || !res.body) throw new Error(`Crawl failed (${res.status})`);
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let sep: number;
+    while ((sep = buffer.indexOf("\n\n")) >= 0) {
+      const frame = buffer.slice(0, sep);
+      buffer = buffer.slice(sep + 2);
+      const dataLine = frame.split("\n").find((l) => l.startsWith("data:"));
+      if (!dataLine) continue;
+      const e = JSON.parse(dataLine.slice(5).trim()) as
+        | CrawlEvent
+        | { type: "result"; result: CrawlResult }
+        | { type: "error"; message: string };
+      if (e.type === "result") return (e as { result: CrawlResult }).result;
+      if (e.type === "error") throw new Error((e as { message: string }).message);
+      onEvent(e as CrawlEvent);
+    }
+  }
+  throw new Error("Crawl stream ended without a result.");
 }
 
-let activeCrawlId: string | null = null;
+let activeCrawl: AbortController | null = null;
 export async function cancelCrawl(): Promise<void> {
-  if (!HOSTED || !activeCrawlId) return;
-  try {
-    await req(`/v1/crawls/${activeCrawlId}/cancel`, { method: "POST" });
-  } catch {
-    /* best-effort */
-  }
+  activeCrawl?.abort();
+  activeCrawl = null;
 }
 
 export async function listReports(): Promise<ReportMeta[]> {

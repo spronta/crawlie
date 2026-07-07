@@ -51,6 +51,23 @@
   "r2_buckets": [
     { "binding": "REPORTS", "bucket_name": "crawlie-reports" }
   ],
+  // Hosted crawler: a container running ee/crawler, managed by the
+  // CrawlerContainer Durable Object. wrangler builds + pushes the image
+  // (Dockerfile at the repo root; build context is the repo root).
+  "containers": [
+    {
+      "class_name": "CrawlerContainer",
+      "image": "../Dockerfile",
+      "max_instances": 5,
+      "name": "crawlie-crawler"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [{ "class_name": "CrawlerContainer", "name": "CRAWLER" }]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["CrawlerContainer"] }
+  ],
   "d1_databases": [
     {
       "binding": "DB",

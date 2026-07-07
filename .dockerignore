@@ -1,0 +1,14 @@
+# Keep the build context small + fast. The container only needs the cargo
+# workspace source; everything below is rebuilt or irrelevant.
+target
+**/node_modules
+**/dist
+.git
+apps
+skills
+videos
+npm
+ee/dashboard
+ee/src
+ee/migrations
+**/*.log

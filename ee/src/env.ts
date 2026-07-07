@@ -1,3 +1,5 @@
+import type { CrawlerContainer } from "./containers";
+
 /** Cloudflare bindings + vars available to the Worker (see wrangler.jsonc). */
 export interface Env {
   /** D1 database bound as `DB`. */
@@ -8,6 +10,9 @@ export interface Env {
 
   /** R2 bucket holding full CrawlResult JSON for hosted reports. */
   REPORTS: R2Bucket;
+
+  /** Durable Object namespace for the crawler container. */
+  CRAWLER: DurableObjectNamespace<CrawlerContainer>;
 
   // --- Secrets (wrangler secret put ...) ---
   BETTER_AUTH_SECRET: string;

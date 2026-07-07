@@ -58,4 +58,7 @@ app.get("/health", (c) => c.json({ ok: true, service: "crawlie-cloud" }));
 // Anything else the Worker sees falls back to the dashboard SPA.
 app.all("*", (c) => c.env.ASSETS.fetch(c.req.raw));
 
+// Durable Object backing the hosted-crawl container.
+export { CrawlerContainer } from "./containers";
+
 export default app;
