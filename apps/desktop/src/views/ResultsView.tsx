@@ -5,7 +5,7 @@ import { CATEGORY_LABELS } from "../lib/types";
 import { ruleInfo } from "../lib/rules";
 import { Donut, StackedBars, ProportionBar } from "../components/charts";
 import { IconDownload, IconExternal, IconRefresh, IconShare, IconX, ScoreRing, SeverityBadge, StatusPill } from "../components/ui";
-import { exportHtml, isTauri, openExternal } from "../lib/api";
+import { exportHtml, isTauri, openExternal } from "@platform/api";
 import { topFixes } from "../lib/priority";
 import { bytes, ms, num, severityRank, shortUrl } from "../lib/format";
 import { LinkGraphView } from "./LinkGraphView";

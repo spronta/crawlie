@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { CrawlConfig, CrawlResult } from "./lib/types";
-import { cancelCrawl, openExternal, startCrawl, watchFullscreen } from "./lib/api";
+import { cancelCrawl, openExternal, startCrawl, watchFullscreen } from "@platform/api";
 import { Logo, IconBook, IconExternal, IconHistory, IconSettings, IconSearch, IconChevron } from "./components/ui";
 import { StartView } from "./views/StartView";
 import { CrawlingView, type Progress } from "./views/CrawlingView";

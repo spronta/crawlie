@@ -4,7 +4,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { IconUser, IconExternal, Spinner } from "./ui";
-import { openExternal } from "../lib/api";
+import { openExternal } from "@platform/api";
 import {
   loadIdentity,
   login,
@@ -12,7 +12,7 @@ import {
   type DevicePrompt,
   type Identity,
   type LoginController,
-} from "../lib/auth";
+} from "@platform/auth";
 
 type Mode =
   | { name: "signedOut" }

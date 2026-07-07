@@ -9,7 +9,7 @@ import {
   saveSettings,
   type Settings,
   type UpdateInfo,
-} from "../lib/api";
+} from "@platform/api";
 import { IconBack, IconRefresh, IconExternal, Toggle } from "../components/ui";
 import { applyTheme, currentTheme, type Theme } from "../lib/theme";
 import { getCrawlDefaults, saveCrawlDefaults, type CrawlDefaults } from "../lib/crawl-defaults";

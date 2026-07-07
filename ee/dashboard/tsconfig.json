@@ -12,12 +12,14 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "baseUrl": ".",
-    "paths": { "@platform/*": ["src/lib/*"] },
+    "paths": {
+      "@platform/*": ["src/platform/*"],
+      "@ui/*": ["../../apps/desktop/src/*"]
+    },
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"],
-  "references": [{ "path": "./tsconfig.node.json" }]
+  "include": ["src"]
 }
