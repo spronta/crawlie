@@ -1,0 +1,38 @@
+{
+  // Crawlie Cloud auth Worker. Deploys to api.crawlie.dev.
+  //
+  // Secrets (set with `wrangler secret put <NAME>`, never commit them):
+  //   BETTER_AUTH_SECRET     — 32+ byte random string (openssl rand -base64 32)
+  //   GITHUB_CLIENT_ID       — GitHub OAuth app client id
+  //   GITHUB_CLIENT_SECRET   — GitHub OAuth app client secret
+  //   LOOPS_API_KEY          — Loops.so API key (transactional OTP + newsletter)
+  //
+  // Non-secret config lives in `vars` below. Local dev reads `.dev.vars`.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "crawlie-auth",
+  "main": "src/index.ts",
+  "compatibility_date": "2024-12-18",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  "vars": {
+    "BETTER_AUTH_URL": "https://api.crawlie.dev",
+    // Comma-separated origins allowed to call the auth API with credentials.
+    // The marketing site (Vercel), the desktop app dev server, and localhost.
+    "TRUSTED_ORIGINS": "https://crawlie.dev,https://www.crawlie.dev,http://localhost:4321,http://localhost:5173,tauri://localhost",
+    // Loops mailing list id for the Crawlie product newsletter.
+    "LOOPS_NEWSLETTER_MAILING_LIST_ID": "",
+    // Loops transactional email id used to deliver the sign-in code.
+    "LOOPS_OTP_TRANSACTIONAL_ID": "",
+    // Whether to subscribe new cloud signups to the newsletter (opt-out).
+    "LOOPS_NEWSLETTER_ON_SIGNUP": "true"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "crawlie-auth",
+      // Replace with the real id from `wrangler d1 create crawlie-auth`.
+      "database_id": "REPLACE_WITH_D1_DATABASE_ID",
+      "migrations_dir": "migrations"
+    }
+  ]
+}

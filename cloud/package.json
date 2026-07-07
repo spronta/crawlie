@@ -1,0 +1,26 @@
+{
+  "name": "crawlie-cloud",
+  "type": "module",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Crawlie Cloud auth service — Better Auth on Cloudflare Workers (D1), shared across web, CLI, MCP and desktop.",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "db:migrate:local": "wrangler d1 migrations apply crawlie-auth --local",
+    "db:migrate:remote": "wrangler d1 migrations apply crawlie-auth --remote",
+    "cf-typegen": "wrangler types"
+  },
+  "dependencies": {
+    "better-auth": "^1.6.23",
+    "hono": "^4.6.14",
+    "kysely": "^0.27.4",
+    "kysely-d1": "^0.3.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241218.0",
+    "typescript": "^5.7.2",
+    "wrangler": "^4.0.0"
+  }
+}
