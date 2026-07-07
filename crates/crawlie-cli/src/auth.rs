@@ -1,7 +1,7 @@
 //! `crawlie login / logout / whoami` — Crawlie Cloud sign-in.
 //!
 //! Uses the OAuth 2.0 Device Authorization Grant (RFC 8628) against the auth
-//! Worker (`api.crawlie.dev`): we request a device+user code, send the human to
+//! Worker (`api.crawlie.app`): we request a device+user code, send the human to
 //! a browser to approve it, then poll until a session token comes back. The
 //! token lands in `~/.crawlie/auth.json`, which the MCP server and desktop app
 //! read too — one sign-in, every surface.
@@ -11,7 +11,7 @@
 use std::path::PathBuf;
 use std::time::Duration;
 
-const DEFAULT_CLOUD_URL: &str = "https://api.crawlie.dev";
+const DEFAULT_CLOUD_URL: &str = "https://api.crawlie.app";
 const CLIENT_ID: &str = "crawlie-cli";
 const DEVICE_GRANT: &str = "urn:ietf:params:oauth:grant-type:device_code";
 

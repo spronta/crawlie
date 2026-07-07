@@ -10,7 +10,7 @@
 The account layer for Crawlie Cloud. One identity shared by the **web**, the
 **CLI** (`crawlie login`), the **MCP server**, and the **desktop app**.
 
-- **Runtime:** Cloudflare Worker (Hono) — deploys to `api.crawlie.dev`
+- **Runtime:** Cloudflare Worker (Hono) — deploys to `api.crawlie.app`
 - **Auth:** [Better Auth](https://better-auth.com) with **GitHub OAuth** + **email one-time code**
 - **Store:** Cloudflare **D1** (SQLite)
 - **Email + newsletter:** [Loops](https://loops.so) — sends the sign-in code *and* subscribes new signups to the Crawlie newsletter

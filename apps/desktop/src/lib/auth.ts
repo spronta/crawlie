@@ -7,7 +7,7 @@
 
 import { isTauri, openExternal } from "./api";
 
-const DEFAULT_CLOUD = "https://api.crawlie.dev";
+const DEFAULT_CLOUD = "https://api.crawlie.app";
 const CLIENT_ID = "crawlie-desktop";
 const DEVICE_GRANT = "urn:ietf:params:oauth:grant-type:device_code";
 const LS_KEY = "crawlie.auth";

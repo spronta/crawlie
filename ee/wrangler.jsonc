@@ -1,5 +1,6 @@
 {
-  // Crawlie Cloud auth Worker. Deploys to api.crawlie.dev.
+  // Crawlie Cloud auth Worker. Deploys to api.crawlie.app (the crawlie.app zone
+  // lives on Cloudflare, so the custom domain below auto-provisions on deploy).
   //
   // Secrets (set with `wrangler secret put <NAME>`, never commit them):
   //   BETTER_AUTH_SECRET     — 32+ byte random string (openssl rand -base64 32)
@@ -14,11 +15,15 @@
   "compatibility_date": "2024-12-18",
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },
+  // Bind the Worker to api.crawlie.app. Requires the crawlie.app zone on this
+  // Cloudflare account; `wrangler deploy` provisions the domain + cert.
+  "routes": [{ "pattern": "api.crawlie.app", "custom_domain": true }],
   "vars": {
-    "BETTER_AUTH_URL": "https://api.crawlie.dev",
-    // Comma-separated origins allowed to call the auth API with credentials.
-    // The marketing site (Vercel), the desktop app dev server, and localhost.
-    "TRUSTED_ORIGINS": "https://crawlie.dev,https://www.crawlie.dev,http://localhost:4321,http://localhost:5173,tauri://localhost",
+    "BETTER_AUTH_URL": "https://api.crawlie.app",
+    // Comma-separated origins allowed to call the auth API with credentials:
+    // the marketing site (crawlie.dev, Vercel), the future crawlie.app dashboard,
+    // the desktop app, and localhost dev servers.
+    "TRUSTED_ORIGINS": "https://crawlie.dev,https://www.crawlie.dev,https://crawlie.app,https://www.crawlie.app,http://localhost:4321,http://localhost:5173,tauri://localhost",
     // Loops mailing list id for the Crawlie product newsletter.
     "LOOPS_NEWSLETTER_MAILING_LIST_ID": "",
     // Loops transactional email id used to deliver the sign-in code.

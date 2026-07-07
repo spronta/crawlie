@@ -4,7 +4,7 @@
 // License (see ee/LICENSE) — NOT the repo's MIT license. Production use requires
 // a Crawlie Enterprise subscription.
 //
-// Owns two surfaces on api.crawlie.dev:
+// Owns two surfaces on api.crawlie.app:
 //   /api/auth/*   → Better Auth (sessions, GitHub OAuth, email OTP, device grant)
 //   /  and /device → the hosted sign-in / device-approval pages
 //
