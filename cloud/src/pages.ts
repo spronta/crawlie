@@ -44,7 +44,9 @@ const STYLE = `
     var(--border); background:var(--bg); color:var(--fg); font-size:15px; }
   .msg { margin-top:14px; font-size:14px; min-height:20px; }
   .msg.ok { color:var(--ok); } .msg.err { color:var(--err); }
-  .foot { margin-top:22px; font-size:12px; color:var(--muted); text-align:center; }
+  .consent { margin:16px 0 0; font-size:11.5px; line-height:1.5; color:var(--muted);
+    text-align:center; }
+  .foot { margin-top:16px; font-size:12px; color:var(--muted); text-align:center; }
   a { color:var(--brand); }
 `;
 
@@ -131,6 +133,12 @@ function render(env: Env, mode: "web" | "device", userCode: string): string {
     mode === "device" && userCode
       ? `<div class="code" id="code">${escapeHtml(userCode)}</div>`
       : "";
+  // Represent newsletter consent at the point of signup (opt-out, unsubscribe anytime).
+  const consent =
+    mode === "web"
+      ? `<p class="consent">By continuing you agree to occasional Crawlie product
+         updates by email. Unsubscribe anytime.</p>`
+      : "";
   return `<!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8"/>
@@ -159,6 +167,7 @@ function render(env: Env, mode: "web" | "device", userCode: string): string {
     </form>
   </div>
   <div class="msg" id="msg"></div>
+  ${consent}
   <div class="foot">Protected by Better Auth · <a href="https://crawlie.dev">crawlie.dev</a></div>
 </div>
 <script>${script(authBase, mode)}</script>
