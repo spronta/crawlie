@@ -30,39 +30,12 @@ Worker is the only thing that holds sessions.
 | `/api/auth/*` | Full Better Auth surface (GitHub, email OTP, sessions) |
 | `GET /health` | Liveness check |
 
-## One-time setup
+## Deployment
 
-```bash
-cd ee
-pnpm install
-
-# 1. Create the D1 database, then paste its id into wrangler.jsonc (database_id).
-npx wrangler d1 create crawlie-auth
-
-# 2. Apply the schema.
-pnpm db:migrate:local     # local dev
-pnpm db:migrate:remote    # production
-
-# 3. Secrets (production).
-npx wrangler secret put BETTER_AUTH_SECRET      # openssl rand -base64 32
-npx wrangler secret put GITHUB_CLIENT_ID
-npx wrangler secret put GITHUB_CLIENT_SECRET
-npx wrangler secret put LOOPS_API_KEY
-
-# 4. Non-secret Loops ids in wrangler.jsonc `vars`:
-#    LOOPS_NEWSLETTER_MAILING_LIST_ID  — the Crawlie newsletter list
-#    LOOPS_OTP_TRANSACTIONAL_ID        — a transactional template using {{otp}}
-```
-
-**GitHub OAuth app** → callback URL `https://api.crawlie.dev/api/auth/callback/github`.
-
-## Local dev
-
-```bash
-cp .dev.vars.example .dev.vars   # fill in a dev secret + GitHub dev app
-pnpm db:migrate:local
-pnpm dev                          # http://localhost:8787
-```
+Provisioning, secrets, and deploy steps for Crawlie Cloud are **internal** and
+not documented in this public repository. If you're on the Spronta team, see the
+internal runbook. This service is not intended to be self-hosted — see the
+license note above.
 
 ## Schema
 
