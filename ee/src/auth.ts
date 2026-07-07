@@ -22,6 +22,12 @@ export function buildAuthOptions(env: Env): BetterAuthOptions {
       type: "sqlite",
     },
     trustedOrigins: trustedOrigins(env),
+    // Session cookie is scoped to `.crawlie.app` so it's first-party on the
+    // dashboard (crawlie.app) AND sent to api.crawlie.app for the CLI/desktop
+    // device flow — one identity across every surface.
+    advanced: {
+      crossSubDomainCookies: { enabled: true, domain: ".crawlie.app" },
+    },
     // Password auth is intentionally off — GitHub OAuth + email code only.
     emailAndPassword: { enabled: false },
     socialProviders: {

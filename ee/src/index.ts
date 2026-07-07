@@ -4,18 +4,19 @@
 // License (see ee/LICENSE) — NOT the repo's MIT license. Production use requires
 // a Crawlie Enterprise subscription.
 //
-// Owns two surfaces on api.crawlie.app:
+// Serves all of crawlie.app (and api.crawlie.app for legacy clients):
 //   /api/auth/*   → Better Auth (sessions, GitHub OAuth, email OTP, device grant)
-//   /  and /device → the hosted sign-in / device-approval pages
-//
-// Everything else (CLI, MCP, desktop, marketing site) is a client of this.
+//   /v1/*         → hosted crawler API (auth-gated)
+//   /device       → device-approval page for `crawlie login` (CLI/desktop)
+//   everything else → the dashboard SPA (static assets, in-app sign-in)
 
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import type { Env } from "./env";
 import { trustedOrigins } from "./env";
 import { createAuth } from "./auth";
-import { devicePage, errorPage, webSignInPage } from "./pages";
+import { devicePage, errorPage } from "./pages";
+import { v1 } from "./v1";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -43,8 +44,8 @@ app.on(["GET", "POST"], "/api/auth/*", (c) =>
   createAuth(c.env).handler(c.req.raw),
 );
 
-// Hosted sign-in (web signups land here).
-app.get("/", (c) => c.html(webSignInPage(c.env)));
+// Hosted crawler API (auth-gated inside).
+app.route("/v1", v1);
 
 // Device verification / approval page for `crawlie login`.
 app.get("/device", (c) => {
@@ -52,6 +53,9 @@ app.get("/device", (c) => {
   return c.html(devicePage(c.env, userCode));
 });
 
-app.get("/health", (c) => c.json({ ok: true, service: "crawlie-auth" }));
+app.get("/health", (c) => c.json({ ok: true, service: "crawlie-cloud" }));
+
+// Anything else the Worker sees falls back to the dashboard SPA.
+app.all("*", (c) => c.env.ASSETS.fetch(c.req.raw));
 
 export default app;

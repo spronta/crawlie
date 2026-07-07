@@ -15,11 +15,28 @@
   "compatibility_date": "2024-12-18",
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },
-  // Bind the Worker to api.crawlie.app. Requires the crawlie.app zone on this
-  // Cloudflare account; `wrangler deploy` provisions the domain + cert.
-  "routes": [{ "pattern": "api.crawlie.app", "custom_domain": true }],
+  // One Worker serves the whole of Crawlie Cloud:
+  //   crawlie.app      → the dashboard SPA (below) + first-party auth + /v1 API
+  //   api.crawlie.app  → same Worker, kept so already-shipped CLI/MCP/desktop
+  //                      clients that point at api.crawlie.app keep working.
+  "routes": [
+    { "pattern": "crawlie.app", "custom_domain": true },
+    { "pattern": "api.crawlie.app", "custom_domain": true }
+  ],
+  // The built dashboard is served as static assets. API + device + health hit
+  // the Worker first (run_worker_first); every other path falls back to the SPA
+  // (single-page-application → index.html) so client-side routing works.
+  "assets": {
+    "directory": "./dashboard/dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*", "/v1/*", "/device", "/health"]
+  },
   "vars": {
-    "BETTER_AUTH_URL": "https://api.crawlie.app",
+    // Auth is first-party on the apex so the session cookie is same-origin with
+    // the dashboard. crossSubDomainCookies (domain .crawlie.app) also makes it
+    // valid on api.crawlie.app for the CLI/desktop device flow.
+    "BETTER_AUTH_URL": "https://crawlie.app",
     // Comma-separated origins allowed to call the auth API with credentials:
     // the marketing site (crawlie.dev, Vercel), the future crawlie.app dashboard,
     // the desktop app, and localhost dev servers.
@@ -31,6 +48,9 @@
     // Whether to subscribe new cloud signups to the newsletter (opt-out).
     "LOOPS_NEWSLETTER_ON_SIGNUP": "true"
   },
+  "r2_buckets": [
+    { "binding": "REPORTS", "bucket_name": "crawlie-reports" }
+  ],
   "d1_databases": [
     {
       "binding": "DB",

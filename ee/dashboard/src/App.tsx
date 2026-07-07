@@ -16,7 +16,8 @@ import { CrawlingView, type Progress } from "@ui/views/CrawlingView";
 import { ResultsView } from "@ui/views/ResultsView";
 import { ReportsView } from "@ui/views/ReportsView";
 import { SettingsView } from "@ui/views/SettingsView";
-import { getSession, signIn, signOut, type SessionUser } from "./auth";
+import { getSession, signOut, type SessionUser } from "./auth";
+import { SignIn } from "./SignIn";
 
 type Phase =
   | { name: "idle" }
@@ -39,8 +40,9 @@ export function App() {
     });
   }, []);
 
+  const recheck = () => getSession().then((u) => setUser(u));
   if (user === undefined) return <Splash />;
-  if (user === null) return <SignInGate />;
+  if (user === null) return <SignIn onSignedIn={recheck} />;
   return <Dashboard user={user} />;
 }
 
@@ -216,25 +218,6 @@ function Splash() {
   return (
     <div style={centered}>
       <Logo />
-    </div>
-  );
-}
-
-function SignInGate() {
-  return (
-    <div style={centered}>
-      <div style={{ textAlign: "center", maxWidth: 340 }}>
-        <div style={{ display: "flex", justifyContent: "center", marginBottom: 18 }}>
-          <Logo />
-        </div>
-        <h1 style={{ fontSize: 22, margin: "0 0 8px", color: "var(--heading, var(--text))" }}>Crawlie Cloud</h1>
-        <p style={{ color: "var(--text-secondary)", margin: "0 0 22px", fontSize: 14.5 }}>
-          Sign in to run hosted crawls and open your saved reports.
-        </p>
-        <button className="btn btn-primary" style={{ width: "100%" }} onClick={() => signIn()}>
-          Sign in to continue
-        </button>
-      </div>
     </div>
   );
 }

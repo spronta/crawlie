@@ -1,9 +1,9 @@
-// Web auth: read the Crawlie Cloud (Better Auth) session that the hosted
-// sign-in at api.crawlie.app establishes. The dashboard and the auth Worker
-// share the `.crawlie.app` registrable domain, so the session cookie is sent
-// cross-subdomain (the Worker sets a domain-scoped cookie + trusts this origin).
+// Web auth — first-party. The dashboard is served from crawlie.app and the auth
+// API lives on the SAME origin (crawlie.app/api/auth/*), so the session cookie
+// is first-party and everything is a plain same-origin fetch. VITE_AUTH_URL can
+// override the base for local dev against the deployed Worker.
 
-const AUTH = import.meta.env.VITE_AUTH_URL ?? "https://api.crawlie.app";
+const AUTH = import.meta.env.VITE_AUTH_URL ?? "";
 
 export type SessionUser = {
   id: string;
@@ -11,6 +11,15 @@ export type SessionUser = {
   name?: string | null;
   image?: string | null;
 };
+
+function api(path: string, body?: unknown) {
+  return fetch(`${AUTH}/api/auth${path}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(body ?? {}),
+  });
+}
 
 /** Current signed-in user, or null if there's no valid session. */
 export async function getSession(): Promise<SessionUser | null> {
@@ -24,15 +33,32 @@ export async function getSession(): Promise<SessionUser | null> {
   }
 }
 
-/** Send the user to the hosted sign-in, returning here afterwards. */
-export function signIn(): void {
-  const redirect = encodeURIComponent(window.location.href);
-  window.location.href = `${AUTH}/?redirect=${redirect}`;
+/** Begin GitHub OAuth, returning to the app afterwards. */
+export async function signInGitHub(): Promise<void> {
+  const res = await api("/sign-in/social", {
+    provider: "github",
+    callbackURL: `${window.location.origin}/`,
+  });
+  const data = (await res.json()) as { url?: string };
+  if (data.url) window.location.href = data.url;
+  else throw new Error("Could not start GitHub sign-in.");
+}
+
+/** Email a one-time sign-in code. */
+export async function sendOtp(email: string): Promise<void> {
+  const res = await api("/email-otp/send-verification-otp", { email, type: "sign-in" });
+  if (!res.ok) throw new Error("Could not send a code.");
+}
+
+/** Verify the emailed code; establishes the session cookie on success. */
+export async function verifyOtp(email: string, otp: string): Promise<void> {
+  const res = await api("/sign-in/email-otp", { email, otp });
+  if (!res.ok) throw new Error("That code did not work.");
 }
 
 export async function signOut(): Promise<void> {
   try {
-    await fetch(`${AUTH}/api/auth/sign-out`, { method: "POST", credentials: "include" });
+    await api("/sign-out");
   } catch {
     /* ignore */
   }

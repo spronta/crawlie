@@ -3,6 +3,12 @@ export interface Env {
   /** D1 database bound as `DB`. */
   DB: D1Database;
 
+  /** Static assets for the dashboard SPA (see wrangler.jsonc `assets`). */
+  ASSETS: Fetcher;
+
+  /** R2 bucket holding full CrawlResult JSON for hosted reports. */
+  REPORTS: R2Bucket;
+
   // --- Secrets (wrangler secret put ...) ---
   BETTER_AUTH_SECRET: string;
   GITHUB_CLIENT_ID: string;
