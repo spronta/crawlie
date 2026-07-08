@@ -1192,3 +1192,124 @@ table.grid tbody tr:last-child td {
   font: var(--copy-13);
   color: var(--text);
 }
+
+/* ---------- Overview column layouts (responsive) ---------- */
+/* Severity donut + category bars side by side, stacking on narrow screens. */
+.overview-cols {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(280px, 1.3fr);
+  gap: var(--sp-3);
+}
+/* Two equal panels (status codes / crawl depth). */
+.overview-half {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-3);
+}
+@media (max-width: 720px) {
+  .overview-cols,
+  .overview-half {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- Mobile (hosted reports are opened on phones) ---------- */
+@media (max-width: 640px) {
+  /* Tab bar becomes a horizontal scroller instead of overflowing. */
+  .tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .tabs::-webkit-scrollbar {
+    display: none;
+  }
+  .tab {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .report-bar-inner {
+    padding: var(--sp-3) var(--sp-3) 0;
+    gap: var(--sp-3);
+  }
+  .report-bar .row {
+    flex-wrap: wrap;
+  }
+  .report-body {
+    padding: var(--sp-3) var(--sp-3) var(--sp-6);
+    gap: var(--sp-4);
+  }
+  .report-body.wide {
+    padding-inline: var(--sp-3);
+  }
+  .report-body.wide .table-wrap {
+    margin-inline: calc(-1 * var(--sp-3));
+  }
+
+  /* Page-detail key/value grid stacks: label above value. */
+  .kv {
+    grid-template-columns: 1fr;
+    gap: 2px var(--sp-3);
+  }
+  .kv dt {
+    margin-top: var(--sp-2);
+  }
+  .kv dt:first-child {
+    margin-top: 0;
+  }
+
+  .score-cards {
+    grid-template-columns: 1fr;
+  }
+  .stats {
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  }
+
+  /* Issue rows: drop the category pill so title + counts fit. */
+  .issue-head .cat-pill {
+    display: none;
+  }
+  .crumb-current {
+    max-width: 160px;
+  }
+}
+
+/* On phones the sidebar always renders as the icon rail — a 224px column
+   would leave the content ~150px. Mirrors the .collapsed rules. */
+@media (max-width: 640px) {
+  .sidebar {
+    width: 56px;
+    padding-left: var(--sp-1);
+    padding-right: var(--sp-1);
+  }
+  .sidebar .wordmark,
+  .sidebar .nav-label {
+    display: none;
+  }
+  .sidebar .nav-item {
+    justify-content: center;
+    gap: 0;
+    padding-left: 0;
+    padding-right: 0;
+  }
+  .sidebar .sidebar-brand {
+    justify-content: center;
+    padding-left: 0;
+    padding-right: 0;
+  }
+  .sidebar .sidebar-foot {
+    align-items: stretch;
+  }
+  .sidebar .sidebar-foot-row {
+    flex-direction: column;
+    align-items: center;
+  }
+  .sidebar .logo .lockup {
+    display: none;
+  }
+  .sidebar .logo .mark-only {
+    display: inline-flex;
+  }
+}

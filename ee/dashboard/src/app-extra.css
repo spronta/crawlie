@@ -185,3 +185,25 @@
   flex: none;
   color: var(--text-secondary);
 }
+
+/* Phone: the sidebar is forced to the icon rail (shared app.css), so hide the
+   collapse toggle and shrink the account button to its avatar. */
+@media (max-width: 640px) {
+  .cw-collapse {
+    display: none;
+  }
+  .cw-sidetop {
+    justify-content: center;
+  }
+  .cw-account-btn {
+    justify-content: center;
+    padding: 5px 0;
+  }
+  .cw-account-name {
+    display: none;
+  }
+  .cw-menu {
+    left: 8px;
+    width: min(252px, calc(100vw - 24px));
+  }
+}

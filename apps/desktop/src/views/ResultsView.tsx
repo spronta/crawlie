@@ -296,7 +296,7 @@ function Overview({
         <Stat k="Avg response" v={ms(s.avgResponseMs)} />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(260px, 1fr) minmax(280px, 1.3fr)", gap: "var(--sp-3)" }}>
+      <div className="overview-cols">
         <div className="card card-pad">
           <h3 className="h3" style={{ marginBottom: "var(--sp-4)" }}>Issues by severity</h3>
           <Donut
@@ -314,7 +314,7 @@ function Overview({
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--sp-3)" }}>
+      <div className="overview-half">
         <div className="card card-pad">
           <h3 className="h3" style={{ marginBottom: "var(--sp-4)" }}>Status codes</h3>
           <ProportionBar segments={statusRows} onSelect={(k) => onStatus(Number(k))} />
