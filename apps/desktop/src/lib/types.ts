@@ -322,6 +322,7 @@ export interface CrawlDiff {
 export type CrawlEvent =
   | { type: "started"; url: string }
   | { type: "progress"; crawled: number; discovered: number; queued: number; current: string }
+  | { type: "meta"; maxPages: number; capped: boolean }
   | { type: "done"; summary: Summary };
 
 export const CATEGORY_LABELS: Record<Category, string> = {

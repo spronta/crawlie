@@ -15,15 +15,18 @@ export interface PlanDef {
   scheduling: boolean;
   /** User-defined check_rule audit packs (agency standards). */
   customRules: boolean;
+  /** Hard cap on pages per hosted crawl — bounds crawl duration so the
+   *  streaming worker never runs long enough to be evicted mid-crawl. */
+  maxPages: number;
   seats: number;
   /** Stripe price env var name (resolved at checkout). */
   stripePriceVar?: "STRIPE_PRICE_PRO" | "STRIPE_PRICE_BUSINESS";
 }
 
 export const PLANS: Record<Plan, PlanDef> = {
-  free: { id: "free", label: "Free", priceMonthly: 0, projects: 1, crawlsPerMonth: 50, scheduling: false, customRules: false, seats: 1 },
-  pro: { id: "pro", label: "Pro", priceMonthly: 29, projects: 25, crawlsPerMonth: 2000, scheduling: true, customRules: true, seats: 3, stripePriceVar: "STRIPE_PRICE_PRO" },
-  business: { id: "business", label: "Business", priceMonthly: 99, projects: 1000, crawlsPerMonth: 20000, scheduling: true, customRules: true, seats: 15, stripePriceVar: "STRIPE_PRICE_BUSINESS" },
+  free: { id: "free", label: "Free", priceMonthly: 0, projects: 1, crawlsPerMonth: 50, scheduling: false, customRules: false, maxPages: 200, seats: 1 },
+  pro: { id: "pro", label: "Pro", priceMonthly: 29, projects: 25, crawlsPerMonth: 2000, scheduling: true, customRules: true, maxPages: 500, seats: 3, stripePriceVar: "STRIPE_PRICE_PRO" },
+  business: { id: "business", label: "Business", priceMonthly: 99, projects: 1000, crawlsPerMonth: 20000, scheduling: true, customRules: true, maxPages: 1000, seats: 15, stripePriceVar: "STRIPE_PRICE_BUSINESS" },
 };
 
 export interface Team {

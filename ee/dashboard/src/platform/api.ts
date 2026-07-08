@@ -87,6 +87,7 @@ export async function streamCrawl(
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
+  let sawProgress = false;
   for (;;) {
     const { value, done } = await reader.read();
     if (done) break;
@@ -103,10 +104,18 @@ export async function streamCrawl(
         | { type: "error"; message: string };
       if (e.type === "result") return (e as { result: CrawlResult }).result;
       if (e.type === "error") throw new Error((e as { message: string }).message);
+      if (e.type === "progress") sawProgress = true;
       onEvent(e as CrawlEvent);
     }
   }
-  throw new Error("Crawl stream ended without a result.");
+  // The stream closed without a final result. If the crawl was clearly under
+  // way, it was interrupted (very large site, network hiccup) rather than
+  // never-started — give an actionable, non-scary message.
+  throw new Error(
+    sawProgress
+      ? "The crawl was interrupted before it finished — the site may be very large. Try again, or lower Max pages."
+      : "Couldn't reach the crawler. Please try again.",
+  );
 }
 
 /** Start an ad-hoc hosted crawl. */

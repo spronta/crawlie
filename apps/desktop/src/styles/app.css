@@ -1313,3 +1313,196 @@ table.grid tbody tr:last-child td {
     display: inline-flex;
   }
 }
+
+/* ============================================================
+   Crawling view — 8-bit / pixel-branded, matching crawlie.dev.
+   ============================================================ */
+.crawl-wrap {
+  position: relative;
+  height: 100%;
+  min-height: 460px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+/* Pixel ASCII field (the agent scanning), masked to a soft vignette. */
+.pixel-field {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  -webkit-mask-image: radial-gradient(115% 86% at 50% 46%, transparent 3%, #000 64%);
+  mask-image: radial-gradient(115% 86% at 50% 46%, transparent 3%, #000 64%);
+  opacity: 1;
+}
+.pixel-field canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+}
+.crawl-inner {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 460px;
+  padding: var(--sp-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  align-items: center;
+}
+.crawl-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  align-self: center;
+}
+
+/* Pixel crawler mascot — a little box-shadow bug whose legs twitch. */
+.pixel-crawler {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  margin: 10px 12px 10px 8px;
+  background: var(--blue);
+  color: var(--blue);
+  /* body + head + 6 legs, all 6px pixels */
+  box-shadow:
+    -8px 0 0 0 var(--blue),   /* head */
+     8px 0 0 0 var(--blue),   /* tail */
+    -8px -8px 0 0 var(--blue), 8px -8px 0 0 var(--blue),  /* upper legs */
+    -8px  8px 0 0 var(--blue), 8px  8px 0 0 var(--blue);  /* lower legs */
+  animation: crawler-legs 0.5s steps(2) infinite;
+  image-rendering: pixelated;
+}
+@keyframes crawler-legs {
+  0%   { box-shadow: -8px 0 0 0 var(--blue), 8px 0 0 0 var(--blue), -8px -8px 0 0 var(--blue), 8px -8px 0 0 var(--blue), -8px 8px 0 0 var(--blue), 8px 8px 0 0 var(--blue); }
+  100% { box-shadow: -8px 0 0 0 var(--blue), 8px 0 0 0 var(--blue), -8px -6px 0 0 var(--blue), 8px -10px 0 0 var(--blue), -8px 10px 0 0 var(--blue), 8px 6px 0 0 var(--blue); }
+}
+
+.crawl-card {
+  width: 100%;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--sp-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+}
+.crawl-bar-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+.crawl-pct {
+  font: var(--heading-24);
+  font-feature-settings: "tnum" 1;
+  letter-spacing: -0.01em;
+  min-width: 62px;
+  color: var(--text);
+}
+
+/* Blocky ASCII progress bar. */
+.pixel-bar {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 15px;
+  line-height: 1;
+  letter-spacing: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  display: flex;
+}
+.pixel-bar > span { flex: 1 1 0; text-align: center; }
+.pb-on { color: var(--blue); }
+.pb-head { color: #3b9eff; animation: pb-pulse 0.7s steps(2, jump-none) infinite; }
+.pb-off { color: var(--border-strong); }
+@keyframes pb-pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
+.pixel-bar.indeterminate {
+  color: var(--border-strong);
+  position: relative;
+  animation: pb-scan 1.1s linear infinite;
+  background: linear-gradient(90deg, transparent 40%, color-mix(in srgb, var(--blue) 55%, transparent) 50%, transparent 60%);
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+@keyframes pb-scan { from { background-position: 120% 0; } to { background-position: -120% 0; } }
+
+.crawl-stats {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: var(--sp-2);
+  border-top: 1px solid var(--border);
+  padding-top: var(--sp-4);
+}
+.crawl-stat { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.crawl-stat-k {
+  font: var(--label-12);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 10.5px;
+}
+.crawl-stat-v {
+  font-size: 19px;
+  font-weight: 600;
+  font-feature-settings: "tnum" 1;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+.crawl-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  border-top: 1px solid var(--border);
+  padding-top: var(--sp-4);
+}
+.crawl-current {
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 68%;
+}
+
+/* Terminal-style rotating joke. */
+.crawl-joke {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  text-align: center;
+  animation: joke-in 0.35s var(--ease);
+}
+.crawl-joke-caret { color: var(--blue); }
+.crawl-joke-blink { animation: joke-blink 1s steps(1) infinite; color: var(--blue); }
+@keyframes joke-blink { 50% { opacity: 0; } }
+@keyframes joke-in { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: none; } }
+
+/* Branded interrupted/error screen. */
+.crawl-msg {
+  height: 100%;
+  min-height: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-3);
+  text-align: center;
+  padding: var(--sp-5);
+}
+.crawl-msg-glyph {
+  font-family: var(--font-mono);
+  font-size: 40px;
+  color: var(--blue);
+  letter-spacing: 2px;
+  margin-bottom: var(--sp-2);
+}
+
+@media (max-width: 560px) {
+  .crawl-stats { grid-template-columns: repeat(3, 1fr); row-gap: var(--sp-3); }
+}

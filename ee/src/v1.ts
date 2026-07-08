@@ -87,16 +87,31 @@ v1.use("*", async (c, next) => {
 function crawlStream(c: Ctx, config: unknown, projectId: string | null) {
   const team = c.get("team");
   const userId = c.get("userId");
+  // Bound the crawl to the plan's page cap so a huge site can't run the
+  // streaming worker long enough to be evicted mid-crawl — which the client
+  // saw as "crawl stream ended without a result".
+  const cap = PLANS[team.plan].maxPages;
+  const cfg = config as { maxPages?: number };
+  const requested = typeof cfg.maxPages === "number" && cfg.maxPages > 0 ? cfg.maxPages : cap;
+  const maxPages = Math.min(requested, cap);
+  const boundedConfig = { ...cfg, maxPages };
+
   const { readable, writable } = new TransformStream();
   const writer = writable.getWriter();
   const enc = new TextEncoder();
-  const send = (obj: unknown) => writer.write(enc.encode(`data: ${JSON.stringify(obj)}\n\n`));
+  let closed = false;
+  const send = (obj: unknown) => (closed ? Promise.resolve() : writer.write(enc.encode(`data: ${JSON.stringify(obj)}\n\n`)));
+  // Keep the connection warm through quiet phases (the final report save, slow
+  // pages) so no proxy hop drops it. SSE comment lines are ignored by clients.
+  const beat = setInterval(() => { if (!closed) writer.write(enc.encode(`: ping\n\n`)).catch(() => {}); }, 12_000);
 
   c.executionCtx.waitUntil(
     (async () => {
       try {
+        // Announce the effective cap so the UI's ETA is honest.
+        await send({ type: "meta", maxPages, capped: requested > maxPages });
         const packs = await enabledPackSources(c.env, team.id);
-        const result = await runCrawl(c.env, config, (ev) => send(ev), packs);
+        const result = await runCrawl(c.env, boundedConfig, (ev) => send(ev), packs);
         const health = (result as { summary?: { healthScore?: number } }).summary?.healthScore ?? 0;
         const reportId = await saveReport(c.env, team.id, userId, result as Parameters<typeof saveReport>[3], projectId);
         await incrementCrawls(c.env, team.id);
@@ -105,6 +120,8 @@ function crawlStream(c: Ctx, config: unknown, projectId: string | null) {
       } catch (err) {
         await send({ type: "error", message: String(err) });
       } finally {
+        clearInterval(beat);
+        closed = true;
         await writer.close();
       }
     })(),

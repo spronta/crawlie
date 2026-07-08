@@ -157,11 +157,15 @@ function NewCrawl() {
       const result = await startCrawl(config, (e) => {
         if (e.type === "progress") {
           setS((p) => (p.name === "crawling" ? { ...p, progress: { crawled: e.crawled, discovered: e.discovered, queued: e.queued, current: e.current } } : p));
+        } else if (e.type === "meta") {
+          // The server may cap maxPages to the plan limit — reflect it so the
+          // crawling view's ETA and progress bar stay honest.
+          setS((p) => (p.name === "crawling" ? { ...p, config: { ...p.config, maxPages: e.maxPages } } : p));
         }
       });
       setS({ name: "done", result });
     } catch (err) {
-      setS({ name: "error", message: String(err) });
+      setS({ name: "error", message: err instanceof Error ? err.message : String(err) });
     }
   }, []);
 
@@ -169,9 +173,10 @@ function NewCrawl() {
   if (s.name === "done") return <ResultsView result={s.result} onReset={() => setS({ name: "idle" })} onReports={() => navigate("/projects")} />;
   if (s.name === "error")
     return (
-      <div className="hero">
-        <h1 style={{ fontSize: 28 }}>Crawl failed</h1>
-        <p className="mono" style={{ color: "var(--red-text)" }}>{s.message}</p>
+      <div className="crawl-msg">
+        <div className="crawl-msg-glyph" aria-hidden="true">×_×</div>
+        <h1 className="h2">Crawl interrupted</h1>
+        <p className="muted" style={{ maxWidth: "46ch", font: "var(--copy-14)" }}>{s.message}</p>
         <button className="btn btn-primary" onClick={() => setS({ name: "idle" })}>Try again</button>
       </div>
     );
