@@ -166,7 +166,7 @@ function TeamSection({ info, onChange }: { info: TeamInfo; onChange: () => void 
             if (!inviteEmail.trim()) return;
             setBusy(true);
             inviteMember(inviteEmail.trim())
-              .then(() => { setInviteEmail(""); onChange(); })
+              .then(() => { setInviteEmail(""); onChange(); toast("Invite sent", "success"); })
               .catch((err) => toast(err.message, "error"))
               .finally(() => setBusy(false));
           }}

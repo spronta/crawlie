@@ -2,7 +2,29 @@
 // anywhere without threading React context. Mount <Toaster/> and <ConfirmHost/>
 // once at the app root.
 
-import { useEffect, useState } from "react";
+import { Component, useEffect, useState, type ReactNode } from "react";
+
+// --- Error boundary ----------------------------------------------------
+export class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+  state: { error: Error | null } = { error: null };
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ minHeight: "100dvh", display: "grid", placeItems: "center", background: "var(--bg)", padding: 24 }}>
+          <div style={{ textAlign: "center", maxWidth: 420 }}>
+            <h1 style={{ fontSize: 22, color: "var(--heading, var(--text))" }}>Something went wrong</h1>
+            <p style={{ color: "var(--text-secondary)", fontSize: 14 }}>The page hit an unexpected error. Reloading usually fixes it.</p>
+            <button className="btn btn-primary" style={{ marginTop: 12 }} onClick={() => window.location.reload()}>Reload</button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 // --- Toasts ------------------------------------------------------------
 type Kind = "info" | "success" | "error";

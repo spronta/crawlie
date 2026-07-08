@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ScoreRing, IconGlobe, IconSpark, Spinner } from "@ui/components/ui";
 import { listProjects, createProject, SCHEDULE_LABEL, type Project, type Schedule } from "../cloud";
 import { relTime } from "../format";
+import { toast } from "../ui-kit";
 
 export function ProjectsView({ onOpen }: { onOpen: (id: string) => void }) {
   const [projects, setProjects] = useState<Project[] | null>(null);
@@ -20,8 +21,10 @@ export function ProjectsView({ onOpen }: { onOpen: (id: string) => void }) {
     setBusy(true);
     try {
       const p = await createProject({ url: url.trim(), schedule });
+      toast("Project created — crawling now", "success");
       onOpen(p.id);
-    } finally {
+    } catch (err) {
+      toast((err as Error).message, "error");
       setBusy(false);
     }
   }

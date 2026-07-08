@@ -16,7 +16,7 @@ import { SignIn } from "./SignIn";
 import { IconShare, ThemeToggle } from "@ui/components/ui";
 import { ExtractionTable } from "./extraction";
 import { useRoute, navigate, back, type Route } from "./router";
-import { Toaster, ConfirmHost, toast } from "./ui-kit";
+import { Toaster, ConfirmHost, ErrorBoundary, toast } from "./ui-kit";
 import { pendingInvites, acceptInvite, setActiveTeam } from "./cloud";
 
 export function App() {
@@ -24,7 +24,7 @@ export function App() {
   const view = route.name === "public" ? <PublicReport token={route.token} /> : <AuthedApp route={route} />;
   return (
     <>
-      {view}
+      <ErrorBoundary>{view}</ErrorBoundary>
       <Toaster />
       <ConfirmHost />
     </>
@@ -49,9 +49,15 @@ function AuthedApp({ route }: { route: Route }) {
 }
 
 function Dashboard({ user, route }: { user: SessionUser; route: Route }) {
-  const [collapsed, setCollapsed] = useState<boolean>(
-    () => typeof localStorage !== "undefined" && localStorage.getItem("sidebar-collapsed") === "1",
-  );
+  const [collapsed, setCollapsed] = useState<boolean>(() => {
+    try {
+      const stored = localStorage.getItem("sidebar-collapsed");
+      if (stored != null) return stored === "1";
+      return typeof window !== "undefined" && window.innerWidth < 720; // collapse on mobile by default
+    } catch {
+      return false;
+    }
+  });
   const toggleCollapsed = useCallback(() => {
     setCollapsed((c) => {
       const next = !c;

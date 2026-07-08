@@ -58,6 +58,7 @@ function Editor({ pack, onDone }: { pack: RulePack | null; onDone: () => void })
     try {
       if (pack) await updatePack(pack.id, { name: name || pack.name, source });
       else await createPack(name || "New pack", source);
+      toast("Rule pack saved", "success");
       onDone();
     } finally {
       setBusy(false);
