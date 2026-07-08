@@ -20,6 +20,7 @@ pub mod crawler;
 pub mod dedup;
 pub mod fetch;
 pub mod knowledge;
+pub mod logs;
 pub mod pagestore;
 pub mod parse;
 pub mod priority;

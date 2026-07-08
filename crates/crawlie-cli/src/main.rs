@@ -50,6 +50,10 @@ enum Command {
     Report(ReportArgs),
     /// Compare two saved reports — what improved, regressed, and changed.
     Diff(DiffArgs),
+    /// Analyze a server access log (Common/Combined format): search/AI bot
+    /// traffic, bot-hit errors, and — with a saved report — log-file orphans
+    /// and pages bots never visit.
+    Logs(LogsArgs),
     /// Inspect a streamed crawl database (created with `crawl --store <path>`).
     Store(StoreArgs),
     /// Sign in to Crawlie Cloud (opens your browser).
@@ -243,6 +247,19 @@ struct SlopArgs {
 }
 
 #[derive(Parser)]
+struct LogsArgs {
+    /// Path to the access log file (Common or Combined Log Format).
+    file: String,
+    /// Saved report id to cross-reference (see `crawlie reports`) — enables
+    /// orphan detection and never-crawled-by-bots.
+    #[arg(long, value_name = "ID")]
+    report: Option<String>,
+    /// Output JSON instead of the text summary.
+    #[arg(long)]
+    json: bool,
+}
+
+#[derive(clap::Args)]
 struct ReportArgs {
     /// Report id (see `crawlie reports`).
     id: String,
@@ -333,6 +350,7 @@ async fn main() -> ExitCode {
         Command::Explain { rule } => explain(rule),
         Command::Reports => list_reports(),
         Command::Report(a) => show_report(a),
+        Command::Logs(a) => analyze_logs(a),
         Command::Diff(a) => diff_reports(a),
         Command::Store(a) => show_store(a),
         Command::Login(a) => ExitCode::from(auth::run_login(a.no_browser).await),
@@ -1180,6 +1198,106 @@ fn list_reports() -> ExitCode {
     println!(
         "\n  Print one with `crawlie report <id>` · delete with `crawlie report <id> --delete`.\n"
     );
+    ExitCode::SUCCESS
+}
+
+fn analyze_logs(a: LogsArgs) -> ExitCode {
+    use std::io::BufRead;
+    let file = match std::fs::File::open(&a.file) {
+        Ok(f) => f,
+        Err(e) => {
+            eprintln!("crawlie: could not open '{}': {e}", a.file);
+            return ExitCode::from(2);
+        }
+    };
+    // Crawl paths from the saved report, when given.
+    let crawl_paths: Option<std::collections::HashSet<String>> = match &a.report {
+        Some(id) => match ReportStore::new(reports_dir()).load(id) {
+            Some(r) => Some(
+                r.pages
+                    .iter()
+                    .map(|p| {
+                        // scheme://host/path → /path, query dropped (log paths
+                        // are grouped the same way).
+                        let path = p
+                            .url
+                            .splitn(4, '/')
+                            .nth(3)
+                            .map(|rest| format!("/{rest}"))
+                            .unwrap_or_else(|| "/".into());
+                        path.split('?').next().unwrap_or("/").to_string()
+                    })
+                    .collect(),
+            ),
+            None => {
+                eprintln!("crawlie: report '{id}' not found.");
+                return ExitCode::from(2);
+            }
+        },
+        None => None,
+    };
+
+    let lines = std::io::BufReader::new(file).lines().map_while(Result::ok);
+    let analysis = crawlie_core::logs::analyze(lines, crawl_paths.as_ref());
+
+    if a.json {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&analysis).unwrap_or_default()
+        );
+        return ExitCode::SUCCESS;
+    }
+
+    println!(
+        "\n  {} lines · {} parsed · {} bot hits\n",
+        analysis.total_lines, analysis.parsed_lines, analysis.bot_hits
+    );
+    if !analysis.by_bot.is_empty() {
+        println!("  Bot traffic:");
+        for (bot, n) in &analysis.by_bot {
+            println!("    {bot:<16} {n}");
+        }
+        println!();
+    }
+    if !analysis.bot_status.is_empty() {
+        let statuses: Vec<String> = analysis
+            .bot_status
+            .iter()
+            .map(|(k, v)| format!("{k}: {v}"))
+            .collect();
+        println!("  Bot responses: {}\n", statuses.join(" · "));
+    }
+    if !analysis.top_paths.is_empty() {
+        println!("  Most-crawled paths:");
+        for (p, n) in analysis.top_paths.iter().take(15) {
+            println!("    {n:>6}  {p}");
+        }
+        println!();
+    }
+    if !analysis.bot_errors.is_empty() {
+        println!("  Bots hitting errors:");
+        for (p, s, n) in analysis.bot_errors.iter().take(15) {
+            println!("    {s}  ×{n:<5} {p}");
+        }
+        println!();
+    }
+    if a.report.is_some() {
+        if analysis.orphans.is_empty() {
+            println!("  Log-file orphans: none — every bot-hit path is in the crawl.");
+        } else {
+            println!("  Log-file orphans (bots hit these, the crawl didn't find them):");
+            for p in analysis.orphans.iter().take(15) {
+                println!("    {p}");
+            }
+        }
+        if !analysis.never_crawled_by_bots.is_empty() {
+            println!("\n  Crawled pages bots never visited in this log:");
+            for p in analysis.never_crawled_by_bots.iter().take(15) {
+                println!("    {p}");
+            }
+        }
+        println!();
+    }
     ExitCode::SUCCESS
 }
 
