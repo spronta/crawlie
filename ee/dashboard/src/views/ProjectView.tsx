@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { CrawlConfig } from "@ui/lib/types";
-import { ScoreRing, SeverityBadge, Toggle, Spinner, IconBack, IconRefresh, IconTrash, IconExternal } from "@ui/components/ui";
+import { ScoreRing, SeverityBadge, Toggle, Spinner, IconRefresh, IconTrash, IconExternal } from "@ui/components/ui";
 import { CrawlingView, type Progress } from "@ui/views/CrawlingView";
 import { openExternal } from "@platform/api";
 import {
@@ -69,9 +69,12 @@ export function ProjectView({ id, onBack, onOpenReport }: { id: string; onBack: 
     <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
       {/* Sticky top bar */}
       <div style={topBar}>
-        <button className="btn btn-sm" onClick={onBack} style={{ flex: "0 0 auto" }}><IconBack size={15} /> Projects</button>
         <div style={{ minWidth: 0, flex: 1 }}>
-          <div style={{ fontSize: 18, fontWeight: 650, color: "var(--heading, var(--text))", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{project.name}</div>
+          <div className="crumbs">
+            <button className="crumb-link" onClick={onBack}>Projects</button>
+            <span className="crumb-sep">/</span>
+            <span className="crumb-current">{project.name}</span>
+          </div>
           <button className="linklike" onClick={() => openExternal(project.url)} style={urlLink}>{project.url} <IconExternal size={11} /></button>
         </div>
         <button className="btn btn-primary" onClick={crawlNow} style={{ flex: "0 0 auto" }}><IconRefresh size={15} /> Crawl now</button>

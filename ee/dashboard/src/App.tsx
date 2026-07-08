@@ -77,9 +77,22 @@ function Dashboard({ user, route }: { user: SessionUser; route: Route }) {
   return (
     <div className="app">
       <aside className={`sidebar${collapsed ? " collapsed" : ""}`}>
-        <button className="sidebar-brand" onClick={() => navigate("/projects")} aria-label="Home">
-          <Logo />
-        </button>
+        <div className="cw-sidetop">
+          <button
+            className="sidebar-brand"
+            onClick={() => (collapsed ? toggleCollapsed() : navigate("/projects"))}
+            title={collapsed ? "Expand sidebar" : "Home"}
+            aria-label={collapsed ? "Expand sidebar" : "Home"}
+          >
+            <span className="cw-brandmark"><Logo /></span>
+            {collapsed && <span className="cw-expand"><IconChevron size={18} /></span>}
+          </button>
+          {!collapsed && (
+            <button className="cw-collapse" onClick={toggleCollapsed} title="Collapse sidebar" aria-label="Collapse sidebar">
+              <IconChevron size={16} />
+            </button>
+          )}
+        </div>
         <nav className="sidebar-nav">
           <button className={`nav-item${onProjects ? " active" : ""}`} onClick={() => navigate("/projects")} title="Projects">
             <IconGlobe size={16} /> <span className="nav-label">Projects</span>
@@ -99,11 +112,6 @@ function Dashboard({ user, route }: { user: SessionUser; route: Route }) {
             <IconExternal size={15} /> <span className="nav-label">GitHub</span>
           </a>
           <AccountMenu user={user} active={route.name === "account"} />
-          <div className="sidebar-foot-row">
-            <button className="icon-btn collapse-toggle" onClick={toggleCollapsed} title={collapsed ? "Expand" : "Collapse"} aria-label="Toggle sidebar">
-              <IconChevron size={16} />
-            </button>
-          </div>
         </div>
       </aside>
 
@@ -203,7 +211,11 @@ function ReportView({ id }: { id: string }) {
   return (
     <>
       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 20px", borderBottom: "1px solid var(--border)", background: "var(--panel, var(--bg))", flexWrap: "wrap" }}>
-        <button className="btn btn-sm" onClick={() => back()}>← Back</button>
+        <div className="crumbs">
+          <button className="crumb-link" onClick={() => navigate("/projects")}>Projects</button>
+          <span className="crumb-sep">/</span>
+          <span className="crumb-current">Report</span>
+        </div>
         <div style={{ flex: 1 }} />
         {shareUrl ? (
           <>

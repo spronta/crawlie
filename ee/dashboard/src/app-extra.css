@@ -5,3 +5,61 @@
     transform: translateY(8px);
   }
 }
+
+/* --- Sidebar header: logo + collapse toggle side by side, logo raised --- */
+.cw-sidetop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 6px 8px 12px;
+}
+.cw-sidetop .sidebar-brand {
+  padding: 0;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.sidebar.collapsed .cw-sidetop {
+  justify-content: center;
+  padding: 6px 0 12px;
+}
+.cw-collapse {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  border: 1px solid transparent;
+  background: none;
+  color: var(--text-secondary, var(--muted));
+  cursor: pointer;
+  flex: 0 0 auto;
+  transition: background 0.12s, color 0.12s;
+}
+.cw-collapse:hover {
+  background: var(--panel-2, rgba(127, 127, 127, 0.12));
+  color: var(--text);
+}
+.cw-collapse svg {
+  transform: rotate(180deg); /* chevron points left = collapse */
+}
+/* Collapsed: the logo mark becomes the expand affordance on hover. */
+.cw-brandmark {
+  display: inline-flex;
+}
+.cw-expand {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary, var(--muted));
+}
+.sidebar.collapsed .sidebar-brand {
+  position: relative;
+}
+.sidebar.collapsed .sidebar-brand:hover .cw-brandmark {
+  display: none;
+}
+.sidebar.collapsed .sidebar-brand:hover .cw-expand {
+  display: inline-flex;
+}
