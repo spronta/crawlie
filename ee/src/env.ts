@@ -26,6 +26,8 @@ export interface Env {
   LOOPS_NEWSLETTER_MAILING_LIST_ID?: string;
   LOOPS_OTP_TRANSACTIONAL_ID?: string;
   LOOPS_NEWSLETTER_ON_SIGNUP?: string;
+  /** Loops transactional template for scheduled-crawl regression alerts. */
+  LOOPS_ALERT_TRANSACTIONAL_ID?: string;
 }
 
 /** Origins permitted to call the auth API with credentials. */

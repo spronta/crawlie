@@ -51,7 +51,12 @@ function slug(url: string): string {
 
 const key = (userId: string, id: string) => `reports/${userId}/${id}.json`;
 
-export async function saveReport(env: Env, userId: string, result: CrawlResult): Promise<string> {
+export async function saveReport(
+  env: Env,
+  userId: string,
+  result: CrawlResult,
+  projectId?: string | null,
+): Promise<string> {
   const id = `${result.startedAt}-${slug(result.config.url)}`;
   await env.REPORTS.put(key(userId, id), JSON.stringify(result), {
     httpMetadata: { contentType: "application/json" },
@@ -59,21 +64,24 @@ export async function saveReport(env: Env, userId: string, result: CrawlResult):
   const s = result.summary;
   await env.DB.prepare(
     `INSERT OR REPLACE INTO reports
-       (id, user_id, url, created_at, total_pages, errors, warnings, health_score, geo_score, a11y_score)
-     VALUES (?,?,?,?,?,?,?,?,?,?)`,
+       (id, user_id, url, created_at, total_pages, errors, warnings, health_score, geo_score, a11y_score, project_id)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
   )
-    .bind(id, userId, result.config.url, result.startedAt, s.totalPages, s.errors, s.warnings, s.healthScore, s.geoScore, s.a11yScore)
+    .bind(id, userId, result.config.url, result.startedAt, s.totalPages, s.errors, s.warnings, s.healthScore, s.geoScore, s.a11yScore, projectId ?? null)
     .run();
   return id;
 }
 
-export async function listReports(env: Env, userId: string): Promise<ReportMeta[]> {
-  const { results } = await env.DB.prepare(
-    `SELECT id, url, created_at, total_pages, errors, warnings, health_score, geo_score, a11y_score
-       FROM reports WHERE user_id = ? ORDER BY created_at DESC`,
-  )
-    .bind(userId)
-    .all<Record<string, number | string>>();
+export async function listReports(env: Env, userId: string, projectId?: string): Promise<ReportMeta[]> {
+  const sql =
+    `SELECT id, url, created_at, total_pages, errors, warnings, health_score, geo_score, a11y_score, project_id` +
+    ` FROM reports WHERE user_id = ?` +
+    (projectId ? ` AND project_id = ?` : ``) +
+    ` ORDER BY created_at DESC`;
+  const stmt = projectId
+    ? env.DB.prepare(sql).bind(userId, projectId)
+    : env.DB.prepare(sql).bind(userId);
+  const { results } = await stmt.all<Record<string, number | string>>();
   return (results ?? []).map((r) => ({
     id: String(r.id),
     url: String(r.url),

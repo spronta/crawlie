@@ -61,4 +61,9 @@ app.all("*", (c) => c.env.ASSETS.fetch(c.req.raw));
 // Durable Object backing the hosted-crawl container.
 export { CrawlerContainer } from "./containers";
 
-export default app;
+// fetch = the Hono app; scheduled = the cron monitoring engine.
+import { scheduled } from "./scheduled";
+export default {
+  fetch: (req: Request, env: Env, ctx: ExecutionContext) => app.fetch(req, env, ctx),
+  scheduled,
+} satisfies ExportedHandler<Env>;

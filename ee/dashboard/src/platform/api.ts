@@ -44,24 +44,22 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-/** Start a hosted crawl, streaming progress via `onEvent`. */
-export async function startCrawl(
-  config: CrawlConfig,
+/** POST to a crawl endpoint and consume its SSE stream (progress events, then a
+ *  final `result`). Shared by ad-hoc crawls and project crawls. Reading the body
+ *  directly — EventSource can't POST. */
+export async function streamCrawl(
+  path: string,
+  body: unknown,
   onEvent: (e: CrawlEvent) => void,
 ): Promise<CrawlResult> {
-  if (!HOSTED) return runDemo(config, onEvent);
-
-  // POST the config; the Worker streams Server-Sent Events back (progress
-  // events, then a final `result`). Read the response body directly — EventSource
-  // can't POST, so we parse the SSE frames ourselves.
   activeCrawl?.abort();
   const controller = new AbortController();
   activeCrawl = controller;
-  const res = await fetch(`${API}/v1/crawls`, {
+  const res = await fetch(`${API}${path}`, {
     method: "POST",
     credentials: "include",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ config }),
+    body: body === undefined ? undefined : JSON.stringify(body),
     signal: controller.signal,
   });
   if (!res.ok || !res.body) throw new Error(`Crawl failed (${res.status})`);
@@ -89,6 +87,15 @@ export async function startCrawl(
     }
   }
   throw new Error("Crawl stream ended without a result.");
+}
+
+/** Start an ad-hoc hosted crawl. */
+export async function startCrawl(
+  config: CrawlConfig,
+  onEvent: (e: CrawlEvent) => void,
+): Promise<CrawlResult> {
+  if (!HOSTED) return runDemo(config, onEvent);
+  return streamCrawl("/v1/crawls", { config }, onEvent);
 }
 
 let activeCrawl: AbortController | null = null;

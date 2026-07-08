@@ -46,8 +46,12 @@
     // Loops transactional email id used to deliver the sign-in code.
     "LOOPS_OTP_TRANSACTIONAL_ID": "cmrb5h8dy00qb0jx3qsb2wqfx",
     // Whether to subscribe new cloud signups to the newsletter (opt-out).
-    "LOOPS_NEWSLETTER_ON_SIGNUP": "true"
+    "LOOPS_NEWSLETTER_ON_SIGNUP": "true",
+    // Loops transactional template for scheduled-crawl regression alerts.
+    "LOOPS_ALERT_TRANSACTIONAL_ID": ""
   },
+  // Monitoring engine: hourly scan for due scheduled project crawls.
+  "triggers": { "crons": ["0 * * * *"] },
   "r2_buckets": [
     { "binding": "REPORTS", "bucket_name": "crawlie-reports" }
   ],
