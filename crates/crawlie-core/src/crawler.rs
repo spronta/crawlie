@@ -743,13 +743,56 @@ where
         }
     };
 
-    let mut issues = crate::audit::audit_with_sitemap(
-        &pages,
-        &status_map,
-        &robots_blocked,
-        &seed,
-        (!in_sitemap.is_empty()).then_some(in_sitemap),
-    );
+    // Image weight verification (HEAD with Content-Length, bounded).
+    let mut image_bytes: HashMap<String, u64> = HashMap::new();
+    if config.check_external && !cancel.is_cancelled() {
+        const IMAGE_CHECK_CAP: usize = 300;
+        let mut targets: Vec<Url> = Vec::new();
+        let mut seen = HashSet::new();
+        for p in &pages {
+            for i in &p.image_urls {
+                if targets.len() >= IMAGE_CHECK_CAP {
+                    break;
+                }
+                if !seen.insert(normalize_str(i)) {
+                    continue;
+                }
+                if let Ok(u) = Url::parse(i) {
+                    targets.push(u);
+                }
+            }
+        }
+        let check = |u: Url| {
+            let client = client.clone();
+            async move {
+                let size = crate::fetch::check_size(&client, &u).await;
+                (normalize(&u), size)
+            }
+        };
+        let mut iter = targets.into_iter();
+        let mut checks = FuturesUnordered::new();
+        for _ in 0..concurrency {
+            if let Some(u) = iter.next() {
+                checks.push(check(u));
+            }
+        }
+        while let Some((key, size)) = checks.next().await {
+            if let Some(b) = size {
+                image_bytes.insert(key, b);
+            }
+            if cancel.is_cancelled() {
+                break;
+            }
+            if let Some(u) = iter.next() {
+                checks.push(check(u));
+            }
+        }
+    }
+
+    let mut cp = crate::audit::cross_page(&pages);
+    cp.in_sitemap = (!in_sitemap.is_empty()).then_some(in_sitemap);
+    cp.image_bytes = image_bytes;
+    let mut issues = crate::audit::audit_full(&pages, &status_map, &robots_blocked, &cp);
     if !robots_found {
         issues.push(Issue {
             rule: "no-robots-txt".into(),
@@ -971,6 +1014,52 @@ where
     // Duplicate title/description sets (the cross-page audit context).
     let mut cross = store.cross_page().map_err(ioerr)?;
     cross.in_sitemap = (!in_sitemap.is_empty()).then_some(in_sitemap);
+    // Image weight verification (HEAD with Content-Length, bounded).
+    if config.check_external && !cancel.is_cancelled() {
+        const IMAGE_CHECK_CAP: usize = 300;
+        let mut targets: Vec<Url> = Vec::new();
+        let mut seen = HashSet::new();
+        store
+            .for_each_page(|_, p| {
+                for i in &p.image_urls {
+                    if targets.len() >= IMAGE_CHECK_CAP {
+                        return;
+                    }
+                    if !seen.insert(normalize_str(i)) {
+                        continue;
+                    }
+                    if let Ok(u) = Url::parse(i) {
+                        targets.push(u);
+                    }
+                }
+            })
+            .map_err(ioerr)?;
+        let check = |u: Url| {
+            let client = client.clone();
+            async move {
+                let size = crate::fetch::check_size(&client, &u).await;
+                (normalize(&u), size)
+            }
+        };
+        let mut iter = targets.into_iter();
+        let mut checks = FuturesUnordered::new();
+        for _ in 0..concurrency {
+            if let Some(u) = iter.next() {
+                checks.push(check(u));
+            }
+        }
+        while let Some((key, size)) = checks.next().await {
+            if let Some(b) = size {
+                cross.image_bytes.insert(key, b);
+            }
+            if cancel.is_cancelled() {
+                break;
+            }
+            if let Some(u) = iter.next() {
+                checks.push(check(u));
+            }
+        }
+    }
 
     // Status map (+ external link verification), streamed from disk.
     let mut status_map = store.status_map().map_err(ioerr)?;
@@ -1346,6 +1435,10 @@ fn build_page(
         canonicalized,
         images_total: parsed.as_ref().map(|p| p.images_total).unwrap_or(0),
         images_missing_alt: parsed.as_ref().map(|p| p.images_missing_alt).unwrap_or(0),
+        image_urls: parsed
+            .as_ref()
+            .map(|p| p.image_urls.clone())
+            .unwrap_or_default(),
         internal_links: parsed
             .as_ref()
             .map(|p| p.internal_links.clone())
@@ -1432,6 +1525,7 @@ fn error_page(url: &Url, depth: usize, error: String) -> Page {
         canonicalized: false,
         images_total: 0,
         images_missing_alt: 0,
+        image_urls: Vec::new(),
         internal_links: Vec::new(),
         external_links: Vec::new(),
         inlinks: 0,

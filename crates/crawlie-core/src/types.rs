@@ -254,6 +254,10 @@ pub struct Page {
     // --- media ---
     pub images_total: usize,
     pub images_missing_alt: usize,
+    /// Resolved URLs of the page's `<img>` sources (deduped, capped), for
+    /// image weight checks.
+    #[serde(default)]
+    pub image_urls: Vec<String>,
 
     // --- links ---
     pub internal_links: Vec<String>,

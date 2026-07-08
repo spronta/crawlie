@@ -28,6 +28,7 @@ pub struct Parsed {
     pub text: Option<String>,
     pub images_total: usize,
     pub images_missing_alt: usize,
+    pub image_urls: Vec<String>,
     pub internal_links: Vec<String>,
     pub external_links: Vec<String>,
     pub og_title: Option<String>,
@@ -451,8 +452,11 @@ pub fn parse_html(body: &str, final_url: &Url, host: &str, extractors: &[Extract
         .filter(|s| !s.is_empty());
 
     // images
+    const IMAGE_URL_CAP: usize = 50;
     let mut images_total = 0;
     let mut images_missing_alt = 0;
+    let mut image_urls: Vec<String> = Vec::new();
+    let mut image_seen: HashSet<String> = HashSet::new();
     for el in doc.select(&sel("img")) {
         images_total += 1;
         let v = el.value();
@@ -462,6 +466,14 @@ pub fn parse_html(body: &str, final_url: &Url, host: &str, extractors: &[Extract
         }
         if v.attr("width").is_none() || v.attr("height").is_none() {
             markup.imgs_no_dimensions += 1;
+        }
+        if image_urls.len() < IMAGE_URL_CAP {
+            if let Some(u) = v.attr("src").and_then(|s| resolve(final_url, s)) {
+                let key = u.to_string();
+                if image_seen.insert(key.clone()) {
+                    image_urls.push(key);
+                }
+            }
         }
     }
 
@@ -753,6 +765,7 @@ pub fn parse_html(body: &str, final_url: &Url, host: &str, extractors: &[Extract
         text,
         images_total,
         images_missing_alt,
+        image_urls,
         internal_links,
         external_links,
         og_title,

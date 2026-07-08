@@ -461,6 +461,7 @@ mod tests {
                     canonicalized: false,
                     images_total: 0,
                     images_missing_alt: 0,
+                    image_urls: vec![],
                     internal_links: vec![],
                     external_links: vec![],
                     inlinks: 0,

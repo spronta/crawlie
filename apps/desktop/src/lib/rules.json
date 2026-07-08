@@ -666,6 +666,15 @@
     "impact": "Accessibility failures and lost image-search traffic."
   },
   {
+    "rule": "image-too-heavy",
+    "title": "Images Over 100 KB",
+    "category": "images",
+    "severity": "notice",
+    "why": "One or more images on this page exceed 100 KB. Heavy images are the most common cause of slow LCP and wasted mobile data.",
+    "howToFix": "Compress and resize images to their display size, serve next-gen formats (WebP/AVIF), and lazy-load below-the-fold images.",
+    "impact": "Slower loads, worse Core Web Vitals, higher bounce on slow connections."
+  },
+  {
     "rule": "thin-content",
     "title": "Thin Content",
     "category": "content",

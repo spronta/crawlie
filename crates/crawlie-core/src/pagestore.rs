@@ -325,6 +325,8 @@ impl PageStore {
             in_sitemap: None,
             near_dup: self.near_duplicates()?,
             hreflang_out: self.hreflang_out()?,
+            // Filled by the crawler's image HEAD pass.
+            image_bytes: HashMap::new(),
         })
     }
 

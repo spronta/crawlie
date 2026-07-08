@@ -263,6 +263,41 @@ pub async fn check_status(client: &Client, url: &Url) -> u16 {
     0
 }
 
+/// HEAD a resource (following up to 3 redirects) and return its
+/// `Content-Length` when it resolves 200. Used for image weight checks —
+/// resources served chunked (no length header) return `None` rather than
+/// paying for a GET.
+pub async fn check_size(client: &Client, url: &Url) -> Option<u64> {
+    let mut current = url.clone();
+    for _ in 0..3 {
+        let resp = client.head(current.clone()).send().await.ok()?;
+        let status = resp.status().as_u16();
+        if (300..400).contains(&status) {
+            if let Some(next) = resp
+                .headers()
+                .get(header::LOCATION)
+                .and_then(|v| v.to_str().ok())
+                .and_then(|loc| current.join(loc).ok())
+            {
+                if next != current {
+                    current = next;
+                    continue;
+                }
+            }
+            return None;
+        }
+        if status != 200 {
+            return None;
+        }
+        return resp
+            .headers()
+            .get(header::CONTENT_LENGTH)
+            .and_then(|v| v.to_str().ok())
+            .and_then(|s| s.parse().ok());
+    }
+    None
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

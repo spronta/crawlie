@@ -152,6 +152,7 @@ fn ok_page(url: &str) -> Page {
         canonicalized: false,
         images_total: 1,
         images_missing_alt: 0,
+        image_urls: vec![],
         // A realistic page links out internally (so it isn't a structural dead end).
         internal_links: vec!["https://example.com/".into()],
         external_links: vec![],
@@ -510,6 +511,37 @@ fn audit_flags_directives_amp_and_internal_search() {
         assert!(r.contains(&expected), "expected {expected} in {r:?}");
     }
     assert!(!r.contains(&"robots-none"), "none not present: {r:?}");
+}
+
+#[test]
+fn audit_flags_heavy_images() {
+    let seed = Url::parse("https://example.com/").unwrap();
+    let mut p = ok_page("https://example.com/gallery");
+    p.image_urls = vec![
+        "https://example.com/img/hero.jpg".into(),
+        "https://example.com/img/small.png".into(),
+    ];
+    let mut cp = crawlie_core::audit::cross_page(&[p.clone()]);
+    cp.image_bytes
+        .insert("https://example.com/img/hero.jpg".into(), 450 * 1024);
+    cp.image_bytes
+        .insert("https://example.com/img/small.png".into(), 12 * 1024);
+
+    let issues = crawlie_core::audit::audit_full(&[p], &HashMap::new(), &[], &cp);
+    let heavy: Vec<_> = issues
+        .iter()
+        .filter(|i| i.rule == "image-too-heavy")
+        .collect();
+    assert_eq!(
+        heavy.len(),
+        1,
+        "one heavy-image issue for the page: {issues:?}"
+    );
+    let detail = heavy[0].detail.as_deref().unwrap_or("");
+    assert!(
+        detail.contains("450 KB") && detail.contains("hero.jpg"),
+        "{detail}"
+    );
 }
 
 #[test]

@@ -339,6 +339,11 @@ entries! {
         "Add concise, descriptive alt attributes to meaningful images; use empty alt=\"\" for purely decorative ones.",
         "Accessibility failures and lost image-search traffic.";
 
+    "image-too-heavy" => "Images Over 100 KB", Images, Notice,
+        "One or more images on this page exceed 100 KB. Heavy images are the most common cause of slow LCP and wasted mobile data.",
+        "Compress and resize images to their display size, serve next-gen formats (WebP/AVIF), and lazy-load below-the-fold images.",
+        "Slower loads, worse Core Web Vitals, higher bounce on slow connections.";
+
     // ---- Content ----
     "thin-content" => "Thin Content", Content, Notice,
         "Pages with very little content rarely satisfy search intent and are easily out-competed. AI answer engines also skip pages that lack substance.",

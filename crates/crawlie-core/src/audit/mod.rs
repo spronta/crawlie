@@ -80,6 +80,10 @@ pub struct CrossPage {
     /// crawled and declares none — a missing entry means it wasn't crawled,
     /// so reciprocity can't be judged.
     pub hreflang_out: HashMap<String, HashSet<String>>,
+    /// Verified byte sizes of image URLs (normalized url → Content-Length),
+    /// filled by the crawler's image HEAD pass. Empty when the check didn't
+    /// run.
+    pub image_bytes: HashMap<String, u64>,
 }
 
 /// Build the duplicate title/description/H1 and duplicate-URL-variant sets
@@ -151,6 +155,7 @@ pub fn cross_page(pages: &[Page]) -> CrossPage {
         in_sitemap: None,
         near_dup,
         hreflang_out,
+        image_bytes: HashMap::new(),
     }
 }
 
@@ -191,11 +196,22 @@ pub fn audit_with_sitemap(
     _seed: &Url,
     in_sitemap: Option<HashSet<String>>,
 ) -> Vec<Issue> {
-    let mut out = Vec::new();
     let mut cp = cross_page(pages);
     cp.in_sitemap = in_sitemap;
+    audit_full(pages, status_map, robots_blocked, &cp)
+}
+
+/// [`audit`] with a caller-built [`CrossPage`] — the full-context entry point
+/// for callers that fill in the sitemap set, image sizes, etc.
+pub fn audit_full(
+    pages: &[Page],
+    status_map: &HashMap<String, u16>,
+    robots_blocked: &[String],
+    cp: &CrossPage,
+) -> Vec<Issue> {
+    let mut out = Vec::new();
     for p in pages {
-        audit_one(p, &cp, status_map, &mut out);
+        audit_one(p, cp, status_map, &mut out);
     }
     // --- Blocked by robots.txt (from crawl-time discovery) ---
     for blocked in robots_blocked {
@@ -1196,6 +1212,31 @@ pub fn audit_one(
                     p.images_missing_alt, p.images_total
                 )),
             ));
+        }
+        if !cp.image_bytes.is_empty() {
+            const HEAVY_IMAGE: u64 = 100 * 1024;
+            let mut heavy = 0usize;
+            let mut largest: Option<(&str, u64)> = None;
+            for img in &p.image_urls {
+                if let Some(&b) = cp.image_bytes.get(&norm(img)) {
+                    if b > HEAVY_IMAGE {
+                        heavy += 1;
+                        if largest.map(|(_, lb)| b > lb).unwrap_or(true) {
+                            largest = Some((img, b));
+                        }
+                    }
+                }
+            }
+            if let Some((img, b)) = largest {
+                out.push(issue(
+                    "image-too-heavy",
+                    "Images Over 100 KB",
+                    Images,
+                    Notice,
+                    u,
+                    Some(format!("{heavy} image(s); largest {} KB — {img}", b / 1024)),
+                ));
+            }
         }
 
         // --- Content ---

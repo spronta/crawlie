@@ -106,6 +106,8 @@ export interface Page {
   canonicalized: boolean;
   imagesTotal: number;
   imagesMissingAlt: number;
+  /** Resolved img src URLs (deduped, capped; older reports omit). */
+  imageUrls?: string[];
   internalLinks: string[];
   externalLinks: string[];
   inlinks: number;
