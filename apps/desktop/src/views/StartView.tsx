@@ -11,7 +11,7 @@ const toFilters = (text: string, regex: boolean): UrlFilter[] =>
     .map((s) => s.trim())
     .filter(Boolean)
     .map((value) => ({ value, regex }));
-import { isTauri } from "../lib/api";
+import { isTauri } from "@platform/api";
 
 const MODES: { id: CrawlMode; label: string; hint: string; placeholder: string }[] = [
   { id: "site", label: "Whole site", hint: "Crawl every linked page from the seed.", placeholder: "example.com" },

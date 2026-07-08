@@ -136,6 +136,64 @@ fn diff_reports(
 
 /// Render a shareable, self-contained HTML report and save it (to Downloads if
 /// possible). Returns the absolute path written.
+// --- Crawlie Cloud session ---
+//
+// The desktop app shares one token file with the CLI and MCP server
+// (`~/.crawlie/auth.json`), so signing in anywhere signs in everywhere. The
+// device flow runs in the webview (fetch + open browser); these commands just
+// read/write the shared file.
+
+fn auth_file() -> PathBuf {
+    let home = std::env::var("HOME")
+        .or_else(|_| std::env::var("USERPROFILE"))
+        .unwrap_or_else(|_| ".".into());
+    PathBuf::from(home).join(".crawlie").join("auth.json")
+}
+
+#[tauri::command]
+fn auth_load() -> Option<serde_json::Value> {
+    let raw = std::fs::read_to_string(auth_file()).ok()?;
+    serde_json::from_str(&raw).ok()
+}
+
+#[tauri::command]
+fn auth_save(
+    token: String,
+    endpoint: String,
+    email: Option<String>,
+    name: Option<String>,
+) -> Result<(), String> {
+    let payload = serde_json::json!({
+        "access_token": token,
+        "token_type": "Bearer",
+        "endpoint": endpoint,
+        "user": { "email": email, "name": name },
+    });
+    let path = auth_file();
+    if let Some(dir) = path.parent() {
+        let _ = std::fs::create_dir_all(dir);
+    }
+    let bytes = serde_json::to_vec_pretty(&payload).map_err(|e| e.to_string())?;
+    std::fs::write(&path, bytes).map_err(|e| e.to_string())?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600));
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn auth_clear() -> Result<(), String> {
+    match std::fs::remove_file(auth_file()) {
+        Ok(_) => Ok(()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+/// Render a shareable, self-contained HTML report and save it (to Downloads if
+/// possible). Returns the absolute path written.
 #[tauri::command]
 fn save_html_report(app: AppHandle, result: CrawlResult) -> Result<String, String> {
     let html = report_html::render(&result);
@@ -171,7 +229,10 @@ pub fn run() {
             diff_reports,
             save_html_report,
             get_settings,
-            set_settings
+            set_settings,
+            auth_load,
+            auth_save,
+            auth_clear
         ])
         .run(tauri::generate_context!())
         .expect("error while running crawlie");

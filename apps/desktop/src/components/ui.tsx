@@ -27,6 +27,7 @@ export const IconGlobe = ({ size }: IconProps) => I("M12 2a10 10 0 1 0 0 20 10 1
 export const IconSpark = ({ size }: IconProps) => I("M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 15l.9 2.4L22 18l-2.1.6L19 21l-.9-2.4L16 18l2.1-.6z", size);
 export const IconBack = ({ size }: IconProps) => I("M19 12H5M12 19l-7-7 7-7", size);
 export const IconShare = ({ size }: IconProps) => I("M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v13", size);
+export const IconUser = ({ size }: IconProps) => I("M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2", size, <circle cx="12" cy="7" r="4" />);
 export const IconSettings = ({ size }: IconProps) =>
   I("M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6", size);
 

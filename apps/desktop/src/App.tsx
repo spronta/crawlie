@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import type { CrawlConfig, CrawlResult } from "./lib/types";
-import { cancelCrawl, openExternal, startCrawl, watchFullscreen } from "./lib/api";
+import { cancelCrawl, openExternal, startCrawl, watchFullscreen } from "@platform/api";
 import { Logo, IconBook, IconExternal, IconHistory, IconSettings, IconSearch, IconChevron } from "./components/ui";
 import { StartView } from "./views/StartView";
 import { CrawlingView, type Progress } from "./views/CrawlingView";
 import { ResultsView } from "./views/ResultsView";
 import { ReportsView } from "./views/ReportsView";
 import { SettingsView } from "./views/SettingsView";
+import { AccountControl } from "./components/AccountControl";
 import { UpdateBanner } from "./components/UpdateBanner";
 
 type Phase =
@@ -114,6 +115,7 @@ export function App() {
           >
             <IconSettings size={16} /> <span className="nav-label">Settings</span>
           </button>
+          <AccountControl />
           <div className="sidebar-foot-row">
             <button
               className="icon-btn collapse-toggle"

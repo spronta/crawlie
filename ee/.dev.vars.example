@@ -1,0 +1,7 @@
+# Copy to `.dev.vars` for `wrangler dev` (never commit the real file).
+# Production values are set with `wrangler secret put <NAME>`.
+
+BETTER_AUTH_SECRET="run: openssl rand -base64 32"
+GITHUB_CLIENT_ID="your-github-oauth-app-client-id"
+GITHUB_CLIENT_SECRET="your-github-oauth-app-client-secret"
+LOOPS_API_KEY="your-loops-api-key"

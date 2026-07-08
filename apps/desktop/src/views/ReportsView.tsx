@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { CrawlDiff, IssueDelta, ReportMeta } from "../lib/types";
-import { deleteReport, diffReports, listReports, loadReport } from "../lib/api";
+import { deleteReport, diffReports, listReports, loadReport } from "@platform/api";
 import { IconBack, IconHistory, IconTrash, IconX, SeverityBadge } from "../components/ui";
 import type { CrawlResult } from "../lib/types";
 

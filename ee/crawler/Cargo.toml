@@ -1,0 +1,23 @@
+[package]
+name = "crawlie-crawler-service"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Crawlie Cloud hosted-crawl service — HTTP wrapper around crawlie-core, run in a Cloudflare Container. Commercial (see ee/LICENSE)."
+
+[dependencies]
+# NOTE: hosted JS rendering (the `render` feature + Chromium) is deferred —
+# headless Chrome is unreliable inside the Cloudflare Container sandbox; it'll
+# come via Cloudflare Browser Rendering. Desktop/CLI still render locally.
+crawlie-core = { path = "../../crates/crawlie-core" }
+# Deterministic .crawlie rule packs (slop / brand / tone) — marketing monitoring.
+crawlie-rules = { path = "../../crates/crawlie-rules" }
+tokio = { version = "1", features = ["full"] }
+axum = "0.7"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio-stream = "0.1"
+
+[[bin]]
+name = "crawlie-crawler-service"
+path = "src/main.rs"

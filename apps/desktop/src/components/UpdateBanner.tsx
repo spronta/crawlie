@@ -7,7 +7,7 @@ import {
   openExternal,
   relaunchApp,
   type UpdateInfo,
-} from "../lib/api";
+} from "@platform/api";
 import { IconExternal, IconX, IconRefresh } from "./ui";
 
 function newer(latest: string, current: string): boolean {

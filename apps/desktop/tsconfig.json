@@ -11,6 +11,8 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
+    "baseUrl": ".",
+    "paths": { "@platform/*": ["src/lib/*"] },
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,

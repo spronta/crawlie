@@ -4,6 +4,8 @@ import { fetchStars, formatStars } from '../lib/github';
 import { COMPETITORS } from '../data/compare';
 const GITHUB = 'https://github.com/spronta/crawlie';
 const DOWNLOAD = 'https://github.com/spronta/crawlie/releases/latest';
+// Crawlie Cloud sign-in (hosted on the auth Worker).
+const CLOUD_SIGNIN = 'https://api.crawlie.app/';
 
 // Fetch star count at build time; falls back to null if the API is unreachable.
 const stars = await fetchStars();
@@ -59,6 +61,7 @@ const links: NavItem[] = [
           </span>
         )}
       </a>
+      <a href={CLOUD_SIGNIN} class="signin" data-track="cta_sign_in" data-track-location="header">Sign in</a>
       <a href="/docs/getting-started" class="btn btn-primary header-cta" data-track="cta_get_started" data-track-location="header">Get started</a>
     </div>
 
@@ -82,6 +85,7 @@ const links: NavItem[] = [
       <a href={l.href}>{l.label}</a>
     ))}
     <a href={DOWNLOAD} data-track="cta_download" data-track-location="mobile-menu">Download</a>
+    <a href={CLOUD_SIGNIN} data-track="cta_sign_in" data-track-location="mobile-menu">Sign in</a>
     <a href={GITHUB} target="_blank" rel="noopener">GitHub{starLabel && ` · ★ ${starLabel}`}</a>
     <a href="/docs/getting-started" class="btn btn-primary mobile-cta" data-track="cta_get_started" data-track-location="mobile-menu">Get started</a>
   </nav>

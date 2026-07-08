@@ -18,6 +18,8 @@ use crawlie_core::{
 };
 use serde_json::{json, Value};
 use std::path::PathBuf;
+
+mod auth;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 
 const DEFAULT_PROTOCOL: &str = "2024-11-05";
@@ -88,10 +90,17 @@ fn initialize(params: &Value) -> Value {
         .and_then(|v| v.as_str())
         .unwrap_or(DEFAULT_PROTOCOL)
         .to_string();
+    // Surface the shared Crawlie Cloud session (from `crawlie login`) so an
+    // agent knows up-front whether cloud features are usable.
+    let account = match auth::identity() {
+        Some(id) => json!({ "signedIn": true, "email": id.email }),
+        None => json!({ "signedIn": false }),
+    };
     json!({
         "protocolVersion": protocol,
         "capabilities": { "tools": {} },
-        "serverInfo": { "name": "crawlie", "version": env!("CARGO_PKG_VERSION") }
+        "serverInfo": { "name": "crawlie", "version": env!("CARGO_PKG_VERSION") },
+        "crawlieCloud": account
     })
 }
 
@@ -171,6 +180,11 @@ fn tools_list() -> Value {
         {
             "name": "list_rules",
             "description": "List every audit rule crawlie checks, with category, severity, and a one-line summary.",
+            "inputSchema": { "type": "object", "properties": {} }
+        },
+        {
+            "name": "whoami",
+            "description": "Report the Crawlie Cloud account this server is signed in as (shared with the `crawlie login` CLI session). Use it to check whether cloud features are available; if signed out, tell the user to run `crawlie login`.",
             "inputSchema": { "type": "object", "properties": {} }
         },
         {
@@ -376,6 +390,20 @@ async fn tools_call(params: Value) -> Result<Value, String> {
             }
         }
         "list_rules" => text_result(serde_json::to_string_pretty(&all_rules()).unwrap_or_default()),
+        "whoami" => {
+            let payload = match auth::identity() {
+                Some(id) => json!({
+                    "signedIn": true,
+                    "email": id.email,
+                    "endpoint": id.endpoint,
+                }),
+                None => json!({
+                    "signedIn": false,
+                    "hint": "Run `crawlie login` in a terminal to sign in to Crawlie Cloud.",
+                }),
+            };
+            text_result(serde_json::to_string_pretty(&payload).unwrap_or_default())
+        }
         "list_reports" => {
             let reports = ReportStore::new(reports_dir()).list();
             text_result(serde_json::to_string_pretty(&reports).unwrap_or_default())
