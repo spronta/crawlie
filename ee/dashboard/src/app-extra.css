@@ -6,6 +6,12 @@
   }
 }
 
+/* On the web there's no macOS overlay titlebar, so reclaim the 40px the
+   desktop styles reserve for the traffic lights — logo sits at the top. */
+.sidebar {
+  padding-top: var(--sp-4);
+}
+
 /* --- Sidebar header: logo + collapse toggle side by side, logo raised --- */
 .cw-sidetop {
   display: flex;
@@ -62,4 +68,120 @@
 }
 .sidebar.collapsed .sidebar-brand:hover .cw-expand {
   display: inline-flex;
+}
+
+/* --- Account: avatar + name trigger and its popover menu --- */
+.cw-avatar {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  object-fit: cover;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #fff;
+  user-select: none;
+}
+.cw-account-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+  margin-top: var(--sp-2);
+  padding: 6px 8px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--panel, transparent);
+  color: var(--text);
+  font: var(--label-14);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
+}
+.cw-account-btn:hover {
+  background: var(--bg-2);
+}
+.cw-account-btn.active {
+  background: var(--blue-bg);
+  border-color: var(--blue-border);
+  color: var(--blue);
+}
+.cw-account-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.sidebar.collapsed .cw-account-btn {
+  justify-content: center;
+  padding: 5px 0;
+}
+.cw-menu {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 0;
+  width: 252px;
+  background: var(--panel, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow-pop, 0 12px 40px rgba(0, 0, 0, 0.22));
+  padding: 6px;
+  z-index: 40;
+}
+.cw-menu-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 10px 8px;
+}
+.cw-menu-name {
+  font-weight: 600;
+  font-size: 13.5px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cw-menu-email {
+  font-size: 12px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cw-menu-sep {
+  height: 1px;
+  background: var(--border-soft, var(--border));
+  margin: 4px 8px;
+}
+.cw-menu-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.cw-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 9px;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--t-fast) var(--ease);
+}
+.cw-menu-item:hover {
+  background: var(--bg-2);
+}
+.cw-menu-item svg {
+  flex: none;
+  color: var(--text-secondary);
 }

@@ -6,10 +6,12 @@ import {
   checkout, billingPortal, deleteAccount, type TeamInfo, type Plan,
 } from "../cloud";
 import { updateName, signOutEverywhere } from "../auth";
-import { toast, confirmDialog } from "../ui-kit";
+import { toast, confirmDialog, Avatar } from "../ui-kit";
 import { relTime } from "../format";
 
-export function AccountView({ user, onBack }: { user: { email: string; name?: string | null }; onBack: () => void }) {
+type AccountUser = { email: string; name?: string | null; image?: string | null };
+
+export function AccountView({ user, onBack }: { user: AccountUser; onBack: () => void }) {
   const email = user.email;
   const [info, setInfo] = useState<TeamInfo | null>(null);
   const [teams, setTeams] = useState<Array<{ id: string; name: string; role: string; plan: Plan }>>([]);
@@ -25,9 +27,12 @@ export function AccountView({ user, onBack }: { user: { email: string; name?: st
         <IconBack size={15} /> Back
       </button>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-        <div>
-          <h1 style={{ fontSize: 24, margin: "0 0 4px" }}>Account</h1>
-          <p style={{ color: "var(--text-secondary)", margin: 0 }}>{email}</p>
+        <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
+          <Avatar name={user.name} email={email} image={user.image} size={48} />
+          <div style={{ minWidth: 0 }}>
+            <h1 style={{ fontSize: 24, margin: "0 0 2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user.name?.trim() || "Account"}</h1>
+            <p style={{ color: "var(--text-secondary)", margin: 0 }}>{email}</p>
+          </div>
         </div>
         {teams.length > 1 && (
           <select

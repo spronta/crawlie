@@ -26,6 +26,31 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { error: E
   }
 }
 
+// --- Avatar ------------------------------------------------------------
+// Profile image when the account has one, otherwise initials on a hue derived
+// from the email so each user gets a stable color.
+export function Avatar({ name, email, image, size = 26 }: { name?: string | null; email: string; image?: string | null; size?: number }) {
+  const [broken, setBroken] = useState(false);
+  const label = name?.trim() || email;
+  if (image && !broken) {
+    return <img className="cw-avatar" src={image} alt={label} referrerPolicy="no-referrer" onError={() => setBroken(true)} style={{ width: size, height: size }} />;
+  }
+  let hash = 0;
+  for (let i = 0; i < email.length; i++) hash = (hash * 31 + email.charCodeAt(i)) >>> 0;
+  const hue = hash % 360;
+  const words = label.split(/[\s@._-]+/).filter(Boolean);
+  const initials = ((words[0]?.[0] ?? "?") + (words.length > 1 ? words[words.length - 1][0] : "")).toUpperCase();
+  return (
+    <span
+      className="cw-avatar"
+      aria-hidden
+      style={{ width: size, height: size, fontSize: Math.round(size * 0.42), background: `linear-gradient(135deg, hsl(${hue} 62% 52%), hsl(${(hue + 42) % 360} 58% 42%))` }}
+    >
+      {initials}
+    </span>
+  );
+}
+
 // --- Toasts ------------------------------------------------------------
 type Kind = "info" | "success" | "error";
 interface Toast {

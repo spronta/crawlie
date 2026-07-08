@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { CrawlConfig, CrawlResult } from "@ui/lib/types";
 import { cancelCrawl, openExternal, startCrawl } from "@platform/api";
-import { Logo, IconBook, IconExternal, IconGlobe, IconSearch, IconChevron, IconUser, IconSpark, Spinner } from "@ui/components/ui";
+import { Logo, IconBook, IconGlobe, IconSearch, IconChevron, IconSettings, IconSpark, Spinner } from "@ui/components/ui";
 import { StartView } from "@ui/views/StartView";
 import { CrawlingView, type Progress } from "@ui/views/CrawlingView";
 import { ResultsView, type ExtraTab } from "@ui/views/ResultsView";
@@ -18,7 +18,7 @@ import { ExtractionTable } from "./extraction";
 import { Insights } from "./insights";
 import { Redirects } from "./redirects";
 import { useRoute, navigate, back, type Route } from "./router";
-import { Toaster, ConfirmHost, ErrorBoundary, toast } from "./ui-kit";
+import { Toaster, ConfirmHost, ErrorBoundary, Avatar, toast } from "./ui-kit";
 import { pendingInvites, acceptInvite, setActiveTeam } from "./cloud";
 
 export function App() {
@@ -109,9 +109,6 @@ function Dashboard({ user, route }: { user: SessionUser; route: Route }) {
         <div className="sidebar-foot">
           <a className="nav-item" href="https://crawlie.dev/docs" onClick={(e) => { e.preventDefault(); openExternal("https://crawlie.dev/docs"); }} title="Docs">
             <IconBook size={16} /> <span className="nav-label">Docs</span>
-          </a>
-          <a className="nav-item" href="https://github.com/spronta/crawlie" onClick={(e) => { e.preventDefault(); openExternal("https://github.com/spronta/crawlie"); }} title="GitHub">
-            <IconExternal size={15} /> <span className="nav-label">GitHub</span>
           </a>
           <AccountMenu user={user} active={route.name === "account"} />
         </div>
@@ -283,28 +280,67 @@ function PublicReport({ token }: { token: string }) {
 
 function AccountMenu({ user, active }: { user: SessionUser; active: boolean }) {
   const [open, setOpen] = useState(false);
-  const item: React.CSSProperties = { marginTop: 10, width: "100%", padding: "8px 10px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg-subtle, transparent)", color: "var(--text)", fontSize: 13, cursor: "pointer" };
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+  const displayName = user.name?.trim() || user.email;
   return (
-    <div className="account" style={{ position: "relative" }}>
-      <button className={`nav-item${active ? " active" : ""}`} onClick={() => setOpen((o) => !o)} title={user.email}>
-        <IconUser size={16} />{" "}
-        <span className="nav-label" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user.email}</span>
+    <div ref={ref} className="cw-account" style={{ position: "relative", width: "100%" }}>
+      <button
+        className={`cw-account-btn${active ? " active" : ""}`}
+        onClick={() => setOpen((o) => !o)}
+        title={user.email}
+        aria-haspopup="menu"
+        aria-expanded={open}
+      >
+        <Avatar name={user.name} email={user.email} image={user.image} size={26} />
+        <span className="nav-label cw-account-name">{displayName}</span>
       </button>
       {open && (
-        <div role="dialog" style={{ position: "absolute", bottom: "calc(100% + 8px)", left: 0, width: 232, background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "var(--shadow-pop, 0 8px 30px rgba(0,0,0,.18))", padding: 14, zIndex: 40 }}>
-          <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 6 }}>Signed in as</div>
-          <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text)", wordBreak: "break-all" }}>{user.name || user.email}</div>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 12, fontSize: 13 }}>
-            <span style={{ color: "var(--text-secondary)" }}>Theme</span>
+        <div role="menu" className="cw-menu">
+          <div className="cw-menu-head">
+            <Avatar name={user.name} email={user.email} image={user.image} size={38} />
+            <div style={{ minWidth: 0 }}>
+              <div className="cw-menu-name">{displayName}</div>
+              {user.name?.trim() && <div className="cw-menu-email">{user.email}</div>}
+            </div>
+          </div>
+          <div className="cw-menu-sep" />
+          <div className="cw-menu-row">
+            <span>Theme</span>
             <ThemeToggle />
           </div>
-          <button onClick={() => { setOpen(false); navigate("/account"); }} style={item}>Account &amp; settings</button>
-          <button onClick={() => signOut()} style={item}>Sign out</button>
+          <button role="menuitem" className="cw-menu-item" onClick={() => { setOpen(false); navigate("/account"); }}>
+            <IconSettings size={15} /> Account &amp; settings
+          </button>
+          <div className="cw-menu-sep" />
+          <button role="menuitem" className="cw-menu-item" onClick={() => signOut()}>
+            <IconLogout size={15} /> Sign out
+          </button>
         </div>
       )}
     </div>
   );
 }
+
+const IconLogout = ({ size }: { size?: number }) => (
+  <svg width={size ?? 16} height={size ?? 16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
+  </svg>
+);
 
 function InvitesBanner() {
   const [invites, setInvites] = useState<Array<{ id: string; teamId: string; teamName: string }>>([]);
