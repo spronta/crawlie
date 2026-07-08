@@ -392,21 +392,29 @@ function Issues({
       {groups.length === 0 ? (
         <div className="card card-pad"><Empty>No issues match this filter.</Empty></div>
       ) : (
-        <div>{groups.map((g) => <IssueGroup key={g.rule} group={g} onOpenUrl={onOpenUrl} />)}</div>
+        <div>{groups.map((g) => <IssueGroup key={g.rule} group={g} totalPages={result.summary.totalPages} onOpenUrl={onOpenUrl} />)}</div>
       )}
     </div>
   );
 }
 
-function IssueGroup({ group, onOpenUrl }: { group: { rule: string; title: string; severity: Severity; category: Issue["category"]; items: Issue[] }; onOpenUrl: (u: string) => void }) {
+function IssueGroup({ group, totalPages, onOpenUrl }: { group: { rule: string; title: string; severity: Severity; category: Issue["category"]; items: Issue[] }; totalPages: number; onOpenUrl: (u: string) => void }) {
   const [open, setOpen] = useState(false);
   const info = ruleInfo(group.rule);
+  // Sitebulb-style coverage: how much of the crawl this rule touches.
+  const affected = useMemo(() => new Set(group.items.map((i) => i.url)).size, [group.items]);
+  const coverage = totalPages > 0 ? Math.round((affected / totalPages) * 100) : 0;
   return (
     <div className="issue-group">
       <button className={`issue-head ${open ? "open" : ""}`} onClick={() => setOpen(!open)}>
         <span className="chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg></span>
         <SeverityBadge severity={group.severity} />
         <span className="title grow">{group.title}</span>
+        {coverage > 0 && (
+          <span className="mono tertiary" style={{ fontSize: 12 }} title={`${affected} of ${totalPages} crawled URLs`}>
+            {coverage}% of URLs
+          </span>
+        )}
         <span className="cat-pill">{CATEGORY_LABELS[group.category]}</span>
         <span className="mono muted">{group.items.length}</span>
       </button>
