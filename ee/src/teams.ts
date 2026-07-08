@@ -178,6 +178,43 @@ export async function removeMember(env: Env, teamId: string, userId: string): Pr
   await env.DB.prepare(`DELETE FROM team_members WHERE team_id = ? AND user_id = ? AND role != 'owner'`).bind(teamId, userId).run();
 }
 
+/** Permanently delete a user + all data in teams they solely own. Teams with
+ *  other members are left intact (the user's membership is removed). */
+export async function deleteAccount(env: Env, userId: string): Promise<void> {
+  const owned = await env.DB.prepare(`SELECT id FROM teams WHERE owner_id = ?`).bind(userId).all<{ id: string }>();
+  await env.DB.prepare(`DELETE FROM api_keys WHERE user_id = ?`).bind(userId).run();
+  await env.DB.prepare(`DELETE FROM team_members WHERE user_id = ?`).bind(userId).run();
+
+  for (const t of owned.results ?? []) {
+    const others = await env.DB.prepare(`SELECT COUNT(*) n FROM team_members WHERE team_id = ?`).bind(t.id).first<{ n: number }>();
+    if ((others?.n ?? 0) > 0) continue; // shared team — leave it to the remaining members
+
+    // Delete R2 report blobs for the team.
+    let cursor: string | undefined;
+    do {
+      const listed = await env.REPORTS.list({ prefix: `reports/${t.id}/`, cursor });
+      for (const o of listed.objects) await env.REPORTS.delete(o.key);
+      cursor = listed.truncated ? listed.cursor : undefined;
+    } while (cursor);
+
+    await env.DB.batch([
+      env.DB.prepare(`DELETE FROM reports WHERE team_id = ?`).bind(t.id),
+      env.DB.prepare(`DELETE FROM projects WHERE team_id = ?`).bind(t.id),
+      env.DB.prepare(`DELETE FROM rule_packs WHERE team_id = ?`).bind(t.id),
+      env.DB.prepare(`DELETE FROM usage WHERE team_id = ?`).bind(t.id),
+      env.DB.prepare(`DELETE FROM team_invites WHERE team_id = ?`).bind(t.id),
+      env.DB.prepare(`DELETE FROM teams WHERE id = ?`).bind(t.id),
+    ]);
+  }
+
+  // Better Auth identity (session/account cascade off user, but delete explicitly).
+  await env.DB.batch([
+    env.DB.prepare(`DELETE FROM session WHERE userId = ?`).bind(userId),
+    env.DB.prepare(`DELETE FROM account WHERE userId = ?`).bind(userId),
+    env.DB.prepare(`DELETE FROM "user" WHERE id = ?`).bind(userId),
+  ]);
+}
+
 export async function setPlan(env: Env, teamId: string, plan: Plan, sub?: string | null): Promise<void> {
   await env.DB.prepare(`UPDATE teams SET plan = ?, stripe_subscription = ? WHERE id = ?`).bind(plan, sub ?? null, teamId).run();
 }

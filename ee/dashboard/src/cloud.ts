@@ -169,6 +169,7 @@ export const pendingInvites = () => j<Array<{ id: string; teamId: string; role: 
 export const acceptInvite = (id: string) => j<{ ok: boolean }>(`/v1/invites/${id}/accept`, { method: "POST" });
 export const checkout = (plan: Plan) => j<{ url: string }>("/v1/billing/checkout", { method: "POST", body: JSON.stringify({ plan }) });
 export const billingPortal = () => j<{ url: string }>("/v1/billing/portal", { method: "POST" });
+export const deleteAccount = () => j<{ ok: boolean }>("/v1/account", { method: "DELETE" });
 
 // --- Rule packs (marketing monitoring) ---
 export interface RulePack {

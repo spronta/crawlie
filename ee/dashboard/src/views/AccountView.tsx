@@ -3,7 +3,7 @@ import { IconBack, IconTrash, Spinner } from "@ui/components/ui";
 import {
   listKeys, createKey, revokeKey, type ApiKeyMeta,
   getTeamInfo, listTeams, renameTeam, inviteMember, removeMember, setActiveTeam, activeTeam,
-  checkout, billingPortal, type TeamInfo, type Plan,
+  checkout, billingPortal, deleteAccount, type TeamInfo, type Plan,
 } from "../cloud";
 import { updateName, signOutEverywhere } from "../auth";
 import { toast, confirmDialog } from "../ui-kit";
@@ -50,6 +50,37 @@ export function AccountView({ user, onBack }: { user: { email: string; name?: st
         </>
       )}
       <KeysSection />
+      <DangerZone />
+    </div>
+  );
+}
+
+function DangerZone() {
+  const [busy, setBusy] = useState(false);
+  return (
+    <div style={{ ...panel, borderColor: "color-mix(in srgb, var(--red, #ff6166) 40%, var(--border))" }}>
+      <div style={{ ...panelTitle, color: "var(--red-text, #ff6166)" }}>Danger zone</div>
+      <p style={{ color: "var(--text-secondary)", fontSize: 13, margin: "0 0 12px" }}>
+        Permanently delete your account and all data in workspaces you solely own. This can't be undone.
+      </p>
+      <button
+        className="btn btn-sm"
+        style={{ borderColor: "var(--red, #ff6166)", color: "var(--red-text, #ff6166)" }}
+        disabled={busy}
+        onClick={async () => {
+          if (!(await confirmDialog("Delete your account?", { detail: "Your account, projects, reports and rule packs will be permanently deleted. This cannot be undone.", danger: true, confirmLabel: "Delete my account" }))) return;
+          setBusy(true);
+          try {
+            await deleteAccount();
+            window.location.href = "https://crawlie.dev/";
+          } catch (e) {
+            toast((e as Error).message, "error");
+            setBusy(false);
+          }
+        }}
+      >
+        Delete account
+      </button>
     </div>
   );
 }

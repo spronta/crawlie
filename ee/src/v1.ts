@@ -45,6 +45,7 @@ import {
   incrementCrawls,
   crawlBlockedReason,
   projectBlockedReason,
+  deleteAccount,
   PLANS,
   type Team,
   type Plan,
@@ -229,6 +230,11 @@ v1.post("/team/invite", async (c) => {
 v1.delete("/team/members/:userId", async (c) => {
   if (c.get("team").role === "member") return c.json({ error: "admins only" }, 403);
   await removeMember(c.env, c.get("team").id, c.req.param("userId"));
+  return c.json({ ok: true });
+});
+
+v1.delete("/account", async (c) => {
+  await deleteAccount(c.env, c.get("userId"));
   return c.json({ ok: true });
 });
 
