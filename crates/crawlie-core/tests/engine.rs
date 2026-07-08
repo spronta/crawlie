@@ -257,6 +257,78 @@ fn audit_detects_duplicate_titles_and_broken_links() {
 }
 
 #[test]
+fn custom_issues_merge_into_summary_and_scores() {
+    let seed = Url::parse("https://example.com/").unwrap();
+    let pages = vec![ok_page("https://example.com/a")];
+    let issues = crawlie_core::audit::audit(&pages, &HashMap::new(), &[], &seed);
+    let summary = Summary {
+        total_pages: 1,
+        errors: 0,
+        warnings: 0,
+        notices: 0,
+        good: 0,
+        health_score: 100,
+        geo_score: 0,
+        a11y_score: 0,
+        avg_response_ms: 0,
+        indexable_pages: 1,
+        duplicate_pages: 0,
+        by_status: Default::default(),
+        by_category: Default::default(),
+        by_depth: Default::default(),
+        duration_ms: 0,
+    };
+    let mut result = CrawlResult {
+        config: CrawlConfig::new("https://example.com"),
+        pages,
+        issues,
+        summary,
+        robots_found: true,
+        sitemap_urls: 0,
+        sitemap_found: true,
+        robots_blocked: vec![],
+        llms_txt_found: false,
+        link_graph: Default::default(),
+        seed_redirected_from: None,
+        started_at: 0,
+        custom_rules: vec![],
+    };
+    let before_health = crawlie_core::scoring::health_score(&result.pages, &result.issues);
+    result.summary.health_score = before_health;
+
+    let custom = vec![Issue {
+        rule: "custom:brand-in-title".into(),
+        title: "Title missing brand".into(),
+        category: Category::Custom,
+        severity: Severity::Error,
+        url: "https://example.com/a".into(),
+        detail: Some("expected: title contains \"Acme\"".into()),
+    }];
+    let info = vec![RuleInfo {
+        rule: "custom:brand-in-title".into(),
+        title: "Title missing brand".into(),
+        category: Category::Custom,
+        severity: Severity::Error,
+        why: "Brand terms drive branded SERPs.".into(),
+        how_to_fix: "Fix the title template.".into(),
+        impact: "".into(),
+    }];
+    crawlie_core::scoring::apply_custom_issues(&mut result, custom, info);
+
+    assert_eq!(result.summary.errors, 1);
+    assert_eq!(result.summary.by_category.get("Custom rules"), Some(&1));
+    assert!(
+        result.summary.health_score < before_health,
+        "custom errors weigh into health"
+    );
+    assert_eq!(result.custom_rules.len(), 1);
+    assert!(
+        result.pages[0].seo_score < 100,
+        "page score reflects the custom error"
+    );
+}
+
+#[test]
 fn audit_flags_url_hygiene_and_variant_duplicates() {
     let seed = Url::parse("https://example.com/").unwrap();
     let ugly = ok_page("https://example.com/Blog_Posts//My%20Page?utm_source=x&page=2&sort=asc");
@@ -758,6 +830,7 @@ fn recompute_heals_stale_scores_from_signals() {
     page.link_score = 0.0;
     let mut result = CrawlResult {
         config: CrawlConfig::new("https://example.com"),
+        custom_rules: vec![],
         pages: vec![page],
         issues: vec![],
         summary: Summary {

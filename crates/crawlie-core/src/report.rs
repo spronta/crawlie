@@ -494,6 +494,7 @@ mod tests {
             .collect();
         CrawlResult {
             config: CrawlConfig::new(url),
+            custom_rules: vec![],
             pages,
             issues,
             summary: Summary {

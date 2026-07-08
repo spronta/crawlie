@@ -6,7 +6,7 @@ import { Hono } from "hono";
 import type { Context } from "hono";
 import type { Env } from "./env";
 import { createAuth } from "./auth";
-import { runCrawl, cancelCrawl } from "./crawler";
+import { runCrawl, cancelCrawl, previewPack } from "./crawler";
 import {
   listReports,
   loadReport,
@@ -249,12 +249,33 @@ v1.post("/invites/:id/accept", async (c) => {
   return c.json({ ok });
 });
 
-// --- Rule packs (marketing monitoring) ---------------------------------
+// --- Rule packs (marketing monitoring + custom audit checks) ------------
+/** check_rule audit packs are a Pro feature; content rules stay on every plan. */
+function customRulesBlocked(c: Ctx, source: string | undefined): boolean {
+  return !!source && source.includes("check_rule") && !PLANS[c.get("team").plan].customRules;
+}
+
 v1.get("/packs", async (c) => c.json(await listPacks(c.env, c.get("team").id)));
 v1.post("/packs", async (c) => {
   const body = await c.req.json<{ name?: string; source?: string; enabled?: boolean }>().catch(() => ({}) as { name?: string; source?: string; enabled?: boolean });
   if (!body.source) return c.json({ error: "source required" }, 400);
+  if (customRulesBlocked(c, body.source)) return c.json({ error: "Custom audit rules (check_rule) are a Pro feature.", code: "plan" }, 402);
   return c.json(await createPack(c.env, c.get("team").id, { name: body.name ?? "New pack", source: body.source, enabled: body.enabled }), 201);
+});
+// Validate a pack and dry-run its checks against a saved report (rule builder).
+v1.post("/packs/preview", async (c) => {
+  const body = await c.req.json<{ source?: string; reportId?: string }>().catch(() => ({}) as { source?: string; reportId?: string });
+  if (!body.source) return c.json({ error: "source required" }, 400);
+  let pages: unknown[] = [];
+  if (body.reportId) {
+    const report = await loadReport(c.env, c.get("team").id, body.reportId);
+    pages = ((report as { pages?: unknown[] } | null)?.pages ?? []).slice(0, 300);
+  }
+  try {
+    return c.json(await previewPack(c.env, body.source, pages));
+  } catch (e) {
+    return c.json({ error: (e as Error).message }, 502);
+  }
 });
 v1.get("/packs/:id", async (c) => {
   const p = await getPack(c.env, c.get("team").id, c.req.param("id"));
@@ -262,6 +283,7 @@ v1.get("/packs/:id", async (c) => {
 });
 v1.patch("/packs/:id", async (c) => {
   const body = await c.req.json<{ name?: string; source?: string; enabled?: boolean }>().catch(() => ({}) as { name?: string; source?: string; enabled?: boolean });
+  if (customRulesBlocked(c, body.source)) return c.json({ error: "Custom audit rules (check_rule) are a Pro feature.", code: "plan" }, 402);
   const p = await updatePack(c.env, c.get("team").id, c.req.param("id"), body);
   return p ? c.json(p) : c.json({ error: "not found" }, 404);
 });

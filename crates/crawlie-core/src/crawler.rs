@@ -915,6 +915,7 @@ where
         link_graph,
         seed_redirected_from,
         started_at,
+        custom_rules: Vec::new(),
     })
 }
 
@@ -1301,6 +1302,7 @@ where
         link_graph: crate::types::LinkGraph::default(),
         seed_redirected_from,
         started_at,
+        custom_rules: Vec::new(),
     };
     // Persist the findings + metadata so the .db is a complete, queryable crawl.
     store.finalize(&result).map_err(ioerr)?;

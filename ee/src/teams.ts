@@ -13,15 +13,17 @@ export interface PlanDef {
   projects: number;
   crawlsPerMonth: number;
   scheduling: boolean;
+  /** User-defined check_rule audit packs (agency standards). */
+  customRules: boolean;
   seats: number;
   /** Stripe price env var name (resolved at checkout). */
   stripePriceVar?: "STRIPE_PRICE_PRO" | "STRIPE_PRICE_BUSINESS";
 }
 
 export const PLANS: Record<Plan, PlanDef> = {
-  free: { id: "free", label: "Free", priceMonthly: 0, projects: 1, crawlsPerMonth: 50, scheduling: false, seats: 1 },
-  pro: { id: "pro", label: "Pro", priceMonthly: 29, projects: 25, crawlsPerMonth: 2000, scheduling: true, seats: 3, stripePriceVar: "STRIPE_PRICE_PRO" },
-  business: { id: "business", label: "Business", priceMonthly: 99, projects: 1000, crawlsPerMonth: 20000, scheduling: true, seats: 15, stripePriceVar: "STRIPE_PRICE_BUSINESS" },
+  free: { id: "free", label: "Free", priceMonthly: 0, projects: 1, crawlsPerMonth: 50, scheduling: false, customRules: false, seats: 1 },
+  pro: { id: "pro", label: "Pro", priceMonthly: 29, projects: 25, crawlsPerMonth: 2000, scheduling: true, customRules: true, seats: 3, stripePriceVar: "STRIPE_PRICE_PRO" },
+  business: { id: "business", label: "Business", priceMonthly: 99, projects: 1000, crawlsPerMonth: 20000, scheduling: true, customRules: true, seats: 15, stripePriceVar: "STRIPE_PRICE_BUSINESS" },
 };
 
 export interface Team {

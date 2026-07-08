@@ -192,6 +192,19 @@ export const updatePack = (id: string, patch: { name?: string; source?: string; 
   j<RulePack>(`/v1/packs/${id}`, { method: "PATCH", body: JSON.stringify(patch) });
 export const deletePack = (id: string) => j<{ ok: boolean }>(`/v1/packs/${id}`, { method: "DELETE" });
 
+/** Rule-builder preview: validate pack source and dry-run its custom checks
+ *  against a saved report's pages. */
+export interface PackPreview {
+  ok: boolean;
+  error?: { line: number; col: number; message: string };
+  checks?: number;
+  contentRules?: number;
+  pagesTested?: number;
+  findings?: Array<{ rule: string; title: string; severity: "error" | "warning" | "notice"; url: string; detail: string }>;
+}
+export const previewPack = (source: string, reportId?: string) =>
+  j<PackPreview>("/v1/packs/preview", { method: "POST", body: JSON.stringify({ source, reportId }) });
+
 export const PACK_TEMPLATES: Array<{ name: string; label: string; description: string; source: string }> = [
   {
     name: "ai-slop",

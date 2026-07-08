@@ -594,6 +594,8 @@ pub enum Category {
     StructuredData,
     Accessibility,
     Geo,
+    /// User-defined checks from an attached rule pack (Pro feature).
+    Custom,
 }
 
 impl Category {
@@ -616,6 +618,7 @@ impl Category {
             Category::StructuredData => "Structured Data",
             Category::Accessibility => "Accessibility",
             Category::Geo => "Generative Engine Optimization",
+            Category::Custom => "Custom rules",
         }
     }
 }
@@ -712,6 +715,11 @@ pub struct CrawlResult {
     pub seed_redirected_from: Option<String>,
     /// Unix-ms timestamp the crawl started.
     pub started_at: u64,
+    /// Guidance for user-defined check rules whose findings appear in
+    /// `issues` — the custom-rule counterpart of the built-in knowledge base,
+    /// carried in the report so the UI can explain why/how-to-fix.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub custom_rules: Vec<RuleInfo>,
 }
 
 /// The internal-link graph for a crawl: every crawled page as a node, every

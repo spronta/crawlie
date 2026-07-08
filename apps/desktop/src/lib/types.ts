@@ -19,7 +19,8 @@ export type Category =
   | "social"
   | "structured-data"
   | "accessibility"
-  | "geo";
+  | "geo"
+  | "custom";
 
 export type CrawlMode = "site" | "page" | "list";
 
@@ -260,6 +261,8 @@ export interface CrawlResult {
   llmsTxtFound: boolean;
   linkGraph?: LinkGraph;
   startedAt: number;
+  /** Guidance for user-defined check rules present in `issues` (Pro packs). */
+  customRules?: RuleInfo[];
 }
 
 export interface Fix {
@@ -339,6 +342,7 @@ export const CATEGORY_LABELS: Record<Category, string> = {
   "structured-data": "Structured Data",
   accessibility: "Accessibility",
   geo: "Generative Engine Optimization",
+  custom: "Custom rules",
 };
 
 export const DEFAULT_CONFIG: CrawlConfig = {

@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { CircleAlert, Info, TriangleAlert } from "lucide-react";
 import type { Category, CrawlResult, GeoSignals, Issue, Page, Severity } from "../lib/types";
 import { CATEGORY_LABELS } from "../lib/types";
-import { ruleInfo } from "../lib/rules";
+import { ruleInfo, setCustomRules } from "../lib/rules";
 import { Donut, StackedBars, ProportionBar } from "../components/charts";
 import { IconDownload, IconExternal, IconRefresh, IconShare, IconX, ScoreRing, SeverityBadge, StatusPill } from "../components/ui";
 import { exportHtml, isTauri, openExternal } from "@platform/api";
@@ -32,6 +32,9 @@ export function ResultsView({ result, onReset, onReports, extraTabs }: { result:
   const [pageStatus, setPageStatus] = useState<number | null>(null);
   const [pageDepth, setPageDepth] = useState<number | null>(null);
   const s = result.summary;
+  // Register the report's custom-rule guidance so ruleInfo() (issue groups,
+  // top fixes) explains user-defined checks like built-ins.
+  useMemo(() => setCustomRules(result.customRules), [result]);
 
   const goCategory = (c: Category) => { setCatFilter(c); setSevFilter("all"); setTab("issues"); };
   const goSeverity = (sv: Severity) => { setSevFilter(sv); setCatFilter(null); setTab("issues"); };

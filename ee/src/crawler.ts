@@ -53,3 +53,22 @@ export async function runCrawl(
 
 // One container per crawl, so cancellation just lets the instance idle out.
 export async function cancelCrawl(_env: Env, _id: string): Promise<void> {}
+
+/** Validate a pack + dry-run its custom checks against report pages (rule
+ *  builder preview). One-shot request; the container replies with JSON. */
+export async function previewPack(
+  env: Env,
+  source: string,
+  pages: unknown[],
+): Promise<unknown> {
+  const container = getContainer(env.CRAWLER, "preview");
+  const res = await container.fetch(
+    new Request("http://crawler/preview", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ source, pages }),
+    }),
+  );
+  if (!res.ok) throw new Error(`Preview returned ${res.status}`);
+  return res.json();
+}

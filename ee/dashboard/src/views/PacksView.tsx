@@ -1,49 +1,124 @@
 import { useEffect, useState } from "react";
 import { IconSpark, IconTrash, Toggle, Spinner } from "@ui/components/ui";
-import { listPacks, createPack, updatePack, deletePack, PACK_TEMPLATES, type RulePack } from "../cloud";
+import {
+  listPacks, createPack, updatePack, deletePack, getTeamInfo, checkout,
+  PACK_TEMPLATES, type RulePack,
+} from "../cloud";
 import { toast, confirmDialog } from "../ui-kit";
+import { CheckBuilder } from "./CheckBuilder";
+
+/** Where builder-made checks live: one team pack, created on first save. */
+const STANDARDS_PACK = "Site standards";
 
 export function PacksView() {
   const [packs, setPacks] = useState<RulePack[] | null>(null);
   const [editing, setEditing] = useState<RulePack | "new" | null>(null);
+  const [building, setBuilding] = useState(false);
+  const [customRulesAllowed, setCustomRulesAllowed] = useState(true);
   const refresh = () => listPacks().then(setPacks).catch(() => setPacks([]));
-  useEffect(() => { refresh(); }, []);
+  useEffect(() => {
+    refresh();
+    getTeamInfo().then((t) => setCustomRulesAllowed(!!(t.plan as { customRules?: boolean }).customRules)).catch(() => {});
+  }, []);
+
+  async function saveCheck(snippet: string) {
+    try {
+      const existing = (packs ?? []).find((p) => p.name === STANDARDS_PACK);
+      if (existing) await updatePack(existing.id, { source: `${existing.source.trimEnd()}\n\n${snippet}\n` });
+      else await createPack(STANDARDS_PACK, `# ${STANDARDS_PACK} — custom audit checks, built visually.\n# They run on every crawl and appear in reports like built-in rules.\n\n${snippet}\n`);
+      toast("Check added — it runs on every crawl from now on", "success");
+      setBuilding(false);
+      refresh();
+    } catch (e) {
+      const err = e as Error & { code?: string };
+      if (err.code === "plan") toast("Custom audit rules are a Pro feature", "error");
+      else toast(err.message, "error");
+      throw e;
+    }
+  }
+
+  if (building) {
+    return (
+      <div style={{ maxWidth: 860, margin: "0 auto", padding: "28px 28px 60px", width: "100%" }}>
+        <button className="btn btn-sm" onClick={() => setBuilding(false)} style={{ marginBottom: 18 }}>← Rules</button>
+        <h1 style={{ fontSize: 24, margin: "0 0 4px" }}>New custom check</h1>
+        <p style={{ color: "var(--text-secondary)", marginTop: 0, marginBottom: 20, maxWidth: "62ch" }}>
+          Encode your site standards. Checks run on every crawl (including scheduled ones) and show up in
+          reports with your severity and how-to-fix guidance, exactly like crawlie's built-in rules.
+        </p>
+        {!customRulesAllowed && <UpsellBanner />}
+        <CheckBuilder onSave={saveCheck} onCancel={() => setBuilding(false)} />
+      </div>
+    );
+  }
 
   if (editing) return <Editor pack={editing === "new" ? null : editing} onDone={() => { setEditing(null); refresh(); }} />;
 
   return (
     <div style={{ maxWidth: 820, margin: "0 auto", padding: "40px 28px", width: "100%" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, gap: 10, flexWrap: "wrap" }}>
         <h1 style={{ fontSize: 26, margin: 0 }}>Rules</h1>
-        <button className="btn btn-primary" onClick={() => setEditing("new")}><IconSpark size={15} /> New rule pack</button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button className="btn" onClick={() => setEditing("new")}>New rule pack</button>
+          <button className="btn btn-primary" onClick={() => setBuilding(true)}>
+            <IconSpark size={15} /> New check
+            {!customRulesAllowed && <span style={proPill}>PRO</span>}
+          </button>
+        </div>
       </div>
-      <p style={{ color: "var(--text-secondary)", marginTop: 0, marginBottom: 24, maxWidth: "60ch" }}>
-        Marketing monitoring as code. Write deterministic <code style={code}>.crawlie</code> rules — brand voice, banned words,
-        AI-slop, competitor mentions — and they run on every crawl, including scheduled ones.
+      <p style={{ color: "var(--text-secondary)", marginTop: 0, marginBottom: 24, maxWidth: "62ch" }}>
+        Your standards as code. <b>Custom checks</b> audit every page ("product pages need Product schema",
+        "never link to staging") and appear in reports like built-in rules. <b>Content rules</b> score copy —
+        brand voice, banned words, AI slop. Both run on every crawl, including scheduled ones.
       </p>
 
       {packs === null ? (
         <div style={{ display: "flex", justifyContent: "center", padding: 60 }}><Spinner /></div>
       ) : packs.length === 0 ? (
         <div style={empty}>
-          <p style={{ color: "var(--text-secondary)", margin: "0 0 16px" }}>No rule packs yet.</p>
-          <button className="btn btn-primary" onClick={() => setEditing("new")}>Create your first pack</button>
+          <p style={{ color: "var(--text-secondary)", margin: "0 0 16px" }}>No rules yet.</p>
+          <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+            <button className="btn btn-primary" onClick={() => setBuilding(true)}>Create your first check</button>
+            <button className="btn" onClick={() => setEditing("new")}>Write a pack</button>
+          </div>
         </div>
       ) : (
-        packs.map((p) => (
-          <div key={p.id} style={card}>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontWeight: 600, fontSize: 15 }}>{p.name}</div>
-              <div style={{ color: "var(--text-secondary)", fontSize: 12.5 }}>{p.source.split("\n").filter((l) => l.includes("_rule(")).length} rules</div>
+        packs.map((p) => {
+          const checks = p.source.split("\n").filter((l) => l.trimStart().startsWith("check_rule(")).length;
+          const content = p.source.split("\n").filter((l) => /^(phrase|regex|metric)_rule\(/.test(l.trimStart())).length;
+          return (
+            <div key={p.id} style={card}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontWeight: 600, fontSize: 15 }}>{p.name}</div>
+                <div style={{ color: "var(--text-secondary)", fontSize: 12.5 }}>
+                  {[checks > 0 && `${checks} check${checks === 1 ? "" : "s"}`, content > 0 && `${content} content rule${content === 1 ? "" : "s"}`]
+                    .filter(Boolean)
+                    .join(" · ") || "empty"}
+                </div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <Toggle on={p.enabled} onChange={(v) => updatePack(p.id, { enabled: v }).then(refresh)} label="" />
+                <button className="btn btn-sm" onClick={() => setEditing(p)}>Edit</button>
+                <button className="btn btn-sm" onClick={async () => { if (await confirmDialog(`Delete "${p.name}"?`, { danger: true, confirmLabel: "Delete" })) { await deletePack(p.id); toast("Pack deleted", "success"); refresh(); } }}><IconTrash size={13} /></button>
+              </div>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <Toggle on={p.enabled} onChange={(v) => updatePack(p.id, { enabled: v }).then(refresh)} label="" />
-              <button className="btn btn-sm" onClick={() => setEditing(p)}>Edit</button>
-              <button className="btn btn-sm" onClick={async () => { if (await confirmDialog(`Delete "${p.name}"?`, { danger: true, confirmLabel: "Delete" })) { await deletePack(p.id); toast("Pack deleted", "success"); refresh(); } }}><IconTrash size={13} /></button>
-            </div>
-          </div>
-        ))
+          );
+        })
       )}
+    </div>
+  );
+}
+
+function UpsellBanner() {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderRadius: 12, border: "1px solid var(--blue-border, var(--border))", background: "var(--blue-bg, var(--panel))", marginBottom: 18, flexWrap: "wrap" }}>
+      <span style={{ fontSize: 13.5 }}>
+        Custom audit checks are a <b>Pro</b> feature. Build and test one now — upgrading takes a minute when
+        you're ready to save it.
+      </span>
+      <button className="btn btn-sm btn-primary" style={{ marginLeft: "auto" }} onClick={async () => { const { url } = await checkout("pro"); window.location.href = url; }}>
+        Upgrade to Pro
+      </button>
     </div>
   );
 }
@@ -60,6 +135,9 @@ function Editor({ pack, onDone }: { pack: RulePack | null; onDone: () => void })
       else await createPack(name || "New pack", source);
       toast("Rule pack saved", "success");
       onDone();
+    } catch (e) {
+      const err = e as Error & { code?: string };
+      toast(err.code === "plan" ? "Custom audit rules (check_rule) are a Pro feature" : err.message, "error");
     } finally {
       setBusy(false);
     }
@@ -92,13 +170,17 @@ function Editor({ pack, onDone }: { pack: RulePack | null; onDone: () => void })
         onChange={(e) => setSource(e.target.value)}
       />
       <p style={{ color: "var(--text-secondary)", fontSize: 12.5, marginTop: 8 }}>
-        Syntax: <code style={code}>phrase_rule("name", weight = 3, phrases = ["...", "..."])</code>,
-        {" "}<code style={code}>regex_rule("name", weight = 2, pattern = "...")</code>. Higher score = more violations.
+        Content rules: <code style={code}>phrase_rule("name", weight = 3, phrases = ["..."])</code>,
+        {" "}<code style={code}>regex_rule("name", weight = 2, pattern = "...")</code>.
+        Custom checks (Pro): <code style={code}>check_rule("id", severity = "warning", on = "/blog/*", require = field("title", contains = "..."), fix = "...")</code>
+        {" "}with predicates <code style={code}>field(...)</code>, <code style={code}>schema("Product")</code>,
+        {" "}<code style={code}>links_to("host")</code>, <code style={code}>extraction("name")</code>.
       </p>
     </div>
   );
 }
 
+const proPill: React.CSSProperties = { marginLeft: 6, fontSize: 9.5, fontWeight: 700, letterSpacing: ".06em", padding: "2px 5px", borderRadius: 5, background: "rgba(255,255,255,0.22)" };
 const card: React.CSSProperties = { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, background: "var(--panel, var(--bg))", border: "1px solid var(--border)", borderRadius: 12, padding: "14px 18px", marginBottom: 10 };
 const empty: React.CSSProperties = { textAlign: "center", padding: "60px 20px", border: "1px dashed var(--border)", borderRadius: 12 };
 const input: React.CSSProperties = { height: 42, padding: "0 12px", borderRadius: 9, border: "1px solid var(--border)", background: "var(--bg-soft, var(--bg))", color: "var(--text)", fontSize: 14 };

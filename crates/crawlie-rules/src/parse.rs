@@ -17,6 +17,7 @@
 //! Errors are structured ([`ParseError`] is `Serialize`) with line/column so an
 //! authoring agent can read the failure and patch the file without guessing.
 
+use crate::check::{default_title, CheckRule, CheckSeverity, Field, NumField, Predicate};
 use crate::pack::RulePack;
 use crate::rule::{Comparator, Metric, Rule, RuleKind};
 use serde::Serialize;
@@ -502,6 +503,100 @@ fn build_comparator(v: &Value) -> Result<Comparator, String> {
     })
 }
 
+/// Build a check predicate from its constructor call:
+/// `field("title", contains = "x" | matches = "re" | min = 1 | max = 9)`,
+/// `schema("Product")`, `links_to("host")`, `extraction("name")`.
+fn build_predicate(v: &Value) -> Result<Predicate, String> {
+    let Value::Call { name, args } = v else {
+        return Err("expected a predicate like `field(\"title\", contains = \"...\")`".into());
+    };
+    Ok(match name.as_str() {
+        "field" => {
+            let fname = as_str(arg(args, "name", Some(0)).ok_or("field(...) needs a field name")?)?;
+            if let Some(v) = arg(args, "contains", None) {
+                let f = Field::parse(&fname).ok_or(format!("unknown text field `{fname}`"))?;
+                Predicate::FieldContains(f, as_str(v)?)
+            } else if let Some(v) = arg(args, "matches", None) {
+                let f = Field::parse(&fname).ok_or(format!("unknown text field `{fname}`"))?;
+                let re = regex::RegexBuilder::new(&as_str(v)?)
+                    .case_insensitive(true)
+                    .build()
+                    .map_err(|e| format!("invalid regex: {e}"))?;
+                Predicate::FieldMatches(f, re)
+            } else if let Some(v) = arg(args, "min", None) {
+                let f =
+                    NumField::parse(&fname).ok_or(format!("unknown numeric field `{fname}`"))?;
+                Predicate::NumMin(f, as_num(v)?)
+            } else if let Some(v) = arg(args, "max", None) {
+                let f =
+                    NumField::parse(&fname).ok_or(format!("unknown numeric field `{fname}`"))?;
+                Predicate::NumMax(f, as_num(v)?)
+            } else {
+                // Bare `field("canonical")` = the field must be present.
+                let f = Field::parse(&fname).ok_or(format!("unknown text field `{fname}`"))?;
+                Predicate::FieldPresent(f)
+            }
+        }
+        "schema" => Predicate::Schema(as_str(
+            arg(args, "type", Some(0)).ok_or("schema(\"Type\") needs a type")?,
+        )?),
+        "links_to" => Predicate::LinksTo(as_str(
+            arg(args, "url", Some(0)).ok_or("links_to(\"host\") needs a URL fragment")?,
+        )?),
+        "extraction" => Predicate::Extraction(as_str(
+            arg(args, "name", Some(0)).ok_or("extraction(\"name\") needs a name")?,
+        )?),
+        other => return Err(format!("unknown predicate `{other}`")),
+    })
+}
+
+fn build_check(args: &[Arg]) -> Result<CheckRule, String> {
+    let name = as_str(arg(args, "name", Some(0)).ok_or("check_rule needs a name")?)?;
+    let require = arg(args, "require", None);
+    let forbid = arg(args, "forbid", None);
+    let (pred_value, is_forbid) = match (require, forbid) {
+        (Some(v), None) => (v, false),
+        (None, Some(v)) => (v, true),
+        (Some(_), Some(_)) => {
+            return Err("check_rule takes `require = ...` OR `forbid = ...`, not both".into())
+        }
+        (None, None) => return Err("check_rule needs `require = ...` or `forbid = ...`".into()),
+    };
+    let predicate = build_predicate(pred_value)?;
+    let severity = match arg(args, "severity", None) {
+        Some(v) => {
+            let s = as_str(v)?;
+            CheckSeverity::parse(&s)
+                .ok_or(format!("severity must be error/warning/notice, got `{s}`"))?
+        }
+        None => CheckSeverity::Warning,
+    };
+    let title = match arg(args, "title", None) {
+        Some(v) => as_str(v)?,
+        None => default_title(&name),
+    };
+    let text = |key: &str| -> Result<String, String> {
+        match arg(args, key, None) {
+            Some(v) => as_str(v),
+            None => Ok(String::new()),
+        }
+    };
+    Ok(CheckRule {
+        name,
+        title,
+        severity,
+        on: match arg(args, "on", None) {
+            Some(v) => Some(as_str(v)?),
+            None => None,
+        },
+        predicate,
+        forbid: is_forbid,
+        why: text("why")?,
+        fix: text("fix")?,
+        impact: text("impact")?,
+    })
+}
+
 fn build_rule(name: &str, args: &[Arg]) -> Result<Rule, String> {
     let rule_name = as_str(arg(args, "name", Some(0)).ok_or("rule needs a name")?)?;
     let weight = match arg(args, "weight", None) {
@@ -546,6 +641,7 @@ pub fn load(pack_name: impl Into<String>, src: &str) -> Result<RulePack, ParseEr
     let toks = lex(src)?;
     let mut p = Parser { toks, pos: 0 };
     let mut rules = Vec::new();
+    let mut checks = Vec::new();
     while p.peek().is_some() {
         let (line, col) = p.loc();
         let Value::Call { name, args } = p.parse_call()? else {
@@ -555,8 +651,14 @@ pub fn load(pack_name: impl Into<String>, src: &str) -> Result<RulePack, ParseEr
                 message: "expected a rule constructor".into(),
             });
         };
-        let rule = build_rule(&name, &args).map_err(|message| ParseError { line, col, message })?;
-        rules.push(rule);
+        if name == "check_rule" {
+            let check = build_check(&args).map_err(|message| ParseError { line, col, message })?;
+            checks.push(check);
+        } else {
+            let rule =
+                build_rule(&name, &args).map_err(|message| ParseError { line, col, message })?;
+            rules.push(rule);
+        }
     }
-    Ok(RulePack::new(pack_name, rules))
+    Ok(RulePack::with_checks(pack_name, rules, checks))
 }

@@ -321,6 +321,40 @@ pub fn recompute(result: &mut CrawlResult) {
     result.link_graph = build_link_graph(&result.pages);
 }
 
+/// Merge user-defined check findings into a finished crawl: append the issues
+/// and their guidance, then refresh the summary counts and health score so
+/// custom standards weigh into the report exactly like built-in rules.
+pub fn apply_custom_issues(
+    result: &mut CrawlResult,
+    issues: Vec<Issue>,
+    infos: Vec<crate::types::RuleInfo>,
+) {
+    if issues.is_empty() && infos.is_empty() {
+        return;
+    }
+    for i in &issues {
+        match i.severity {
+            Severity::Error => result.summary.errors += 1,
+            Severity::Warning => result.summary.warnings += 1,
+            Severity::Notice => result.summary.notices += 1,
+            Severity::Good => result.summary.good += 1,
+        }
+        *result
+            .summary
+            .by_category
+            .entry(i.category.label().to_string())
+            .or_insert(0) += 1;
+    }
+    result.issues.extend(issues);
+    result.custom_rules.extend(infos);
+    result.summary.health_score = health_score(&result.pages, &result.issues);
+    // Per-page SEO scores account for the new findings too.
+    let seo = page_seo_scores(&result.pages, &result.issues);
+    for (i, p) in result.pages.iter_mut().enumerate() {
+        p.seo_score = seo.get(i).copied().unwrap_or(0);
+    }
+}
+
 /// Count how many indexable HTML pages lack each GEO signal, so agents get the
 /// aggregate ("82 of 86 pages missing authorship") without computing it.
 pub fn geo_gaps(pages: &[Page]) -> GeoGaps {

@@ -28,6 +28,7 @@
 //! assert!(!ledger.hits.is_empty());
 //! ```
 
+pub mod check;
 pub mod pack;
 pub mod parse;
 pub mod resolve;
@@ -35,7 +36,8 @@ pub mod rule;
 pub mod slop;
 pub mod text;
 
-pub use pack::{Ledger, RulePack};
+pub use check::{CheckFinding, CheckRule, CheckSeverity, PageFacts, Predicate};
+pub use pack::{CheckInfo, Ledger, RulePack};
 pub use parse::{load, ParseError};
 pub use resolve::{Origin, PackEntry, ResolveError, Resolved, Resolver};
 pub use rule::{Comparator, Hit, Metric, Rule, RuleKind};
@@ -121,6 +123,63 @@ mod tests {
         // serializable for agents
         let json = serde_json::to_string(&err).unwrap();
         assert!(json.contains("line"));
+    }
+
+    #[test]
+    fn check_rules_parse_and_evaluate() {
+        let pack = load(
+            "acme",
+            r#"
+            # Content rule and audit checks living side by side.
+            phrase_rule("cliches", weight = 2, phrases = ["unlock the power of"])
+
+            check_rule("brand-in-title",
+                title    = "Title missing 'Acme'",
+                severity = "warning",
+                on       = "/products/*",
+                require  = field("title", contains = "Acme"),
+                why      = "Brand terms drive branded SERPs.",
+                fix      = "Append ' | Acme' in the title template.",
+            )
+            check_rule("staging-links",
+                severity = "error",
+                forbid   = links_to("staging.acme.com"),
+            )
+            check_rule("product-schema",
+                on      = "/products/*",
+                require = schema("Product"),
+            )
+            check_rule("min-words", require = field("word_count", min = 100))
+            "#,
+        )
+        .unwrap();
+        assert_eq!(pack.rules.len(), 1);
+        assert_eq!(pack.checks.len(), 4);
+
+        let links = vec!["https://staging.acme.com/x".to_string()];
+        let facts = PageFacts {
+            url: "https://acme.com/products/widget",
+            path: "/products/widget",
+            title: Some("Widget 3000"),
+            word_count: 40.0,
+            links: &links,
+            ..Default::default()
+        };
+        let findings = pack.check_page(&facts);
+        let rules: Vec<&str> = findings.iter().map(|f| f.rule.as_str()).collect();
+        assert!(rules.contains(&"brand-in-title"), "{rules:?}");
+        assert!(rules.contains(&"staging-links"));
+        assert!(rules.contains(&"product-schema"));
+        assert!(rules.contains(&"min-words"));
+
+        // Default title prettifies; explicit title is kept; infos embed guidance.
+        let infos = pack.check_infos();
+        assert_eq!(infos[0].title, "Title missing 'Acme'");
+        assert_eq!(infos[1].title, "Staging links");
+        assert!(infos[0].how_to_fix.contains("title template"));
+
+        // require/forbid validation errors are structured.
+        assert!(load("bad", "check_rule(\"x\")").is_err());
     }
 
     #[test]

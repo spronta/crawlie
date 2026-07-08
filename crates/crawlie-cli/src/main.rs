@@ -145,6 +145,11 @@ struct CrawlArgs {
     /// with --render, e.g. `--render-js 'document.querySelectorAll("video").length'`.
     #[arg(long, value_name = "JS")]
     render_js: Option<String>,
+    /// Run a `.crawlie` rule pack's custom audit checks (`check_rule`) on the
+    /// crawl; findings appear as issues alongside built-in rules. A pack name
+    /// (see `crawlie pack list`) or a path. Repeatable.
+    #[arg(long, value_name = "PACK")]
+    pack: Vec<String>,
     /// Stream pages to an on-disk SQLite store instead of holding them in
     /// memory — for crawling very large sites without running out of RAM. The
     /// crawl is written to this path and becomes the queryable artifact.
@@ -437,7 +442,7 @@ async fn run_crawl(a: CrawlArgs) -> ExitCode {
     };
     let min = a.severity.map(sev_rank);
     execute(
-        config, a.format, min, a.output, a.save, a.store, a.fail_on, a.quiet,
+        config, a.format, min, a.output, a.save, a.store, a.fail_on, a.quiet, &a.pack,
     )
     .await
 }
@@ -464,6 +469,7 @@ async fn run_audit(a: AuditArgs) -> ExitCode {
         None,
         FailOn::None,
         a.quiet,
+        &[],
     )
     .await
 }
@@ -505,6 +511,85 @@ fn make_resolver() -> Resolver {
 
 /// Resolve the pack named by `--pack` (a name or a path), or `slop-default`
 /// (which a repo can shadow with its own `.crawlie/slop-default.crawlie`).
+/// Resolve each `--pack` reference, run its `check_rule` audits over the
+/// crawled pages, and merge findings into the result like the hosted crawler.
+fn apply_cli_packs(refs: &[String], result: &mut CrawlResult) -> Result<(), String> {
+    use crawlie_core::types::{Category, Issue, RuleInfo, Severity};
+    use crawlie_rules::{CheckSeverity, PageFacts};
+
+    let sev = |s: CheckSeverity| match s {
+        CheckSeverity::Error => Severity::Error,
+        CheckSeverity::Warning => Severity::Warning,
+        CheckSeverity::Notice => Severity::Notice,
+    };
+    let mut packs = Vec::new();
+    for r in refs {
+        packs.push(load_pack(Some(r))?);
+    }
+    let mut issues: Vec<Issue> = Vec::new();
+    for page in result.pages.iter().filter(|p| p.status == 200) {
+        let all_links: Vec<String> = page
+            .internal_links
+            .iter()
+            .chain(page.external_links.iter())
+            .cloned()
+            .collect();
+        let extractions: Vec<String> = page
+            .extractions
+            .iter()
+            .filter(|e| !e.values.is_empty())
+            .map(|e| e.name.clone())
+            .collect();
+        let path_owned = url::Url::parse(&page.url)
+            .map(|u| u.path().to_string())
+            .unwrap_or_else(|_| "/".into());
+        let facts = PageFacts {
+            url: &page.url,
+            path: &path_owned,
+            title: page.title.as_deref(),
+            description: page.meta_description.as_deref(),
+            h1: page.h1.first().map(String::as_str),
+            text: page.text.as_deref(),
+            canonical: page.canonical.as_deref(),
+            lang: page.lang.as_deref(),
+            word_count: page.word_count as f64,
+            images_total: page.images_total as f64,
+            images_missing_alt: page.images_missing_alt as f64,
+            inlinks: page.inlinks as f64,
+            schema_types: &page.schema_types,
+            links: &all_links,
+            extraction_names: &extractions,
+        };
+        for pack in &packs {
+            for f in pack.check_page(&facts) {
+                issues.push(Issue {
+                    rule: format!("custom:{}", f.rule),
+                    title: f.title,
+                    category: Category::Custom,
+                    severity: sev(f.severity),
+                    url: f.url,
+                    detail: Some(f.detail),
+                });
+            }
+        }
+    }
+    let infos: Vec<RuleInfo> = packs
+        .iter()
+        .flat_map(|p| p.check_infos())
+        .map(|c| RuleInfo {
+            rule: format!("custom:{}", c.rule),
+            title: c.title,
+            category: Category::Custom,
+            severity: sev(CheckSeverity::parse(c.severity).unwrap_or(CheckSeverity::Warning)),
+            why: c.why,
+            how_to_fix: c.how_to_fix,
+            impact: c.impact,
+        })
+        .collect();
+    crawlie_core::scoring::apply_custom_issues(result, issues, infos);
+    Ok(())
+}
+
 fn load_pack(reference: Option<&str>) -> Result<crawlie_rules::RulePack, String> {
     let resolver = make_resolver();
     let reference = reference.unwrap_or("slop-default");
@@ -814,6 +899,7 @@ async fn execute(
     store: Option<String>,
     fail_on: FailOn,
     quiet: bool,
+    packs: &[String],
 ) -> ExitCode {
     let on_event = move |evt: crawlie_core::CrawlEvent| {
         if quiet {
@@ -836,7 +922,7 @@ async fn execute(
 
     // Streaming (out-of-core) mode spills pages to an on-disk store; the default
     // mode keeps them in memory.
-    let result = if let Some(path) = store.as_deref() {
+    let mut result = if let Some(path) = store.as_deref() {
         match crawl_to_store(config, path, on_event, CancelToken::new()).await {
             Ok((r, _store)) => {
                 if !quiet {
@@ -861,6 +947,16 @@ async fn execute(
             }
         }
     };
+    // Custom audit checks from attached rule packs (local parity with the
+    // hosted crawler): findings merge into issues + scores like built-ins.
+    if !packs.is_empty() {
+        if store.is_some() {
+            eprintln!("crawlie: --pack checks are skipped in --store mode (pages live on disk)");
+        } else if let Err(e) = apply_cli_packs(packs, &mut result) {
+            eprintln!("crawlie: {e}");
+            return ExitCode::from(2);
+        }
+    }
     if !quiet {
         eprintln!(
             "\r\x1b[2K  done · {} pages · health {}/100 · GEO {}/100 · a11y {}/100 · {} ms",
