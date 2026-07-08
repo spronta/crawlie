@@ -17,6 +17,8 @@ import {
 } from "../cloud";
 import type { ReportMeta } from "@ui/lib/types";
 import { relTime, absDateTime } from "../format";
+import { ExtractorEditor } from "../extraction";
+import type { Extractor } from "../cloud";
 
 export function ProjectView({
   id,
@@ -146,6 +148,18 @@ export function ProjectView({
             </div>
           )}
         </div>
+      </div>
+
+      {/* Custom extraction */}
+      <div style={{ ...panel, marginTop: 14 }}>
+        <div style={panelTitle}>Custom extraction</div>
+        <ExtractorEditor
+          value={(project.config?.extract as Extractor[]) ?? []}
+          onSave={async (rows) => {
+            const p = await updateProject(id, { config: { ...(project.config ?? {}), extract: rows } });
+            setProject(p);
+          }}
+        />
       </div>
 
       {/* Trend */}

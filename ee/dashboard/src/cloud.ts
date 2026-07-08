@@ -44,6 +44,14 @@ async function j<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+/** Screaming-Frog-style custom extractor: pull data via CSS selector (+ attr) or regex. */
+export interface Extractor {
+  name: string;
+  css?: string;
+  attr?: string;
+  regex?: string;
+}
+
 export const listProjects = () => j<Project[]>("/v1/projects");
 export const getProject = (id: string) => j<Project>(`/v1/projects/${id}`);
 export const createProject = (input: {
@@ -51,10 +59,11 @@ export const createProject = (input: {
   name?: string;
   schedule?: Schedule;
   notify?: boolean;
+  config?: Record<string, unknown>;
 }) => j<Project>("/v1/projects", { method: "POST", body: JSON.stringify(input) });
 export const updateProject = (
   id: string,
-  patch: { name?: string; schedule?: Schedule; notify?: boolean },
+  patch: { name?: string; schedule?: Schedule; notify?: boolean; config?: Record<string, unknown> | null },
 ) => j<Project>(`/v1/projects/${id}`, { method: "PATCH", body: JSON.stringify(patch) });
 export const deleteProject = (id: string) =>
   j<{ ok: boolean }>(`/v1/projects/${id}`, { method: "DELETE" });

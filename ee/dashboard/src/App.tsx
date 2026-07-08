@@ -12,6 +12,7 @@ import { loadReport, loadPublicReport, shareReport, unshareReport, getShare } fr
 import { getSession, signOut, type SessionUser } from "./auth";
 import { SignIn } from "./SignIn";
 import { IconShare } from "@ui/components/ui";
+import { ExtractionTable } from "./extraction";
 
 type Phase =
   | { name: "projects" }
@@ -193,6 +194,7 @@ function ReportView({ id, onBack, onReports }: { id: string; onBack: () => void;
           <button className="btn btn-sm" onClick={share}><IconShare size={14} /> Share public link</button>
         )}
       </div>
+      <ExtractionTable pages={(result.pages ?? []) as Parameters<typeof ExtractionTable>[0]["pages"]} />
       <ResultsView result={result} onReset={onBack} onReports={onReports} />
     </>
   );
