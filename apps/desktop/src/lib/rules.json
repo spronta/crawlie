@@ -459,6 +459,51 @@
     "impact": "No crawl control and search engines aren't told where your sitemap lives."
   },
   {
+    "rule": "sitemap-broken",
+    "title": "Broken URL in Sitemap",
+    "category": "indexability",
+    "severity": "error",
+    "why": "Your sitemap lists a URL that returns an error. Sitemaps are supposed to be the authoritative list of your live, indexable pages — errors there waste crawl budget and erode Google's trust in the whole file.",
+    "howToFix": "Regenerate the sitemap from your live URL set, or remove the dead entries. Most CMSs can rebuild it automatically.",
+    "impact": "Wasted crawl budget and reduced trust in your sitemap's signals."
+  },
+  {
+    "rule": "sitemap-redirect",
+    "title": "Redirecting URL in Sitemap",
+    "category": "indexability",
+    "severity": "warning",
+    "why": "A sitemap URL redirects elsewhere. Search engines want final destination URLs in sitemaps; redirects there add hops and blur which URL is canonical.",
+    "howToFix": "List the redirect's final destination URL in the sitemap instead.",
+    "impact": "Slower crawling and mixed canonical signals."
+  },
+  {
+    "rule": "sitemap-noindex",
+    "title": "Noindex URL in Sitemap",
+    "category": "indexability",
+    "severity": "error",
+    "why": "The sitemap tells engines to index this URL while its noindex tag says the opposite. Contradictory signals make engines distrust your sitemap.",
+    "howToFix": "Remove noindexed URLs from the sitemap (or remove the noindex if the page should rank).",
+    "impact": "Conflicting indexing signals and reduced sitemap trust."
+  },
+  {
+    "rule": "sitemap-canonicalized",
+    "title": "Canonicalised URL in Sitemap",
+    "category": "indexability",
+    "severity": "warning",
+    "why": "This sitemap URL canonicals to a different page — you're asking engines to index a URL that defers to another. Sitemaps should list canonical URLs only.",
+    "howToFix": "Replace the entry with the canonical target URL.",
+    "impact": "Mixed canonicalisation signals across sitemap and markup."
+  },
+  {
+    "rule": "not-in-sitemap",
+    "title": "Indexable Page Not in Sitemap",
+    "category": "indexability",
+    "severity": "notice",
+    "why": "This indexable page isn't listed in your XML sitemap, so engines must find it via links alone — slower discovery and weaker freshness signals, especially for deep pages.",
+    "howToFix": "Add the page to the sitemap (or fix the generator that's skipping it).",
+    "impact": "Slower, less reliable indexing for unlisted pages."
+  },
+  {
     "rule": "no-sitemap",
     "title": "No XML sitemap",
     "category": "indexability",

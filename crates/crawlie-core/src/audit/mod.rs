@@ -68,6 +68,10 @@ pub struct CrossPage {
     pub dup_case: HashSet<String>,
     /// Trailing-slash-stripped URLs crawled both with and without the slash.
     pub dup_slash: HashSet<String>,
+    /// Normalized URLs listed in the site's XML sitemaps, when a sitemap was
+    /// found — enables the sitemap↔crawl cross-check rules. `None` disables
+    /// them (no sitemap, or the caller didn't collect the set).
+    pub in_sitemap: Option<HashSet<String>>,
 }
 
 /// Build the duplicate title/description/H1 and duplicate-URL-variant sets
@@ -119,6 +123,7 @@ pub fn cross_page(pages: &[Page]) -> CrossPage {
             .filter(|(_, v)| v.len() > 1)
             .map(|(k, _)| k.to_string())
             .collect(),
+        in_sitemap: None,
     }
 }
 
@@ -144,10 +149,24 @@ pub fn audit(
     pages: &[Page],
     status_map: &HashMap<String, u16>,
     robots_blocked: &[String],
+    seed: &Url,
+) -> Vec<Issue> {
+    audit_with_sitemap(pages, status_map, robots_blocked, seed, None)
+}
+
+/// [`audit`] with the sitemap URL set, enabling the sitemap↔crawl cross-check
+/// rules (broken/noindex/redirecting URLs in the sitemap, indexable pages
+/// missing from it).
+pub fn audit_with_sitemap(
+    pages: &[Page],
+    status_map: &HashMap<String, u16>,
+    robots_blocked: &[String],
     _seed: &Url,
+    in_sitemap: Option<HashSet<String>>,
 ) -> Vec<Issue> {
     let mut out = Vec::new();
-    let cp = cross_page(pages);
+    let mut cp = cross_page(pages);
+    cp.in_sitemap = in_sitemap;
     for p in pages {
         audit_one(p, &cp, status_map, &mut out);
     }
@@ -281,6 +300,67 @@ pub fn audit_one(
                 u,
                 Some(p.status.to_string()),
             ));
+        }
+
+        // --- Sitemap ↔ crawl cross-checks (when a sitemap URL set exists) ---
+        if let Some(sm) = &cp.in_sitemap {
+            let noindex = p
+                .meta_robots
+                .as_deref()
+                .map(|r| r.contains("noindex"))
+                .unwrap_or(false)
+                || p.x_robots_tag
+                    .as_deref()
+                    .map(|r| r.to_ascii_lowercase().contains("noindex"))
+                    .unwrap_or(false);
+            if sm.contains(&norm(u)) || sm.contains(&norm(&p.final_url)) {
+                if p.status >= 400 {
+                    out.push(issue(
+                        "sitemap-broken",
+                        "Broken URL in Sitemap",
+                        Indexability,
+                        Error,
+                        u,
+                        Some(p.status.to_string()),
+                    ));
+                } else if p.status >= 300 {
+                    out.push(issue(
+                        "sitemap-redirect",
+                        "Redirecting URL in Sitemap",
+                        Indexability,
+                        Warning,
+                        u,
+                        Some(p.status.to_string()),
+                    ));
+                } else if noindex {
+                    out.push(issue(
+                        "sitemap-noindex",
+                        "Noindex URL in Sitemap",
+                        Indexability,
+                        Error,
+                        u,
+                        None,
+                    ));
+                } else if p.canonicalized {
+                    out.push(issue(
+                        "sitemap-canonicalized",
+                        "Canonicalised URL in Sitemap",
+                        Indexability,
+                        Warning,
+                        u,
+                        p.canonical.clone(),
+                    ));
+                }
+            } else if p.status == 200 && p.indexable && is_html {
+                out.push(issue(
+                    "not-in-sitemap",
+                    "Indexable Page Not in Sitemap",
+                    Indexability,
+                    Notice,
+                    u,
+                    None,
+                ));
+            }
         }
         if p.status == 200 && p.response_time_ms > SLOW_MS {
             out.push(issue(

@@ -3,7 +3,7 @@
 //! followed by inlink counting, duplicate detection, link verification, scoring,
 //! and the audit pass.
 
-use crate::audit::{audit, audit_one};
+use crate::audit::audit_one;
 use crate::fetch::{build_client, check_status, fetch, FetchOutcome};
 use crate::pagestore::PageStore;
 use crate::parse::{parse_html, Parsed};
@@ -296,6 +296,9 @@ struct Prep {
     frontier: VecDeque<(Url, usize)>,
     visited: HashSet<String>,
     sitemap_urls: usize,
+    /// Normalized URLs listed in the site's sitemaps (empty when none found),
+    /// for the sitemap↔crawl cross-check rules.
+    in_sitemap: HashSet<String>,
     robots_blocked: Vec<String>,
     max_pages: usize,
     follow: bool,
@@ -408,6 +411,7 @@ where
 
     // Sitemap seeding (Site mode only).
     let mut sitemap_urls = 0usize;
+    let mut in_sitemap: HashSet<String> = HashSet::new();
     if follow && config.use_sitemap {
         let mut sm_locations = robots.sitemaps.clone();
         if sm_locations.is_empty() {
@@ -417,6 +421,7 @@ where
         }
         let discovered = sitemap::discover(&client, &sm_locations).await;
         sitemap_urls = discovered.len();
+        in_sitemap = discovered.iter().map(|s| normalize_str(s)).collect();
         for s in discovered {
             if visited.len() >= max_pages {
                 break;
@@ -455,6 +460,7 @@ where
         frontier,
         visited,
         sitemap_urls,
+        in_sitemap,
         robots_blocked,
         max_pages,
         follow,
@@ -487,6 +493,7 @@ where
         mut frontier,
         mut visited,
         sitemap_urls,
+        in_sitemap,
         mut robots_blocked,
         max_pages,
         follow,
@@ -675,7 +682,13 @@ where
         }
     };
 
-    let mut issues = audit(&pages, &status_map, &robots_blocked, &seed);
+    let mut issues = crate::audit::audit_with_sitemap(
+        &pages,
+        &status_map,
+        &robots_blocked,
+        &seed,
+        (!in_sitemap.is_empty()).then_some(in_sitemap),
+    );
     if !robots_found {
         issues.push(Issue {
             rule: "no-robots-txt".into(),
@@ -775,6 +788,7 @@ where
         mut frontier,
         mut visited,
         sitemap_urls,
+        in_sitemap,
         mut robots_blocked,
         max_pages,
         follow,
@@ -886,7 +900,8 @@ where
     let inlink_counts = store.inlink_counts().map_err(ioerr)?;
     let hash_canon = store.hash_canon().map_err(ioerr)?;
     // Duplicate title/description sets (the cross-page audit context).
-    let cross = store.cross_page().map_err(ioerr)?;
+    let mut cross = store.cross_page().map_err(ioerr)?;
+    cross.in_sitemap = (!in_sitemap.is_empty()).then_some(in_sitemap);
 
     // Status map (+ external link verification), streamed from disk.
     let mut status_map = store.status_map().map_err(ioerr)?;

@@ -242,6 +242,26 @@ entries! {
         "The site has no /robots.txt. Crawling still works without one, but you lose the ability to steer crawlers, exclude private or low-value paths, and — most usefully — to declare your sitemap location. Some servers also return a stray HTML page for the missing file, which can confuse crawlers.",
         "Add a /robots.txt at the site root. A minimal file allowing everything and pointing at your sitemap is enough: \"User-agent: *\\nAllow: /\\nSitemap: https://example.com/sitemap.xml\".",
         "No crawl control and search engines aren't told where your sitemap lives.";
+    "sitemap-broken" => "Broken URL in Sitemap", Indexability, Error,
+        "Your sitemap lists a URL that returns an error. Sitemaps are supposed to be the authoritative list of your live, indexable pages — errors there waste crawl budget and erode Google's trust in the whole file.",
+        "Regenerate the sitemap from your live URL set, or remove the dead entries. Most CMSs can rebuild it automatically.",
+        "Wasted crawl budget and reduced trust in your sitemap's signals.";
+    "sitemap-redirect" => "Redirecting URL in Sitemap", Indexability, Warning,
+        "A sitemap URL redirects elsewhere. Search engines want final destination URLs in sitemaps; redirects there add hops and blur which URL is canonical.",
+        "List the redirect's final destination URL in the sitemap instead.",
+        "Slower crawling and mixed canonical signals.";
+    "sitemap-noindex" => "Noindex URL in Sitemap", Indexability, Error,
+        "The sitemap tells engines to index this URL while its noindex tag says the opposite. Contradictory signals make engines distrust your sitemap.",
+        "Remove noindexed URLs from the sitemap (or remove the noindex if the page should rank).",
+        "Conflicting indexing signals and reduced sitemap trust.";
+    "sitemap-canonicalized" => "Canonicalised URL in Sitemap", Indexability, Warning,
+        "This sitemap URL canonicals to a different page — you're asking engines to index a URL that defers to another. Sitemaps should list canonical URLs only.",
+        "Replace the entry with the canonical target URL.",
+        "Mixed canonicalisation signals across sitemap and markup.";
+    "not-in-sitemap" => "Indexable Page Not in Sitemap", Indexability, Notice,
+        "This indexable page isn't listed in your XML sitemap, so engines must find it via links alone — slower discovery and weaker freshness signals, especially for deep pages.",
+        "Add the page to the sitemap (or fix the generator that's skipping it).",
+        "Slower, less reliable indexing for unlisted pages.";
     "no-sitemap" => "No XML sitemap", Indexability, Warning,
         "No XML sitemap was found — neither declared in robots.txt nor at the conventional /sitemap.xml. Sitemaps give search engines an explicit, complete list of your indexable URLs with last-modified hints, which speeds up discovery of new and deep pages that internal links alone may reach slowly.",
         "Generate an XML sitemap listing your canonical, indexable URLs, publish it at /sitemap.xml, and reference it from robots.txt with a \"Sitemap:\" line. Most frameworks and CMSs can produce one automatically.",

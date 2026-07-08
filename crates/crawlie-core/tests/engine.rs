@@ -379,6 +379,39 @@ fn audit_flags_markup_and_header_issues() {
 }
 
 #[test]
+fn audit_cross_checks_sitemap_membership() {
+    use std::collections::HashSet;
+    let seed = Url::parse("https://example.com/").unwrap();
+
+    let mut gone = ok_page("https://example.com/gone");
+    gone.status = 404;
+    let mut noindexed = ok_page("https://example.com/hidden");
+    noindexed.meta_robots = Some("noindex".into());
+    let unlisted = ok_page("https://example.com/unlisted");
+
+    let sitemap: HashSet<String> = [
+        "https://example.com/gone".to_string(),
+        "https://example.com/hidden".to_string(),
+    ]
+    .into();
+
+    let issues = crawlie_core::audit::audit_with_sitemap(
+        &[gone, noindexed, unlisted],
+        &HashMap::new(),
+        &[],
+        &seed,
+        Some(sitemap),
+    );
+    let r = rules(&issues);
+    assert!(r.contains(&"sitemap-broken"), "404 in sitemap: {r:?}");
+    assert!(r.contains(&"sitemap-noindex"), "noindex in sitemap: {r:?}");
+    assert!(
+        r.contains(&"not-in-sitemap"),
+        "indexable page missing from sitemap: {r:?}"
+    );
+}
+
+#[test]
 fn audit_flags_redirect_loops_and_insecure_links() {
     let seed = Url::parse("https://example.com/").unwrap();
     let mut looper = ok_page("https://example.com/loop");

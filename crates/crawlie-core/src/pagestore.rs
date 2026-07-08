@@ -321,6 +321,8 @@ impl PageStore {
                 "SELECT k FROM (SELECT RTRIM(url, '/') AS k, url FROM page) \
                  WHERE k <> '' GROUP BY k HAVING COUNT(DISTINCT url) > 1",
             )?,
+            // Sitemap membership comes from the crawler, not the store.
+            in_sitemap: None,
         })
     }
 
