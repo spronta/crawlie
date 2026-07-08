@@ -19,13 +19,23 @@ import {
   projectTrend,
   type Schedule,
 } from "./projects";
+import { createKey, listKeys, revokeKey, userIdForKey } from "./keys";
 
 type Vars = { userId: string };
 
 export const v1 = new Hono<{ Bindings: Env; Variables: Vars }>();
 
-// Require a session on every /v1 route; expose the user id to handlers.
+// Require auth on every /v1 route: a browser session OR an account API key
+// (Authorization: Bearer crw_…), so the CLI/MCP/CI can drive hosted crawls.
 v1.use("*", async (c, next) => {
+  const auth = c.req.header("authorization");
+  if (auth?.startsWith("Bearer crw_")) {
+    const uid = await userIdForKey(c.env, auth.slice(7));
+    if (uid) {
+      c.set("userId", uid);
+      return next();
+    }
+  }
   const session = await createAuth(c.env).api.getSession({ headers: c.req.raw.headers });
   if (!session?.user) return c.json({ error: "unauthorized" }, 401);
   c.set("userId", session.user.id);
@@ -143,6 +153,20 @@ v1.get("/reports/:id", async (c) => {
 
 v1.delete("/reports/:id", async (c) => {
   await deleteReport(c.env, c.get("userId"), c.req.param("id"));
+  return c.json({ ok: true });
+});
+
+// --- API keys ----------------------------------------------------------
+v1.get("/keys", async (c) => c.json(await listKeys(c.env, c.get("userId"))));
+
+v1.post("/keys", async (c) => {
+  const body = await c.req.json<{ name?: string }>().catch(() => ({}) as { name?: string });
+  const { key, meta } = await createKey(c.env, c.get("userId"), body.name ?? "API key");
+  return c.json({ key, ...meta }, 201); // `key` shown once
+});
+
+v1.delete("/keys/:id", async (c) => {
+  await revokeKey(c.env, c.get("userId"), c.req.param("id"));
   return c.json({ ok: true });
 });
 

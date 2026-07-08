@@ -65,6 +65,18 @@ export const projectTrend = (id: string) => j<TrendPoint[]>(`/v1/projects/${id}/
 export const crawlProject = (id: string, onEvent: (e: CrawlEvent) => void) =>
   streamCrawl(`/v1/projects/${id}/crawls`, undefined, onEvent);
 
+export interface ApiKeyMeta {
+  id: string;
+  name: string;
+  prefix: string;
+  createdAt: number;
+  lastUsedAt: number | null;
+}
+export const listKeys = () => j<ApiKeyMeta[]>("/v1/keys");
+export const createKey = (name: string) =>
+  j<ApiKeyMeta & { key: string }>("/v1/keys", { method: "POST", body: JSON.stringify({ name }) });
+export const revokeKey = (id: string) => j<{ ok: boolean }>(`/v1/keys/${id}`, { method: "DELETE" });
+
 export { loadReport };
 
 export const SCHEDULE_LABEL: Record<Schedule, string> = {
