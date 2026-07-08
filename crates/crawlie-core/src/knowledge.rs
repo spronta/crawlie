@@ -336,6 +336,50 @@ entries! {
         "A page that is mostly markup with little readable text often signals thin or template-heavy content to search and AI engines.",
         "Increase the proportion of meaningful body text relative to code, and remove bloated markup.",
         "Perceived as low-value, reducing ranking and citation.";
+    "render-noindex-raw-only" => "Noindex in Raw HTML Only", Indexability, Error,
+        "The raw server HTML says noindex but JavaScript removes it after rendering. Google reads the raw noindex first and skips rendering such pages entirely — the JS 'fix' never runs, and the page stays out of the index.",
+        "Remove the noindex from the server-rendered HTML. Indexing directives must be correct in the raw response.",
+        "The page is silently excluded from search despite looking indexable in the browser.";
+    "render-noindex-js" => "Noindex Injected by JavaScript", Indexability, Warning,
+        "JavaScript adds a noindex that isn't in the raw HTML. Whether it's honoured depends on the engine rendering the page — Google will eventually see it, most other crawlers never will.",
+        "Move the noindex into the server response so every crawler sees the same directive.",
+        "Inconsistent indexing across search engines.";
+    "render-canonical-mismatch" => "Canonical Changed by JavaScript", Canonical, Error,
+        "The rendered DOM's canonical disagrees with the raw HTML's. Google may pick either; two different canonical claims is the worst version of the signal.",
+        "Emit one canonical, server-side, and stop JavaScript from rewriting it.",
+        "Unpredictable canonicalisation — the wrong URL may be indexed.";
+    "render-canonical-js" => "Canonical Only in Rendered DOM", Canonical, Warning,
+        "The canonical tag only exists after JavaScript runs. Crawlers that don't render (most of them, and Google's first pass) see no canonical at all.",
+        "Render the canonical tag server-side in the raw HTML head.",
+        "Duplicate-content protection that most crawlers never see.";
+    "render-title-js" => "Title Only in Rendered DOM", TitlesMeta, Warning,
+        "The page title only exists after JavaScript runs — the raw HTML has none. Non-rendering crawlers and social unfurlers see an untitled page.",
+        "Server-render the <title> tag; let JavaScript update it only for in-app navigation.",
+        "Untitled snippets everywhere JavaScript isn't executed.";
+    "render-title-modified" => "Title Modified by JavaScript", TitlesMeta, Notice,
+        "JavaScript rewrites the title after load, so rendered and raw disagree. Engines may show either version.",
+        "Ship the final title in the server HTML so both versions match.",
+        "Inconsistent titles between search engines and social previews.";
+    "render-description-js" => "Meta Description Only in Rendered DOM", TitlesMeta, Notice,
+        "The meta description is injected by JavaScript, so non-rendering crawlers see none.",
+        "Server-render the meta description.",
+        "Auto-generated snippets on engines that don't render JS.";
+    "render-description-modified" => "Meta Description Modified by JavaScript", TitlesMeta, Notice,
+        "JavaScript rewrites the meta description after load; raw and rendered disagree.",
+        "Ship the final description server-side.",
+        "Inconsistent snippets across crawlers.";
+    "render-h1-js" => "H1 Only in Rendered DOM", Headings, Notice,
+        "The main heading only exists after JavaScript runs — the raw HTML body has no H1.",
+        "Server-render the H1 with the primary content.",
+        "Non-rendering crawlers see a page without its main heading.";
+    "render-h1-modified" => "H1 Modified by JavaScript", Headings, Notice,
+        "JavaScript rewrites the H1 after load, so raw and rendered disagree about the page's topic statement.",
+        "Ship the final H1 in the server HTML.",
+        "Mixed topical signals between rendering and non-rendering crawlers.";
+    "render-js-only-links" => "JavaScript-Only Internal Links", Links, Warning,
+        "Some internal links only exist after JavaScript runs. Non-rendering crawlers can't discover the pages behind them, and Google's render queue delays discovery.",
+        "Render navigation and content links as real <a href> elements in the server HTML.",
+        "Slower or missed discovery of everything those links point to.";
     "content-requires-js" => "Content Requires JavaScript", Indexability, Warning,
         "Most of this page's content is missing from the raw HTML and only appears after JavaScript runs. Google renders JS but on a delayed, budget-limited second pass — and most AI answer engines and social/link unfurlers don't execute JS at all, so they see an almost-empty page.",
         "Server-render or pre-render the primary content (SSR/SSG/ISR) so it's present in the initial HTML response. Keep JavaScript for enhancement, not for delivering core content and links.",

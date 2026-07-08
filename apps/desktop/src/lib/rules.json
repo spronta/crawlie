@@ -657,6 +657,105 @@
     "impact": "Perceived as low-value, reducing ranking and citation."
   },
   {
+    "rule": "render-noindex-raw-only",
+    "title": "Noindex in Raw HTML Only",
+    "category": "indexability",
+    "severity": "error",
+    "why": "The raw server HTML says noindex but JavaScript removes it after rendering. Google reads the raw noindex first and skips rendering such pages entirely — the JS 'fix' never runs, and the page stays out of the index.",
+    "howToFix": "Remove the noindex from the server-rendered HTML. Indexing directives must be correct in the raw response.",
+    "impact": "The page is silently excluded from search despite looking indexable in the browser."
+  },
+  {
+    "rule": "render-noindex-js",
+    "title": "Noindex Injected by JavaScript",
+    "category": "indexability",
+    "severity": "warning",
+    "why": "JavaScript adds a noindex that isn't in the raw HTML. Whether it's honoured depends on the engine rendering the page — Google will eventually see it, most other crawlers never will.",
+    "howToFix": "Move the noindex into the server response so every crawler sees the same directive.",
+    "impact": "Inconsistent indexing across search engines."
+  },
+  {
+    "rule": "render-canonical-mismatch",
+    "title": "Canonical Changed by JavaScript",
+    "category": "canonical",
+    "severity": "error",
+    "why": "The rendered DOM's canonical disagrees with the raw HTML's. Google may pick either; two different canonical claims is the worst version of the signal.",
+    "howToFix": "Emit one canonical, server-side, and stop JavaScript from rewriting it.",
+    "impact": "Unpredictable canonicalisation — the wrong URL may be indexed."
+  },
+  {
+    "rule": "render-canonical-js",
+    "title": "Canonical Only in Rendered DOM",
+    "category": "canonical",
+    "severity": "warning",
+    "why": "The canonical tag only exists after JavaScript runs. Crawlers that don't render (most of them, and Google's first pass) see no canonical at all.",
+    "howToFix": "Render the canonical tag server-side in the raw HTML head.",
+    "impact": "Duplicate-content protection that most crawlers never see."
+  },
+  {
+    "rule": "render-title-js",
+    "title": "Title Only in Rendered DOM",
+    "category": "titles-meta",
+    "severity": "warning",
+    "why": "The page title only exists after JavaScript runs — the raw HTML has none. Non-rendering crawlers and social unfurlers see an untitled page.",
+    "howToFix": "Server-render the <title> tag; let JavaScript update it only for in-app navigation.",
+    "impact": "Untitled snippets everywhere JavaScript isn't executed."
+  },
+  {
+    "rule": "render-title-modified",
+    "title": "Title Modified by JavaScript",
+    "category": "titles-meta",
+    "severity": "notice",
+    "why": "JavaScript rewrites the title after load, so rendered and raw disagree. Engines may show either version.",
+    "howToFix": "Ship the final title in the server HTML so both versions match.",
+    "impact": "Inconsistent titles between search engines and social previews."
+  },
+  {
+    "rule": "render-description-js",
+    "title": "Meta Description Only in Rendered DOM",
+    "category": "titles-meta",
+    "severity": "notice",
+    "why": "The meta description is injected by JavaScript, so non-rendering crawlers see none.",
+    "howToFix": "Server-render the meta description.",
+    "impact": "Auto-generated snippets on engines that don't render JS."
+  },
+  {
+    "rule": "render-description-modified",
+    "title": "Meta Description Modified by JavaScript",
+    "category": "titles-meta",
+    "severity": "notice",
+    "why": "JavaScript rewrites the meta description after load; raw and rendered disagree.",
+    "howToFix": "Ship the final description server-side.",
+    "impact": "Inconsistent snippets across crawlers."
+  },
+  {
+    "rule": "render-h1-js",
+    "title": "H1 Only in Rendered DOM",
+    "category": "headings",
+    "severity": "notice",
+    "why": "The main heading only exists after JavaScript runs — the raw HTML body has no H1.",
+    "howToFix": "Server-render the H1 with the primary content.",
+    "impact": "Non-rendering crawlers see a page without its main heading."
+  },
+  {
+    "rule": "render-h1-modified",
+    "title": "H1 Modified by JavaScript",
+    "category": "headings",
+    "severity": "notice",
+    "why": "JavaScript rewrites the H1 after load, so raw and rendered disagree about the page's topic statement.",
+    "howToFix": "Ship the final H1 in the server HTML.",
+    "impact": "Mixed topical signals between rendering and non-rendering crawlers."
+  },
+  {
+    "rule": "render-js-only-links",
+    "title": "JavaScript-Only Internal Links",
+    "category": "links",
+    "severity": "warning",
+    "why": "Some internal links only exist after JavaScript runs. Non-rendering crawlers can't discover the pages behind them, and Google's render queue delays discovery.",
+    "howToFix": "Render navigation and content links as real <a href> elements in the server HTML.",
+    "impact": "Slower or missed discovery of everything those links point to."
+  },
+  {
     "rule": "content-requires-js",
     "title": "Content Requires JavaScript",
     "category": "indexability",

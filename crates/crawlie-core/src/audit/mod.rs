@@ -554,6 +554,120 @@ pub fn audit_one(
             return;
         }
 
+        // --- Response vs render (render mode only) ---
+        if let Some(d) = &p.render_diff {
+            if d.noindex_raw_only {
+                out.push(issue(
+                    "render-noindex-raw-only",
+                    "Noindex in Raw HTML Only",
+                    Indexability,
+                    Error,
+                    u,
+                    Some("Google honours the raw noindex and never renders the page".into()),
+                ));
+            }
+            if d.noindex_rendered_only {
+                out.push(issue(
+                    "render-noindex-js",
+                    "Noindex Injected by JavaScript",
+                    Indexability,
+                    Warning,
+                    u,
+                    None,
+                ));
+            }
+            if d.canonical_mismatch {
+                out.push(issue(
+                    "render-canonical-mismatch",
+                    "Canonical Changed by JavaScript",
+                    Canonical,
+                    Error,
+                    u,
+                    None,
+                ));
+            }
+            if d.canonical_rendered_only {
+                out.push(issue(
+                    "render-canonical-js",
+                    "Canonical Only in Rendered DOM",
+                    Canonical,
+                    Warning,
+                    u,
+                    None,
+                ));
+            }
+            if d.title_rendered_only {
+                out.push(issue(
+                    "render-title-js",
+                    "Title Only in Rendered DOM",
+                    TitlesMeta,
+                    Warning,
+                    u,
+                    None,
+                ));
+            } else if d.title_modified {
+                out.push(issue(
+                    "render-title-modified",
+                    "Title Modified by JavaScript",
+                    TitlesMeta,
+                    Notice,
+                    u,
+                    None,
+                ));
+            }
+            if d.description_rendered_only {
+                out.push(issue(
+                    "render-description-js",
+                    "Meta Description Only in Rendered DOM",
+                    TitlesMeta,
+                    Notice,
+                    u,
+                    None,
+                ));
+            } else if d.description_modified {
+                out.push(issue(
+                    "render-description-modified",
+                    "Meta Description Modified by JavaScript",
+                    TitlesMeta,
+                    Notice,
+                    u,
+                    None,
+                ));
+            }
+            if d.h1_rendered_only {
+                out.push(issue(
+                    "render-h1-js",
+                    "H1 Only in Rendered DOM",
+                    Headings,
+                    Notice,
+                    u,
+                    None,
+                ));
+            } else if d.h1_modified {
+                out.push(issue(
+                    "render-h1-modified",
+                    "H1 Modified by JavaScript",
+                    Headings,
+                    Notice,
+                    u,
+                    None,
+                ));
+            }
+            if d.js_only_links > 0 {
+                out.push(issue(
+                    "render-js-only-links",
+                    "JavaScript-Only Internal Links",
+                    Links,
+                    Warning,
+                    u,
+                    Some(format!(
+                        "{} internal link(s) exist only after JavaScript runs",
+                        d.js_only_links
+                    )),
+                ));
+            }
+        }
+
         // --- Head & markup validation ---
         let m = &p.markup;
         if m.title_count > 1 {

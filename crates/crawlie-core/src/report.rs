@@ -455,6 +455,7 @@ mod tests {
                     has_viewport: false,
                     rendered: false,
                     pre_render_word_count: 0,
+                    render_diff: None,
                     indexable: true,
                     indexability: None,
                     canonicalized: false,

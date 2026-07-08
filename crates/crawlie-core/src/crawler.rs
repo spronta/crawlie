@@ -46,6 +46,50 @@ struct Fetched {
     parsed: Option<Parsed>,
     rendered: bool,
     pre_render_word_count: usize,
+    render_diff: Option<RenderDiff>,
+}
+
+/// Compare the raw-HTML parse with the rendered-DOM parse, flagging head
+/// signals that JavaScript added or changed. Returns `None` when nothing
+/// differs.
+fn diff_render(raw: &Parsed, rend: &Parsed) -> Option<RenderDiff> {
+    let noindex = |p: &Parsed| {
+        p.meta_robots
+            .as_deref()
+            .map(|r| r.contains("noindex"))
+            .unwrap_or(false)
+    };
+    let mut d = RenderDiff::default();
+    let (ni_raw, ni_rend) = (noindex(raw), noindex(rend));
+    d.noindex_raw_only = ni_raw && !ni_rend;
+    d.noindex_rendered_only = ni_rend && !ni_raw;
+    match (&raw.canonical, &rend.canonical) {
+        (None, Some(_)) => d.canonical_rendered_only = true,
+        (Some(a), Some(b)) if a != b => d.canonical_mismatch = true,
+        _ => {}
+    }
+    match (&raw.title, &rend.title) {
+        (None, Some(_)) => d.title_rendered_only = true,
+        (Some(a), Some(b)) if a != b => d.title_modified = true,
+        _ => {}
+    }
+    match (&raw.meta_description, &rend.meta_description) {
+        (None, Some(_)) => d.description_rendered_only = true,
+        (Some(a), Some(b)) if a != b => d.description_modified = true,
+        _ => {}
+    }
+    match (raw.h1.first(), rend.h1.first()) {
+        (None, Some(_)) => d.h1_rendered_only = true,
+        (Some(a), Some(b)) if a != b => d.h1_modified = true,
+        _ => {}
+    }
+    let raw_links: HashSet<&String> = raw.internal_links.iter().collect();
+    d.js_only_links = rend
+        .internal_links
+        .iter()
+        .filter(|l| !raw_links.contains(l))
+        .count();
+    (!d.is_empty()).then_some(d)
 }
 
 /// Fetch one URL, then — when a renderer is supplied — re-acquire its
@@ -64,13 +108,17 @@ async fn fetch_one(
     let o = fetch(client, u, 10).await?;
     let mut rendered = false;
     let mut pre_render_word_count = 0usize;
+    let mut raw_parsed: Option<Parsed> = None;
     let mut html = o.body.clone();
 
     if o.is_html && o.status == 200 {
         if let Some(r) = renderer {
-            // Count words in the raw payload (before any JS) for the JS-content gap.
+            // Parse the raw payload (before any JS) for the JS-content gap and
+            // the response-vs-render head-signal diff.
             if let Some(raw) = o.body.as_deref() {
-                pre_render_word_count = parse_html(raw, &o.final_url, host, &[]).word_count;
+                let rp = parse_html(raw, &o.final_url, host, &[]);
+                pre_render_word_count = rp.word_count;
+                raw_parsed = Some(rp);
             }
             if let Ok(dom) = r.render_html(&o.final_url, render_wait_ms).await {
                 html = Some(dom);
@@ -89,12 +137,17 @@ async fn fetch_one(
     if !rendered {
         pre_render_word_count = parsed.as_ref().map(|p| p.word_count).unwrap_or(0);
     }
+    let render_diff = match (&raw_parsed, &parsed) {
+        (Some(raw), Some(rend)) if rendered => diff_render(raw, rend),
+        _ => None,
+    };
 
     Ok(Fetched {
         outcome: o,
         parsed,
         rendered,
         pre_render_word_count,
+        render_diff,
     })
 }
 
@@ -543,9 +596,17 @@ where
                     parsed,
                     rendered,
                     pre_render_word_count,
+                    render_diff,
                 }) => {
-                    let page =
-                        build_page(&u, depth, outcome, parsed, rendered, pre_render_word_count);
+                    let page = build_page(
+                        &u,
+                        depth,
+                        outcome,
+                        parsed,
+                        rendered,
+                        pre_render_word_count,
+                        render_diff,
+                    );
                     visited.insert(normalize_str(&page.final_url));
                     if follow && depth < config.max_depth {
                         for link in &page.internal_links {
@@ -841,9 +902,17 @@ where
                     parsed,
                     rendered,
                     pre_render_word_count,
+                    render_diff,
                 }) => {
-                    let page =
-                        build_page(&u, depth, outcome, parsed, rendered, pre_render_word_count);
+                    let page = build_page(
+                        &u,
+                        depth,
+                        outcome,
+                        parsed,
+                        rendered,
+                        pre_render_word_count,
+                        render_diff,
+                    );
                     visited.insert(normalize_str(&page.final_url));
                     if follow && depth < config.max_depth {
                         for link in &page.internal_links {
@@ -1197,6 +1266,7 @@ fn build_page(
     parsed: Option<Parsed>,
     rendered: bool,
     pre_render_word_count: usize,
+    render_diff: Option<RenderDiff>,
 ) -> Page {
     let final_url_str = o.final_url.to_string();
     let canonical = parsed.as_ref().and_then(|p| p.canonical.clone());
@@ -1270,6 +1340,7 @@ fn build_page(
         has_viewport: parsed.as_ref().map(|p| p.has_viewport).unwrap_or(false),
         rendered,
         pre_render_word_count,
+        render_diff,
         indexable,
         indexability,
         canonicalized,
@@ -1355,6 +1426,7 @@ fn error_page(url: &Url, depth: usize, error: String) -> Page {
         has_viewport: false,
         rendered: false,
         pre_render_word_count: 0,
+        render_diff: None,
         indexable: false,
         indexability: Some("Connection Error".into()),
         canonicalized: false,

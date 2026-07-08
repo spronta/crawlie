@@ -117,6 +117,8 @@ export interface Page {
   schemaTypes: string[];
   hreflang: Hreflang[];
   mixedContent: number;
+  /** Response-vs-render differences (render mode; absent when none). */
+  renderDiff?: RenderDiff | null;
   /** Recommended HTTP security headers present (older reports omit this). */
   secHeaders?: SecurityHeaders;
   /** Head/markup hygiene signals (older reports omit this). */
@@ -129,6 +131,21 @@ export interface Page {
   /** Flesch Reading Ease, when the page had enough English text to score. */
   readability?: number | null;
   error: string | null;
+}
+
+/** Raw-HTML vs rendered-DOM head-signal differences (render mode only). */
+export interface RenderDiff {
+  noindexRawOnly: boolean;
+  noindexRenderedOnly: boolean;
+  canonicalRenderedOnly: boolean;
+  canonicalMismatch: boolean;
+  titleRenderedOnly: boolean;
+  titleModified: boolean;
+  descriptionRenderedOnly: boolean;
+  descriptionModified: boolean;
+  h1RenderedOnly: boolean;
+  h1Modified: boolean;
+  jsOnlyLinks: number;
 }
 
 export interface SecurityHeaders {

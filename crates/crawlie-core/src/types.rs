@@ -240,6 +240,11 @@ pub struct Page {
     /// Equals `word_count` when render mode is off.
     #[serde(default)]
     pub pre_render_word_count: usize,
+    /// Differences between the raw server HTML and the rendered DOM —
+    /// Sitebulb-style "response vs render". Only present when the page was
+    /// rendered and something differed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub render_diff: Option<RenderDiff>,
 
     // --- indexability (derived) ---
     pub indexable: bool,
@@ -417,6 +422,46 @@ pub struct MarkupSignals {
     pub soft404_phrase: bool,
     /// Body contains lorem-ipsum placeholder text.
     pub lorem_ipsum: bool,
+}
+
+/// How the rendered DOM differs from the raw server HTML for the head signals
+/// search engines read before (or without) running JavaScript. Each flag is a
+/// mismatch worth auditing; the struct is omitted entirely when nothing
+/// differs.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct RenderDiff {
+    /// noindex present in the raw HTML but not the rendered DOM. Google honours
+    /// the raw noindex and never renders — the page stays out of the index.
+    pub noindex_raw_only: bool,
+    /// noindex injected by JavaScript (absent from the raw HTML).
+    pub noindex_rendered_only: bool,
+    /// Canonical only exists after JavaScript runs.
+    pub canonical_rendered_only: bool,
+    /// Raw and rendered canonicals point at different URLs.
+    pub canonical_mismatch: bool,
+    /// Title only exists in the rendered DOM.
+    pub title_rendered_only: bool,
+    /// JavaScript changed the title text.
+    pub title_modified: bool,
+    /// Meta description only exists in the rendered DOM.
+    pub description_rendered_only: bool,
+    /// JavaScript changed the meta description.
+    pub description_modified: bool,
+    /// H1 only exists in the rendered DOM.
+    pub h1_rendered_only: bool,
+    /// JavaScript changed the first H1.
+    pub h1_modified: bool,
+    /// Internal links present only in the rendered DOM (invisible to non-JS
+    /// crawlers).
+    pub js_only_links: usize,
+}
+
+impl RenderDiff {
+    /// True when nothing differs (the struct can be dropped).
+    pub fn is_empty(&self) -> bool {
+        *self == Self::default()
+    }
 }
 
 /// Presence of the recommended HTTP security response headers.

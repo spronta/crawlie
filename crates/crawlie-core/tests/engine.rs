@@ -146,6 +146,7 @@ fn ok_page(url: &str) -> Page {
         has_viewport: true,
         rendered: false,
         pre_render_word_count: 500,
+        render_diff: None,
         indexable: true,
         indexability: None,
         canonicalized: false,
@@ -329,6 +330,37 @@ fn audit_flags_canonical_health_and_hreflang() {
     ] {
         assert!(r.contains(&expected), "expected {expected} in {r:?}");
     }
+}
+
+#[test]
+fn audit_flags_response_vs_render_diffs() {
+    let seed = Url::parse("https://example.com/").unwrap();
+    let mut p = ok_page("https://example.com/spa");
+    p.rendered = true;
+    p.render_diff = Some(RenderDiff {
+        noindex_raw_only: true,
+        canonical_mismatch: true,
+        title_rendered_only: true,
+        h1_modified: true,
+        js_only_links: 4,
+        ..Default::default()
+    });
+
+    let issues = crawlie_core::audit::audit(&[p], &HashMap::new(), &[], &seed);
+    let r = rules(&issues);
+    for expected in [
+        "render-noindex-raw-only",
+        "render-canonical-mismatch",
+        "render-title-js",
+        "render-h1-modified",
+        "render-js-only-links",
+    ] {
+        assert!(r.contains(&expected), "expected {expected} in {r:?}");
+    }
+    assert!(
+        !r.contains(&"render-title-modified"),
+        "rendered-only wins over modified: {r:?}"
+    );
 }
 
 #[test]
