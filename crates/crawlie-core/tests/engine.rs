@@ -69,6 +69,46 @@ fn counts_images_missing_alt() {
 }
 
 #[test]
+fn parses_markup_hygiene_signals() {
+    let html = r##"<!doctype html>
+<html>
+  <head>
+    <title>First</title><title>Second</title>
+    <meta name="description" content="one"><meta name="description" content="two">
+    <meta http-equiv="refresh" content="5; url=/new">
+    <link rel="canonical" href="/a"><link rel="canonical" href="/b">
+    <meta name="viewport" content="width=device-width"><meta name="viewport" content="width=1024">
+  </head>
+  <body>
+    <h1>Page Not Found</h1>
+    <p>lorem ipsum dolor sit amet and plenty more placeholder</p>
+    <a href="/x">click here</a>
+    <a href="/y" rel="nofollow">A fine descriptive anchor</a>
+    <img src="a.png" alt="a">
+    <form action="http://insecure.example/submit"><input type="text" aria-label="q"></form>
+    <script src="//cdn.example/app.js"></script>
+  </body>
+</html>"##;
+    let url = Url::parse("https://example.com/page").unwrap();
+    let m = parse_html(html, &url, "example.com", &[]).markup;
+    assert_eq!(m.title_count, 2);
+    assert_eq!(m.meta_description_count, 2);
+    assert_eq!(m.canonical_count, 2);
+    assert!(m.canonical_conflict, "canonicals disagree");
+    assert_eq!(m.viewport_count, 2);
+    assert!(m.meta_refresh.as_deref().unwrap_or("").contains("url=/new"));
+    assert!(!m.has_favicon);
+    assert!(!m.has_charset);
+    assert_eq!(m.generic_anchors, 1, "only 'click here' is generic");
+    assert_eq!(m.nofollow_links, 1);
+    assert!(m.form_to_http);
+    assert_eq!(m.protocol_relative, 1);
+    assert_eq!(m.imgs_no_dimensions, 1);
+    assert!(m.soft404_phrase, "H1 says Page Not Found");
+    assert!(m.lorem_ipsum);
+}
+
+#[test]
 fn www_and_apex_are_same_site() {
     assert!(same_site("example.com", "www.example.com"));
     assert!(same_site("www.example.com", "example.com"));
@@ -125,6 +165,23 @@ fn ok_page(url: &str) -> Page {
         invalid_jsonld: 0,
         hreflang: vec![],
         mixed_content: 0,
+        // Present headers / clean markup by default so header and markup rules
+        // only fire when a test opts in.
+        sec_headers: SecurityHeaders {
+            csp: true,
+            x_content_type_options: true,
+            x_frame_options: true,
+            referrer_policy: true,
+        },
+        markup: MarkupSignals {
+            title_count: 1,
+            meta_description_count: 1,
+            canonical_count: 1,
+            viewport_count: 1,
+            has_favicon: true,
+            has_charset: true,
+            ..Default::default()
+        },
         a11y: Default::default(),
         extractions: vec![],
         geo: GeoSignals {
@@ -267,6 +324,55 @@ fn audit_flags_canonical_health_and_hreflang() {
         "hreflang-invalid-code",
         "hreflang-broken",
         "hreflang-no-x-default",
+    ] {
+        assert!(r.contains(&expected), "expected {expected} in {r:?}");
+    }
+}
+
+#[test]
+fn audit_flags_markup_and_header_issues() {
+    let seed = Url::parse("https://example.com/").unwrap();
+    let mut p = ok_page("https://example.com/a");
+    p.markup = MarkupSignals {
+        title_count: 2,
+        meta_description_count: 2,
+        canonical_count: 2,
+        canonical_conflict: true,
+        viewport_count: 2,
+        meta_refresh: Some("5; url=/new".into()),
+        has_favicon: false,
+        has_charset: false,
+        nofollow_links: 3,
+        generic_anchors: 2,
+        form_to_http: true,
+        imgs_no_dimensions: 1,
+        protocol_relative: 1,
+        soft404_phrase: true,
+        lorem_ipsum: true,
+    };
+    p.sec_headers = SecurityHeaders::default();
+
+    let issues = crawlie_core::audit::audit(&[p], &HashMap::new(), &[], &seed);
+    let r = rules(&issues);
+    for expected in [
+        "title-multiple",
+        "description-multiple",
+        "canonical-conflict",
+        "viewport-multiple",
+        "meta-refresh",
+        "favicon-missing",
+        "charset-missing",
+        "nofollow-internal-links",
+        "generic-anchor-text",
+        "form-to-http",
+        "image-no-dimensions",
+        "protocol-relative-links",
+        "soft-404",
+        "lorem-ipsum",
+        "no-csp",
+        "no-content-type-options",
+        "no-frame-options",
+        "no-referrer-policy",
     ] {
         assert!(r.contains(&expected), "expected {expected} in {r:?}");
     }

@@ -1288,6 +1288,11 @@ fn build_page(
             .map(|p| p.hreflang.clone())
             .unwrap_or_default(),
         mixed_content: parsed.as_ref().map(|p| p.mixed_content).unwrap_or(0),
+        sec_headers: o.sec_headers,
+        markup: parsed
+            .as_ref()
+            .map(|p| p.markup.clone())
+            .unwrap_or_default(),
         a11y: parsed.as_ref().map(|p| p.a11y.clone()).unwrap_or_default(),
         geo,
         extractions: parsed
@@ -1351,6 +1356,8 @@ fn error_page(url: &Url, depth: usize, error: String) -> Page {
         invalid_jsonld: 0,
         hreflang: Vec::new(),
         mixed_content: 0,
+        sec_headers: Default::default(),
+        markup: Default::default(),
         a11y: crate::types::A11ySignals::default(),
         geo: GeoSignals::default(),
         extractions: Vec::new(),

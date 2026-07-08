@@ -473,6 +473,8 @@ mod tests {
                     invalid_jsonld: 0,
                     hreflang: vec![],
                     mixed_content: 0,
+                    sec_headers: Default::default(),
+                    markup: Default::default(),
                     a11y: Default::default(),
                     geo: Default::default(),
                     extractions: vec![],

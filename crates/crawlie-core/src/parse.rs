@@ -3,7 +3,9 @@
 //! await point. Extracts the full on-page signal set, including GEO signals.
 
 use crate::structured_data;
-use crate::types::{A11ySignals, ExtractValue, Extractor, GeoSignals, Hreflang, SchemaValidation};
+use crate::types::{
+    A11ySignals, ExtractValue, Extractor, GeoSignals, Hreflang, MarkupSignals, SchemaValidation,
+};
 use scraper::{ElementRef, Html, Node, Selector};
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashSet;
@@ -38,9 +40,38 @@ pub struct Parsed {
     pub mixed_content: usize,
     pub geo: GeoSignals,
     pub a11y: A11ySignals,
+    pub markup: MarkupSignals,
     pub content_hash: Option<String>,
     pub extractions: Vec<ExtractValue>,
 }
+
+/// Anchor texts that tell users and engines nothing about the destination.
+const GENERIC_ANCHORS: &[&str] = &[
+    "click here",
+    "click",
+    "here",
+    "read more",
+    "learn more",
+    "more",
+    "this",
+    "this page",
+    "link",
+    "details",
+    "view",
+    "go",
+];
+
+/// Error-page phrases in a title/H1 that suggest a soft 404 (an error page
+/// served with a 200 status).
+const SOFT_404_PHRASES: &[&str] = &[
+    "page not found",
+    "404 not found",
+    "not found",
+    "page doesn't exist",
+    "page does not exist",
+    "no longer available",
+    "page unavailable",
+];
 
 /// Validate that every extractor's selector/regex compiles, returning a
 /// human-readable error for the first bad one. Called before a crawl starts so
@@ -286,6 +317,7 @@ pub fn parse_html(body: &str, final_url: &Url, host: &str, extractors: &[Extract
         .filter(|s| !s.is_empty());
 
     // --- meta tags (description, robots, viewport, author, og, twitter) ---
+    let mut markup = MarkupSignals::default();
     let mut meta_description = None;
     let mut meta_robots = None;
     let mut has_viewport = false;
@@ -301,14 +333,31 @@ pub fn parse_html(body: &str, final_url: &Url, host: &str, extractors: &[Extract
         let property = v.attr("property").unwrap_or("").to_ascii_lowercase();
         let content = v.attr("content").unwrap_or("");
         match name.as_str() {
-            "description" => meta_description = Some(collapse(content)),
+            "description" => {
+                markup.meta_description_count += 1;
+                meta_description = Some(collapse(content));
+            }
             "robots" => meta_robots = Some(content.to_ascii_lowercase()),
             "viewport" => {
+                markup.viewport_count += 1;
                 has_viewport = true;
                 viewport_content = Some(content.to_string());
             }
             "author" => meta_author = !content.trim().is_empty(),
             _ => {}
+        }
+        if v.attr("charset").is_some() {
+            markup.has_charset = true;
+        }
+        if let Some(he) = v.attr("http-equiv") {
+            if he.eq_ignore_ascii_case("refresh") && !content.trim().is_empty() {
+                markup.meta_refresh = Some(content.trim().to_string());
+            }
+            if he.eq_ignore_ascii_case("content-type")
+                && content.to_ascii_lowercase().contains("charset")
+            {
+                markup.has_charset = true;
+            }
         }
         if name == "twitter:card" || property == "twitter:card" {
             twitter_card = Some(content.to_string());
@@ -320,6 +369,7 @@ pub fn parse_html(body: &str, final_url: &Url, host: &str, extractors: &[Extract
             _ => {}
         }
     }
+    markup.title_count = doc.select(&sel("head title")).count();
 
     let h1: Vec<String> = doc
         .select(&sel("h1"))
@@ -339,7 +389,7 @@ pub fn parse_html(body: &str, final_url: &Url, host: &str, extractors: &[Extract
         })
         .count();
 
-    // canonical + hreflang from <link>
+    // canonical + hreflang + favicon from <link>
     let mut canonical = None;
     let mut hreflang = Vec::new();
     for el in doc.select(&sel("link")) {
@@ -348,8 +398,17 @@ pub fn parse_html(body: &str, final_url: &Url, host: &str, extractors: &[Extract
             .split_whitespace()
             .map(|r| r.to_ascii_lowercase())
             .collect();
+        if rels.iter().any(|r| r.contains("icon")) {
+            markup.has_favicon = true;
+        }
         if rels.iter().any(|r| r == "canonical") {
             if let Some(c) = el.value().attr("href").and_then(|h| resolve(final_url, h)) {
+                markup.canonical_count += 1;
+                if let Some(prev) = &canonical {
+                    if prev != c.as_str() {
+                        markup.canonical_conflict = true;
+                    }
+                }
                 canonical = Some(c.to_string());
             }
         }
@@ -379,9 +438,13 @@ pub fn parse_html(body: &str, final_url: &Url, host: &str, extractors: &[Extract
     let mut images_missing_alt = 0;
     for el in doc.select(&sel("img")) {
         images_total += 1;
-        let alt = el.value().attr("alt");
+        let v = el.value();
+        let alt = v.attr("alt");
         if alt.map(|a| a.trim().is_empty()).unwrap_or(true) {
             images_missing_alt += 1;
+        }
+        if v.attr("width").is_none() || v.attr("height").is_none() {
+            markup.imgs_no_dimensions += 1;
         }
     }
 
@@ -418,16 +481,50 @@ pub fn parse_html(body: &str, final_url: &Url, host: &str, extractors: &[Extract
     let mut external_links = Vec::new();
     let mut seen = HashSet::new();
     for el in doc.select(&sel("a[href]")) {
-        if let Some(u) = el.value().attr("href").and_then(|h| resolve(final_url, h)) {
+        let v = el.value();
+        if let Some(u) = v.attr("href").and_then(|h| resolve(final_url, h)) {
+            let internal = u.host_str().map(|h| same_site(host, h)).unwrap_or(false);
+            // Anchor-quality signals count every rendered link, not just the
+            // first occurrence of each target.
+            let anchor = collapse(&el.text().collect::<String>()).to_ascii_lowercase();
+            if !anchor.is_empty() && GENERIC_ANCHORS.contains(&anchor.trim()) {
+                markup.generic_anchors += 1;
+            }
+            if internal
+                && v.attr("rel")
+                    .map(|r| r.to_ascii_lowercase().contains("nofollow"))
+                    .unwrap_or(false)
+            {
+                markup.nofollow_links += 1;
+            }
             let key = u.as_str().to_string();
             if !seen.insert(key.clone()) {
                 continue;
             }
-            match u.host_str() {
-                Some(h) if same_site(host, h) => internal_links.push(key),
-                Some(_) => external_links.push(key),
-                None => {}
+            if internal {
+                internal_links.push(key);
+            } else if u.host_str().is_some() {
+                external_links.push(key);
             }
+        }
+    }
+
+    // forms posting to insecure endpoints + protocol-relative resources
+    if is_https {
+        markup.form_to_http = doc.select(&sel("form[action]")).any(|f| {
+            f.value()
+                .attr("action")
+                .map(|a| a.trim_start().starts_with("http://"))
+                .unwrap_or(false)
+        });
+    }
+    for el in doc.select(&sel(
+        "img[src], script[src], link[href], iframe[src], source[src], video[src], audio[src]",
+    )) {
+        let v = el.value();
+        let attr = v.attr("src").or_else(|| v.attr("href")).unwrap_or("");
+        if attr.trim_start().starts_with("//") {
+            markup.protocol_relative += 1;
         }
     }
 
@@ -611,6 +708,17 @@ pub fn parse_html(body: &str, final_url: &Url, host: &str, extractors: &[Extract
         Some(normalized.clone())
     };
 
+    // Soft-404 phrases in the title/H1 and placeholder text in the body.
+    {
+        let mut headline = title.clone().unwrap_or_default().to_ascii_lowercase();
+        if let Some(h) = h1.first() {
+            headline.push(' ');
+            headline.push_str(&h.to_ascii_lowercase());
+        }
+        markup.soft404_phrase = SOFT_404_PHRASES.iter().any(|p| headline.contains(p));
+        markup.lorem_ipsum = normalized.to_ascii_lowercase().contains("lorem ipsum");
+    }
+
     Parsed {
         title,
         meta_description,
@@ -638,6 +746,7 @@ pub fn parse_html(body: &str, final_url: &Url, host: &str, extractors: &[Extract
         mixed_content,
         geo,
         a11y,
+        markup,
         content_hash,
         extractions: run_extractors(&doc, body, extractors),
     }

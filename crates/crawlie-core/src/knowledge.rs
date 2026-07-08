@@ -60,6 +60,10 @@ entries! {
         "A 302/307 tells search engines the move is temporary, so they keep the old URL indexed and don't pass full signals to the destination. Most 'temporary' redirects are actually permanent moves.",
         "If the move is permanent, switch to a 301 (or 308) so engines transfer indexing and link signals to the destination.",
         "Link equity and indexing stay split between the old and new URLs.";
+    "meta-refresh" => "Meta Refresh Redirect", Response, Warning,
+        "A <meta http-equiv=\"refresh\"> redirect is slower than an HTTP redirect, passes signals unreliably, and is flagged by accessibility guidelines because the page changes without user action.",
+        "Replace the meta refresh with a server-side 301/302 redirect to the destination URL.",
+        "Slow, unreliable redirects that confuse users and dilute SEO signals.";
 
     // ---- Links ----
     "broken-link" => "Broken Link", Links, Error,
@@ -82,6 +86,14 @@ entries! {
         "Hundreds of links on one page split its link equity into tiny fractions and overwhelm both users and crawlers. Mega-menus and unbounded tag clouds are the usual culprits.",
         "Trim navigation and footer link blocks to what users actually need, and paginate or curate long link lists.",
         "Diluted link equity and a weaker crawl signal for every linked page.";
+    "nofollow-internal-links" => "Nofollow Internal Links", Links, Notice,
+        "rel=\"nofollow\" on internal links tells search engines not to pass signals through them — almost never what you want inside your own site, and it can strand the target pages.",
+        "Remove nofollow from internal links. Use noindex on the target page instead if you don't want it indexed.",
+        "Wasted link equity and weaker crawl paths within your own site.";
+    "generic-anchor-text" => "Non-Descriptive Anchor Text", Links, Notice,
+        "Anchors like 'click here' or 'read more' tell search engines (and screen-reader users navigating by links) nothing about the destination. Descriptive anchors are a genuine relevance signal.",
+        "Rewrite anchors to describe the destination ('see our pricing' instead of 'click here').",
+        "Lost relevance signals and harder navigation for assistive tech.";
 
     // ---- URLs ----
     "url-uppercase" => "Uppercase Characters in URL", Category::Url, Notice,
@@ -162,6 +174,30 @@ entries! {
         "Reused descriptions across pages make snippets generic and signal thin differentiation to search engines.",
         "Write a distinct description for each page.",
         "Generic snippets and weaker differentiation.";
+    "title-multiple" => "Multiple Title Tags", TitlesMeta, Warning,
+        "More than one <title> element leaves search engines to pick which to display — often not the one you intended. Usually caused by templates or plugins injecting a second title.",
+        "Remove all but one <title> in the <head>. Check themes, SEO plugins, and injected widgets for the duplicate.",
+        "Unpredictable titles in search results.";
+    "description-multiple" => "Multiple Meta Descriptions", TitlesMeta, Notice,
+        "Several meta description tags compete; engines pick one arbitrarily, and CMS/plugin duplicates often disagree with each other.",
+        "Keep a single meta description per page and remove duplicates injected by plugins or templates.",
+        "The wrong snippet may show in search results.";
+    "charset-missing" => "Missing Character Encoding", Content, Notice,
+        "Without a declared charset, browsers guess the encoding — special characters can render as mojibake, and HTML validators flag the page.",
+        "Add <meta charset=\"utf-8\"> as the first element inside <head>.",
+        "Garbled text for some users and content misinterpretation risks.";
+    "favicon-missing" => "Missing Favicon", Social, Notice,
+        "The favicon appears in browser tabs, bookmarks, and next to your result in Google's mobile SERPs. Without one you get a generic placeholder — a small but real branding and trust signal.",
+        "Add a <link rel=\"icon\"> in the <head> (ideally multiple sizes plus an apple-touch-icon).",
+        "A generic globe icon where your brand should be, including in search results.";
+    "soft-404" => "Possible Soft 404", Content, Warning,
+        "The page returns 200 but its title or heading says 'not found' — a soft 404. Search engines index these empty error pages, wasting crawl budget and polluting your indexed set.",
+        "Return a real 404/410 status for missing content (or 301 to a replacement page). Never serve error pages with a 200.",
+        "Error pages ranking in search and wasted crawl budget.";
+    "lorem-ipsum" => "Placeholder Text (Lorem Ipsum)", Content, Warning,
+        "The page still contains lorem-ipsum placeholder copy — unfinished content that shipped to production.",
+        "Replace the placeholder with real content, or noindex/remove the page until it's ready.",
+        "Unfinished pages visible to users and indexed by search engines.";
 
     // ---- Headings ----
     "h1-missing" => "Missing H1", Headings, Warning,
@@ -232,6 +268,14 @@ entries! {
         "This page declares a canonical on a different host, handing its indexing rights to another domain or subdomain. Legitimate for syndicated content — costly when accidental (e.g. staging → production mixups, www/apex confusion).",
         "Confirm the cross-domain canonical is intentional. If not, point the canonical at this page's own host.",
         "The page cedes its search presence to the other host.";
+    "canonical-conflict" => "Conflicting Canonical Tags", Canonical, Error,
+        "Multiple canonical tags point at different URLs. Faced with contradictory instructions, search engines ignore all of them — the page loses canonical control entirely.",
+        "Remove the extra canonicals (usually one from the CMS and one from an SEO plugin) so exactly one remains.",
+        "All canonical signals are discarded; engines choose the indexed URL themselves.";
+    "canonical-multiple" => "Multiple Canonical Tags", Canonical, Notice,
+        "The page declares more than one canonical tag. They currently agree, but duplicated tags drift apart easily and some crawlers only honour the first.",
+        "Emit a single canonical tag per page — find which template or plugin adds the duplicate.",
+        "Fragile canonical setup one template change away from conflict.";
     "noindex-canonical-conflict" => "Noindex Combined With Canonical", Indexability, Warning,
         "The page is noindexed but also canonicals to another URL — two contradictory instructions. Google explicitly advises against combining them: the noindex can bleed through the canonical and de-index the target.",
         "Pick one signal: use a canonical for consolidation (remove the noindex), or a noindex to exclude the page (remove the canonical).",
@@ -282,6 +326,30 @@ entries! {
         "This secure page contains hyperlinks to plain-HTTP URLs. Every click sends the visitor (or crawler) through an insecure hop and usually a redirect, and internal HTTP links reintroduce the pre-HTTPS URL space.",
         "Update the links to their HTTPS equivalents — internal links first, then external where the target supports HTTPS.",
         "Needless redirects, insecure hops, and mixed signals about your canonical protocol.";
+    "form-to-http" => "Form Posts to Insecure URL", Security, Warning,
+        "A form on this HTTPS page submits to a plain-HTTP action, sending whatever users type — possibly credentials — unencrypted. Browsers show scary warnings on such forms.",
+        "Change the form action to an HTTPS endpoint.",
+        "User input transmitted in the clear and browser security warnings.";
+    "protocol-relative-links" => "Protocol-Relative Resource Links", Security, Notice,
+        "Resources loaded via //host/path inherit the page's protocol — a leftover from the HTTP era. They break when markup is reused in non-HTTP contexts (emails, file://) and mask the intended scheme.",
+        "Use explicit https:// URLs for all resources.",
+        "Fragile resource loading with no upside on an all-HTTPS web.";
+    "no-csp" => "Missing Content-Security-Policy", Security, Notice,
+        "Without a CSP header, the browser will execute any script injected into the page — your main defence against XSS is missing.",
+        "Add a Content-Security-Policy header, starting with a report-only policy and tightening from there.",
+        "No browser-level protection against cross-site scripting.";
+    "no-content-type-options" => "Missing X-Content-Type-Options", Security, Notice,
+        "Without X-Content-Type-Options: nosniff, browsers may MIME-sniff responses and execute disguised content as script.",
+        "Send X-Content-Type-Options: nosniff on every response — it's a one-line server config.",
+        "MIME-sniffing attacks against your users become possible.";
+    "no-frame-options" => "Missing X-Frame-Options", Security, Notice,
+        "Without X-Frame-Options (or CSP frame-ancestors), any site can embed your pages in an iframe and run clickjacking overlays on them.",
+        "Send X-Frame-Options: SAMEORIGIN, or the modern equivalent CSP frame-ancestors directive.",
+        "Your pages can be framed and clickjacked by malicious sites.";
+    "no-referrer-policy" => "Missing Referrer-Policy", Security, Notice,
+        "Without a Referrer-Policy, browsers may send full URLs (including query parameters) to every site you link to, leaking paths, tokens, and user data.",
+        "Send Referrer-Policy: strict-origin-when-cross-origin (the modern default) or stricter.",
+        "URL data leaks to third-party sites in the Referer header.";
 
     // ---- Performance ----
     "no-compression" => "No Text Compression", Performance, Notice,
@@ -294,6 +362,14 @@ entries! {
         "The viewport meta tag is required for responsive layouts. Without it, mobile browsers render a zoomed-out desktop page that's unusable on phones.",
         "Add <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"> to the <head>.",
         "Broken mobile experience and mobile-first ranking penalties.";
+    "viewport-multiple" => "Multiple Viewport Tags", Mobile, Notice,
+        "Several viewport meta tags compete and browsers apply the last one — which may not be the one you meant, especially when a plugin injects its own.",
+        "Keep exactly one viewport meta tag in the <head>.",
+        "Unpredictable mobile rendering.";
+    "image-no-dimensions" => "Images Missing Dimensions", Performance, Notice,
+        "Images without width/height attributes force the browser to reflow the layout as each one loads — the main cause of Cumulative Layout Shift (a Core Web Vital).",
+        "Add explicit width and height attributes (or CSS aspect-ratio) so the browser reserves space before the image loads.",
+        "Layout jank and a worse CLS score.";
 
     // ---- International ----
     "lang-missing" => "Missing Lang Attribute", International, Notice,

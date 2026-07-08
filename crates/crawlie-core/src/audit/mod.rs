@@ -459,6 +459,144 @@ pub fn audit_one(
             return;
         }
 
+        // --- Head & markup validation ---
+        let m = &p.markup;
+        if m.title_count > 1 {
+            out.push(issue(
+                "title-multiple",
+                "Multiple Title Tags",
+                TitlesMeta,
+                Warning,
+                u,
+                Some(format!("{} <title> tags", m.title_count)),
+            ));
+        }
+        if m.meta_description_count > 1 {
+            out.push(issue(
+                "description-multiple",
+                "Multiple Meta Descriptions",
+                TitlesMeta,
+                Notice,
+                u,
+                Some(format!("{} description tags", m.meta_description_count)),
+            ));
+        }
+        if m.canonical_conflict {
+            out.push(issue(
+                "canonical-conflict",
+                "Conflicting Canonical Tags",
+                Canonical,
+                Error,
+                u,
+                Some(format!(
+                    "{} canonicals pointing to different URLs",
+                    m.canonical_count
+                )),
+            ));
+        } else if m.canonical_count > 1 {
+            out.push(issue(
+                "canonical-multiple",
+                "Multiple Canonical Tags",
+                Canonical,
+                Notice,
+                u,
+                Some(format!("{} canonical tags", m.canonical_count)),
+            ));
+        }
+        if m.viewport_count > 1 {
+            out.push(issue(
+                "viewport-multiple",
+                "Multiple Viewport Tags",
+                Mobile,
+                Notice,
+                u,
+                Some(format!("{} viewport tags", m.viewport_count)),
+            ));
+        }
+        if let Some(refresh) = &m.meta_refresh {
+            out.push(issue(
+                "meta-refresh",
+                "Meta Refresh Redirect",
+                Response,
+                Warning,
+                u,
+                Some(refresh.clone()),
+            ));
+        }
+        if !m.has_charset {
+            out.push(issue(
+                "charset-missing",
+                "Missing Character Encoding",
+                Content,
+                Notice,
+                u,
+                None,
+            ));
+        }
+        if !m.has_favicon {
+            out.push(issue(
+                "favicon-missing",
+                "Missing Favicon",
+                Social,
+                Notice,
+                u,
+                None,
+            ));
+        }
+        if m.soft404_phrase {
+            out.push(issue(
+                "soft-404",
+                "Possible Soft 404",
+                Content,
+                Warning,
+                u,
+                Some("Error-page phrasing on a 200 response".into()),
+            ));
+        }
+        if m.lorem_ipsum {
+            out.push(issue(
+                "lorem-ipsum",
+                "Placeholder Text (Lorem Ipsum)",
+                Content,
+                Warning,
+                u,
+                None,
+            ));
+        }
+        if m.imgs_no_dimensions > 0 {
+            out.push(issue(
+                "image-no-dimensions",
+                "Images Missing Dimensions",
+                Performance,
+                Notice,
+                u,
+                Some(format!(
+                    "{} of {} images without width/height",
+                    m.imgs_no_dimensions, p.images_total
+                )),
+            ));
+        }
+        if m.nofollow_links > 0 {
+            out.push(issue(
+                "nofollow-internal-links",
+                "Nofollow Internal Links",
+                Links,
+                Notice,
+                u,
+                Some(format!("{} internal link(s)", m.nofollow_links)),
+            ));
+        }
+        if m.generic_anchors > 0 {
+            out.push(issue(
+                "generic-anchor-text",
+                "Non-Descriptive Anchor Text",
+                Links,
+                Notice,
+                u,
+                Some(format!("{} link(s)", m.generic_anchors)),
+            ));
+        }
+
         // --- Titles & meta ---
         match p.title.as_deref() {
             None | Some("") => out.push(issue(
@@ -889,6 +1027,68 @@ pub fn audit_one(
                     Some(format!("{http_links} link(s) to HTTP URLs")),
                 ));
             }
+            if p.markup.form_to_http {
+                out.push(issue(
+                    "form-to-http",
+                    "Form Posts to Insecure URL",
+                    Security,
+                    Warning,
+                    u,
+                    None,
+                ));
+            }
+        }
+        if p.markup.protocol_relative > 0 {
+            out.push(issue(
+                "protocol-relative-links",
+                "Protocol-Relative Resource Links",
+                Security,
+                Notice,
+                u,
+                Some(format!("{} resource(s)", p.markup.protocol_relative)),
+            ));
+        }
+        // Recommended security response headers.
+        let sh = &p.sec_headers;
+        if !sh.csp {
+            out.push(issue(
+                "no-csp",
+                "Missing Content-Security-Policy",
+                Security,
+                Notice,
+                u,
+                None,
+            ));
+        }
+        if !sh.x_content_type_options {
+            out.push(issue(
+                "no-content-type-options",
+                "Missing X-Content-Type-Options",
+                Security,
+                Notice,
+                u,
+                None,
+            ));
+        }
+        if !sh.x_frame_options {
+            out.push(issue(
+                "no-frame-options",
+                "Missing X-Frame-Options",
+                Security,
+                Notice,
+                u,
+                None,
+            ));
+        }
+        if !sh.referrer_policy {
+            out.push(issue(
+                "no-referrer-policy",
+                "Missing Referrer-Policy",
+                Security,
+                Notice,
+                u,
+                None,
+            ));
         }
 
         // --- Mobile ---

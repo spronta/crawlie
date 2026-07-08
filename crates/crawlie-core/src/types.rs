@@ -278,6 +278,15 @@ pub struct Page {
 
     // --- security ---
     pub mixed_content: usize,
+    /// Recommended HTTP security headers present on the response.
+    #[serde(default)]
+    pub sec_headers: SecurityHeaders,
+
+    // --- markup hygiene signals ---
+    /// Head/markup validation signals (tag counts, meta refresh, anchor
+    /// quality, soft-404 phrases). `#[serde(default)]` for old reports.
+    #[serde(default)]
+    pub markup: MarkupSignals,
 
     // --- accessibility (WCAG) signals ---
     /// Static accessibility signals (missing labels, unnamed controls, zoom
@@ -361,6 +370,60 @@ pub struct A11ySignals {
     /// 0–100 accessibility score for this page (100 minus weighted penalties for
     /// the failures above). Filled by `scoring::a11y_score`; 0 for non-HTML pages.
     pub score: u8,
+}
+
+/// Structural markup signals extracted from one page's HTML — tag counts and
+/// hygiene flags that power the head-validation, anchor-quality and soft-404
+/// audit rules. All decidable from markup alone. `#[serde(default)]` on the
+/// `Page` field keeps reports saved before this pillar loading cleanly.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct MarkupSignals {
+    /// Number of `<title>` elements in the document.
+    pub title_count: usize,
+    /// Number of `<meta name="description">` tags.
+    pub meta_description_count: usize,
+    /// Number of `rel="canonical"` links.
+    pub canonical_count: usize,
+    /// Multiple canonicals that disagree about the target URL.
+    pub canonical_conflict: bool,
+    /// Number of viewport meta tags.
+    pub viewport_count: usize,
+    /// Content of a `<meta http-equiv="refresh">` tag, when present.
+    pub meta_refresh: Option<String>,
+    /// A favicon (`<link rel="icon">` variant) is declared.
+    pub has_favicon: bool,
+    /// A character encoding is declared (`<meta charset>` or http-equiv).
+    pub has_charset: bool,
+    /// Internal links carrying `rel="nofollow"`.
+    pub nofollow_links: usize,
+    /// Links whose anchor text is generic ("click here", "read more", …).
+    pub generic_anchors: usize,
+    /// A form on an HTTPS page posts to an insecure `http://` action.
+    pub form_to_http: bool,
+    /// `<img>` elements missing explicit width/height attributes (CLS risk).
+    pub imgs_no_dimensions: usize,
+    /// Sub-resources referenced with protocol-relative URLs (`//host/…`).
+    pub protocol_relative: usize,
+    /// Title or H1 contains an error-page phrase (possible soft 404 on a 200).
+    pub soft404_phrase: bool,
+    /// Body contains lorem-ipsum placeholder text.
+    pub lorem_ipsum: bool,
+}
+
+/// Presence of the recommended HTTP security response headers.
+/// `#[serde(default)]` on the `Page` field for back-compat with saved reports.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct SecurityHeaders {
+    /// `Content-Security-Policy` present.
+    pub csp: bool,
+    /// `X-Content-Type-Options: nosniff` present.
+    pub x_content_type_options: bool,
+    /// `X-Frame-Options` present (or CSP `frame-ancestors`).
+    pub x_frame_options: bool,
+    /// `Referrer-Policy` present.
+    pub referrer_policy: bool,
 }
 
 /// Validation result for one JSON-LD structured-data item (one `@type`),

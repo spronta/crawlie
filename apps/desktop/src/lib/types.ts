@@ -117,10 +117,39 @@ export interface Page {
   schemaTypes: string[];
   hreflang: Hreflang[];
   mixedContent: number;
+  /** Recommended HTTP security headers present (older reports omit this). */
+  secHeaders?: SecurityHeaders;
+  /** Head/markup hygiene signals (older reports omit this). */
+  markup?: MarkupSignals;
   geo: GeoSignals;
   contentHash: string | null;
   duplicateOf: string | null;
   error: string | null;
+}
+
+export interface SecurityHeaders {
+  csp: boolean;
+  xContentTypeOptions: boolean;
+  xFrameOptions: boolean;
+  referrerPolicy: boolean;
+}
+
+export interface MarkupSignals {
+  titleCount: number;
+  metaDescriptionCount: number;
+  canonicalCount: number;
+  canonicalConflict: boolean;
+  viewportCount: number;
+  metaRefresh: string | null;
+  hasFavicon: boolean;
+  hasCharset: boolean;
+  nofollowLinks: number;
+  genericAnchors: number;
+  formToHttp: boolean;
+  imgsNoDimensions: number;
+  protocolRelative: number;
+  soft404Phrase: boolean;
+  loremIpsum: boolean;
 }
 
 export interface Issue {

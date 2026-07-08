@@ -1,7 +1,7 @@
 //! Low-level HTTP fetching. Redirects are followed manually so the full chain
 //! is captured, and only HTML bodies are downloaded as text.
 
-use crate::types::Redirect;
+use crate::types::{Redirect, SecurityHeaders};
 use flate2::read::{DeflateDecoder, MultiGzDecoder, ZlibDecoder};
 use reqwest::{header, Client};
 use std::io::Read;
@@ -23,6 +23,7 @@ pub struct FetchOutcome {
     pub cache_control: Option<String>,
     pub x_robots_tag: Option<String>,
     pub hsts: bool,
+    pub sec_headers: SecurityHeaders,
 }
 
 /// Build a connection-pooling client. Redirects are disabled at the client
@@ -95,22 +96,36 @@ fn header_str(resp: &reqwest::Response, name: &str) -> Option<String> {
         .map(|s| s.to_string())
 }
 
-/// Headers crawlie reports on (compression, caching, indexability, transport).
+/// Headers crawlie reports on (compression, caching, indexability, transport,
+/// security posture).
 struct Headers {
     server: Option<String>,
     content_encoding: Option<String>,
     cache_control: Option<String>,
     x_robots_tag: Option<String>,
     hsts: bool,
+    sec_headers: SecurityHeaders,
 }
 
 fn extract_headers(resp: &reqwest::Response) -> Headers {
+    let csp = header_str(resp, "content-security-policy");
     Headers {
         server: header_str(resp, "server"),
         content_encoding: header_str(resp, "content-encoding"),
         cache_control: header_str(resp, "cache-control"),
         x_robots_tag: header_str(resp, "x-robots-tag"),
         hsts: resp.headers().contains_key("strict-transport-security"),
+        sec_headers: SecurityHeaders {
+            csp: csp.is_some(),
+            x_content_type_options: resp.headers().contains_key("x-content-type-options"),
+            // CSP frame-ancestors supersedes X-Frame-Options.
+            x_frame_options: resp.headers().contains_key("x-frame-options")
+                || csp
+                    .as_deref()
+                    .map(|c| c.contains("frame-ancestors"))
+                    .unwrap_or(false),
+            referrer_policy: resp.headers().contains_key("referrer-policy"),
+        },
     }
 }
 
@@ -158,6 +173,7 @@ pub async fn fetch(
                         cache_control: h.cache_control,
                         x_robots_tag: h.x_robots_tag,
                         hsts: h.hsts,
+                        sec_headers: h.sec_headers,
                     });
                 }
                 current = next;
@@ -199,6 +215,7 @@ pub async fn fetch(
             cache_control: h.cache_control,
             x_robots_tag: h.x_robots_tag,
             hsts: h.hsts,
+            sec_headers: h.sec_headers,
         });
     }
 }
