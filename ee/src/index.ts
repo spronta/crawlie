@@ -54,6 +54,36 @@ app.get("/pub/reports/:token", async (c) => {
   return report ? c.json(report) : c.json({ error: "not found" }, 404);
 });
 
+// Stripe webhook: sync plan changes onto the team. Signature-verified.
+app.post("/pub/stripe/webhook", async (c) => {
+  const { verifyWebhook } = await import("./stripe");
+  const { setPlan, setStripeCustomer } = await import("./teams");
+  const payload = await c.req.text();
+  const event = await verifyWebhook(c.env, payload, c.req.header("stripe-signature") ?? null);
+  if (!event) return c.json({ error: "invalid signature" }, 400);
+  const obj = (event.data as { object?: Record<string, unknown> })?.object ?? {};
+  const teamId = ((obj.metadata as Record<string, string>) ?? {}).teamId;
+  const type = String(event.type);
+  try {
+    if (type === "checkout.session.completed" && teamId) {
+      if (obj.customer) await setStripeCustomer(c.env, teamId, String(obj.customer));
+      // Plan is finalized by the subsequent subscription.updated event.
+    } else if ((type === "customer.subscription.updated" || type === "customer.subscription.created") && teamId) {
+      const active = obj.status === "active" || obj.status === "trialing";
+      const priceId = (((obj.items as { data?: Array<{ price?: { id?: string } }> })?.data ?? [])[0]?.price?.id) ?? "";
+      let plan: "free" | "pro" | "business" = "free";
+      if (active && priceId === c.env.STRIPE_PRICE_BUSINESS) plan = "business";
+      else if (active && priceId === c.env.STRIPE_PRICE_PRO) plan = "pro";
+      await setPlan(c.env, teamId, plan, String(obj.id ?? ""));
+    } else if (type === "customer.subscription.deleted" && teamId) {
+      await setPlan(c.env, teamId, "free", null);
+    }
+  } catch (e) {
+    console.error("stripe webhook:", e);
+  }
+  return c.json({ received: true });
+});
+
 // Device verification / approval page for `crawlie login`.
 app.get("/device", (c) => {
   const userCode = c.req.query("user_code") ?? "";

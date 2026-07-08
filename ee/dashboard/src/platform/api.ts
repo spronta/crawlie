@@ -34,10 +34,21 @@ export async function watchFullscreen(): Promise<() => void> {
   return () => {};
 }
 
+// Active team header (set by the dashboard team switcher). Inlined to avoid a
+// circular import with cloud.ts.
+function teamHeaders(): Record<string, string> {
+  try {
+    const t = localStorage.getItem("crawlie:team");
+    return t ? { "x-crawlie-team": t } : {};
+  } catch {
+    return {};
+  }
+}
+
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API}${path}`, {
     credentials: "include",
-    headers: { "content-type": "application/json", ...(init?.headers ?? {}) },
+    headers: { "content-type": "application/json", ...teamHeaders(), ...(init?.headers ?? {}) },
     ...init,
   });
   if (!res.ok) throw new Error(`${path} → ${res.status}`);
@@ -58,10 +69,14 @@ export async function streamCrawl(
   const res = await fetch(`${API}${path}`, {
     method: "POST",
     credentials: "include",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...teamHeaders() },
     body: body === undefined ? undefined : JSON.stringify(body),
     signal: controller.signal,
   });
+  if (res.status === 402) {
+    const b = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(b.error ?? "Plan limit reached — upgrade to run more crawls.");
+  }
   if (!res.ok || !res.body) throw new Error(`Crawl failed (${res.status})`);
 
   const reader = res.body.getReader();

@@ -8,6 +8,7 @@ import { dueProjects, recordCrawl, type Project } from "./projects";
 import { runCrawl } from "./crawler";
 import { saveReport, diffReports } from "./reports";
 import { sendRegressionAlert, userEmail } from "./alerts";
+import { incrementCrawls } from "./teams";
 
 // Health drop (points) that counts as a regression on its own.
 const HEALTH_DROP = 3;
@@ -21,12 +22,12 @@ export async function scheduled(
 ): Promise<void> {
   const now = Date.now();
   const due = await dueProjects(env, now, BATCH);
-  for (const { userId, project } of due) {
-    ctx.waitUntil(runScheduled(env, userId, project, now));
+  for (const { teamId, project } of due) {
+    ctx.waitUntil(runScheduled(env, teamId, project, now));
   }
 }
 
-async function runScheduled(env: Env, userId: string, project: Project, now: number): Promise<void> {
+async function runScheduled(env: Env, teamId: string, project: Project, now: number): Promise<void> {
   try {
     const config = { url: project.url, ...(project.config ?? {}) };
     const result = (await runCrawl(env, config, () => {})) as {
@@ -36,8 +37,11 @@ async function runScheduled(env: Env, userId: string, project: Project, now: num
 
     const before = project.lastHealth;
     const prevReport = project.lastReport;
-    const reportId = await saveReport(env, userId, result as Parameters<typeof saveReport>[2], project.id);
-    await recordCrawl(env, userId, project.id, reportId, health, now);
+    // Team owner is the report creator for scheduled crawls.
+    const owner = await env.DB.prepare(`SELECT owner_id FROM teams WHERE id = ?`).bind(teamId).first<{ owner_id: string }>();
+    const reportId = await saveReport(env, teamId, owner?.owner_id ?? teamId, result as Parameters<typeof saveReport>[3], project.id);
+    await incrementCrawls(env, teamId);
+    await recordCrawl(env, teamId, project.id, reportId, health, now);
 
     if (!project.notify) return;
 
@@ -46,7 +50,7 @@ async function runScheduled(env: Env, userId: string, project: Project, now: num
     let newErrors = 0;
     let newWarnings = 0;
     if (prevReport) {
-      const diff = await diffReports(env, userId, prevReport, reportId);
+      const diff = await diffReports(env, teamId, prevReport, reportId);
       if (diff) {
         for (const i of diff.newIssues) {
           if (i.severity === "error") newErrors += i.count;
@@ -57,7 +61,7 @@ async function runScheduled(env: Env, userId: string, project: Project, now: num
     }
     if (!regressed) return;
 
-    const email = await userEmail(env, userId);
+    const email = owner?.owner_id ? await userEmail(env, owner.owner_id) : null;
     if (email) {
       await sendRegressionAlert(env, email, {
         projectName: project.name,

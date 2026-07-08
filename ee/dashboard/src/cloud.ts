@@ -34,13 +34,46 @@ export interface TrendPoint {
   pages: number;
 }
 
+export function activeTeam(): string | null {
+  try {
+    return localStorage.getItem("crawlie:team");
+  } catch {
+    return null;
+  }
+}
+export function setActiveTeam(id: string | null): void {
+  try {
+    if (id) localStorage.setItem("crawlie:team", id);
+    else localStorage.removeItem("crawlie:team");
+  } catch {
+    /* ignore */
+  }
+}
+export function teamHeaders(): Record<string, string> {
+  const t = activeTeam();
+  return t ? { "x-crawlie-team": t } : {};
+}
+
 async function j<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API}${path}`, {
     credentials: "include",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...teamHeaders() },
     ...init,
   });
-  if (!res.ok) throw new Error(`${path} → ${res.status}`);
+  if (!res.ok) {
+    let msg = `${path} → ${res.status}`;
+    try {
+      const b = (await res.json()) as { error?: string; code?: string };
+      if (b.error) msg = b.error;
+      const e = new Error(msg) as Error & { status?: number; code?: string };
+      e.status = res.status;
+      e.code = b.code;
+      throw e;
+    } catch (e) {
+      if (e instanceof Error && (e as { status?: number }).status) throw e;
+    }
+    throw new Error(msg);
+  }
   return res.json() as Promise<T>;
 }
 
@@ -96,6 +129,44 @@ export async function loadPublicReport(token: string): Promise<CrawlResult | nul
   const res = await fetch(`${API}/pub/reports/${encodeURIComponent(token)}`);
   return res.ok ? ((await res.json()) as CrawlResult) : null;
 }
+
+// --- Teams + billing ---
+export type Plan = "free" | "pro" | "business";
+export interface PlanDef {
+  id: Plan;
+  label: string;
+  priceMonthly: number;
+  projects: number;
+  crawlsPerMonth: number;
+  scheduling: boolean;
+  seats: number;
+}
+export interface Member {
+  userId: string;
+  role: string;
+  email: string | null;
+  name: string | null;
+  joinedAt: number;
+}
+export interface TeamInfo {
+  team: { id: string; name: string; plan: Plan; role: string; ownerId: string; stripeCustomer: string | null };
+  plan: PlanDef;
+  usage: { crawls: number; period: string };
+  members: Member[];
+  plans: Record<Plan, PlanDef>;
+  billingEnabled: boolean;
+}
+
+export const getTeamInfo = () => j<TeamInfo>("/v1/team");
+export const listTeams = () => j<Array<{ id: string; name: string; role: string; plan: Plan }>>("/v1/teams");
+export const renameTeam = (name: string) => j<unknown>("/v1/team", { method: "PATCH", body: JSON.stringify({ name }) });
+export const inviteMember = (email: string, role = "member") =>
+  j<{ ok: boolean }>("/v1/team/invite", { method: "POST", body: JSON.stringify({ email, role }) });
+export const removeMember = (userId: string) => j<{ ok: boolean }>(`/v1/team/members/${userId}`, { method: "DELETE" });
+export const pendingInvites = () => j<Array<{ id: string; teamId: string; role: string; teamName: string }>>("/v1/invites");
+export const acceptInvite = (id: string) => j<{ ok: boolean }>(`/v1/invites/${id}/accept`, { method: "POST" });
+export const checkout = (plan: Plan) => j<{ url: string }>("/v1/billing/checkout", { method: "POST", body: JSON.stringify({ plan }) });
+export const billingPortal = () => j<{ url: string }>("/v1/billing/portal", { method: "POST" });
 
 export { loadReport };
 

@@ -28,6 +28,12 @@ export interface Env {
   LOOPS_NEWSLETTER_ON_SIGNUP?: string;
   /** Loops transactional template for scheduled-crawl regression alerts. */
   LOOPS_ALERT_TRANSACTIONAL_ID?: string;
+
+  // --- Stripe (billing) ---
+  STRIPE_SECRET_KEY?: string;
+  STRIPE_WEBHOOK_SECRET?: string;
+  STRIPE_PRICE_PRO?: string;
+  STRIPE_PRICE_BUSINESS?: string;
 }
 
 /** Origins permitted to call the auth API with credentials. */

@@ -1,6 +1,6 @@
-// Projects: saved sites an account owns, re-crawlable on a schedule with
-// regression monitoring. This is what makes a Crawlie Cloud account useful —
-// history, trends, and set-and-forget crawling.
+// Projects: saved sites a TEAM owns, re-crawlable on a schedule with regression
+// monitoring. Scoped by team_id (members share them); user_id records the
+// creator.
 
 import type { Env } from "./env";
 
@@ -22,13 +22,8 @@ export interface Project {
 }
 
 const DAY = 86_400_000;
-const INTERVAL: Record<Exclude<Schedule, "off">, number> = {
-  daily: DAY,
-  weekly: 7 * DAY,
-  monthly: 30 * DAY,
-};
+const INTERVAL: Record<Exclude<Schedule, "off">, number> = { daily: DAY, weekly: 7 * DAY, monthly: 30 * DAY };
 
-/** Next scheduled run time (epoch ms), or null when scheduling is off. */
 export function nextRun(schedule: Schedule, from: number): number | null {
   return schedule === "off" ? null : from + INTERVAL[schedule];
 }
@@ -49,36 +44,29 @@ function rowToProject(r: Record<string, unknown>): Project {
   };
 }
 
-function id(): string {
-  return crypto.randomUUID().slice(0, 12);
-}
+const id = () => crypto.randomUUID().slice(0, 12);
 
-export async function listProjects(env: Env, userId: string): Promise<Project[]> {
-  const { results } = await env.DB.prepare(
-    `SELECT * FROM projects WHERE user_id = ? ORDER BY created_at DESC`,
-  )
-    .bind(userId)
+export async function listProjects(env: Env, teamId: string): Promise<Project[]> {
+  const { results } = await env.DB.prepare(`SELECT * FROM projects WHERE team_id = ? ORDER BY created_at DESC`)
+    .bind(teamId)
     .all<Record<string, unknown>>();
   return (results ?? []).map(rowToProject);
 }
 
-export async function getProject(env: Env, userId: string, pid: string): Promise<Project | null> {
-  const row = await env.DB.prepare(`SELECT * FROM projects WHERE user_id = ? AND id = ?`)
-    .bind(userId, pid)
-    .first<Record<string, unknown>>();
+export async function getProject(env: Env, teamId: string, pid: string): Promise<Project | null> {
+  const row = await env.DB.prepare(`SELECT * FROM projects WHERE team_id = ? AND id = ?`).bind(teamId, pid).first<Record<string, unknown>>();
   return row ? rowToProject(row) : null;
 }
 
 export async function createProject(
   env: Env,
-  userId: string,
+  teamId: string,
+  creatorId: string,
   input: { name?: string; url: string; schedule?: Schedule; notify?: boolean; config?: Record<string, unknown> },
   now: number,
 ): Promise<Project> {
   const pid = id();
-  const schedule: Schedule = SCHEDULES.includes(input.schedule as Schedule)
-    ? (input.schedule as Schedule)
-    : "off";
+  const schedule: Schedule = SCHEDULES.includes(input.schedule as Schedule) ? (input.schedule as Schedule) : "off";
   let name = input.name?.trim();
   if (!name) {
     try {
@@ -88,79 +76,52 @@ export async function createProject(
     }
   }
   await env.DB.prepare(
-    `INSERT INTO projects (id, user_id, name, url, config, schedule, notify, next_run_at, created_at)
-     VALUES (?,?,?,?,?,?,?,?,?)`,
+    `INSERT INTO projects (id, user_id, team_id, name, url, config, schedule, notify, next_run_at, created_at)
+     VALUES (?,?,?,?,?,?,?,?,?,?)`,
   )
-    .bind(
-      pid,
-      userId,
-      name,
-      input.url,
-      input.config ? JSON.stringify(input.config) : null,
-      schedule,
-      input.notify === false ? 0 : 1,
-      nextRun(schedule, now),
-      now,
-    )
+    .bind(pid, creatorId, teamId, name, input.url, input.config ? JSON.stringify(input.config) : null, schedule, input.notify === false ? 0 : 1, nextRun(schedule, now), now)
     .run();
-  return (await getProject(env, userId, pid))!;
+  return (await getProject(env, teamId, pid))!;
 }
 
 export async function updateProject(
   env: Env,
-  userId: string,
+  teamId: string,
   pid: string,
   patch: { name?: string; schedule?: Schedule; notify?: boolean; config?: Record<string, unknown> | null },
   now: number,
 ): Promise<Project | null> {
-  const p = await getProject(env, userId, pid);
+  const p = await getProject(env, teamId, pid);
   if (!p) return null;
   const schedule: Schedule = patch.schedule && SCHEDULES.includes(patch.schedule) ? patch.schedule : p.schedule;
   const name = patch.name?.trim() || p.name;
   const notify = patch.notify == null ? p.notify : patch.notify;
   const config = patch.config === undefined ? p.config : patch.config;
-  // Recompute next run from the schedule change (anchor on last crawl or now).
   const anchor = p.lastCrawlAt ?? now;
-  await env.DB.prepare(
-    `UPDATE projects SET name=?, schedule=?, notify=?, config=?, next_run_at=? WHERE user_id=? AND id=?`,
-  )
-    .bind(name, schedule, notify ? 1 : 0, config ? JSON.stringify(config) : null, nextRun(schedule, anchor), userId, pid)
+  await env.DB.prepare(`UPDATE projects SET name=?, schedule=?, notify=?, config=?, next_run_at=? WHERE team_id=? AND id=?`)
+    .bind(name, schedule, notify ? 1 : 0, config ? JSON.stringify(config) : null, nextRun(schedule, anchor), teamId, pid)
     .run();
-  return getProject(env, userId, pid);
+  return getProject(env, teamId, pid);
 }
 
-export async function deleteProject(env: Env, userId: string, pid: string): Promise<void> {
-  await env.DB.prepare(`DELETE FROM projects WHERE user_id = ? AND id = ?`).bind(userId, pid).run();
-  // Detach its reports (keep the history rows; they remain user-owned).
-  await env.DB.prepare(`UPDATE reports SET project_id = NULL WHERE user_id = ? AND project_id = ?`)
-    .bind(userId, pid)
-    .run();
+export async function deleteProject(env: Env, teamId: string, pid: string): Promise<void> {
+  await env.DB.prepare(`DELETE FROM projects WHERE team_id = ? AND id = ?`).bind(teamId, pid).run();
+  await env.DB.prepare(`UPDATE reports SET project_id = NULL WHERE team_id = ? AND project_id = ?`).bind(teamId, pid).run();
 }
 
-/** Record the outcome of a crawl against a project + schedule the next run. */
-export async function recordCrawl(
-  env: Env,
-  userId: string,
-  pid: string,
-  reportId: string,
-  health: number,
-  now: number,
-): Promise<void> {
-  const p = await getProject(env, userId, pid);
-  await env.DB.prepare(
-    `UPDATE projects SET last_crawl_at=?, last_health=?, last_report=?, next_run_at=? WHERE user_id=? AND id=?`,
-  )
-    .bind(now, health, reportId, p ? nextRun(p.schedule, now) : null, userId, pid)
+export async function recordCrawl(env: Env, teamId: string, pid: string, reportId: string, health: number, now: number): Promise<void> {
+  const p = await getProject(env, teamId, pid);
+  await env.DB.prepare(`UPDATE projects SET last_crawl_at=?, last_health=?, last_report=?, next_run_at=? WHERE team_id=? AND id=?`)
+    .bind(now, health, reportId, p ? nextRun(p.schedule, now) : null, teamId, pid)
     .run();
 }
 
-/** Health/errors/warnings over time for a project's crawl history. */
-export async function projectTrend(env: Env, userId: string, pid: string) {
+export async function projectTrend(env: Env, teamId: string, pid: string) {
   const { results } = await env.DB.prepare(
     `SELECT id, created_at, health_score, geo_score, a11y_score, errors, warnings, total_pages
-       FROM reports WHERE user_id = ? AND project_id = ? ORDER BY created_at ASC`,
+       FROM reports WHERE team_id = ? AND project_id = ? ORDER BY created_at ASC`,
   )
-    .bind(userId, pid)
+    .bind(teamId, pid)
     .all<Record<string, number | string>>();
   return (results ?? []).map((r) => ({
     id: String(r.id),
@@ -174,15 +135,12 @@ export async function projectTrend(env: Env, userId: string, pid: string) {
   }));
 }
 
-/** Projects whose scheduled crawl is due (for the cron trigger). */
-export async function dueProjects(env: Env, now: number, limit: number): Promise<
-  Array<{ userId: string; project: Project }>
-> {
+/** Due scheduled projects (for the cron), with their owning team. */
+export async function dueProjects(env: Env, now: number, limit: number): Promise<Array<{ teamId: string; project: Project }>> {
   const { results } = await env.DB.prepare(
-    `SELECT * FROM projects WHERE schedule != 'off' AND next_run_at IS NOT NULL AND next_run_at <= ?
-       ORDER BY next_run_at ASC LIMIT ?`,
+    `SELECT * FROM projects WHERE schedule != 'off' AND next_run_at IS NOT NULL AND next_run_at <= ? ORDER BY next_run_at ASC LIMIT ?`,
   )
     .bind(now, limit)
     .all<Record<string, unknown>>();
-  return (results ?? []).map((r) => ({ userId: String(r.user_id), project: rowToProject(r) }));
+  return (results ?? []).map((r) => ({ teamId: String(r.team_id), project: rowToProject(r) }));
 }

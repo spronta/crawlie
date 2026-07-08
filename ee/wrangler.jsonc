@@ -48,7 +48,10 @@
     // Whether to subscribe new cloud signups to the newsletter (opt-out).
     "LOOPS_NEWSLETTER_ON_SIGNUP": "true",
     // Loops transactional template for scheduled-crawl regression alerts.
-    "LOOPS_ALERT_TRANSACTIONAL_ID": ""
+    "LOOPS_ALERT_TRANSACTIONAL_ID": "",
+    // Stripe recurring price ids (secrets: STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET).
+    "STRIPE_PRICE_PRO": "",
+    "STRIPE_PRICE_BUSINESS": ""
   },
   // Monitoring engine: hourly scan for due scheduled project crawls.
   "triggers": { "crons": ["0 * * * *"] },
