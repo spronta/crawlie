@@ -323,7 +323,47 @@ impl PageStore {
             )?,
             // Sitemap membership comes from the crawler, not the store.
             in_sitemap: None,
+            near_dup: self.near_duplicates()?,
         })
+    }
+
+    /// Near-duplicate grouping over fingerprinted 200 pages, streamed as
+    /// compact (url, simhash) pairs. Exact duplicates are excluded from the
+    /// candidate set by the same content-hash-canon rule used for
+    /// `duplicate_of` (the first page with a hash owns it).
+    fn near_duplicates(&self) -> io::Result<HashMap<String, (String, u8)>> {
+        let mut stmt = self
+            .conn
+            .prepare(
+                "SELECT url, json_extract(blob, '$.simhash') AS sh, content_hash \
+                 FROM page WHERE status = 200 AND sh IS NOT NULL ORDER BY id",
+            )
+            .map_err(ioerr)?;
+        let rows = stmt
+            .query_map([], |r| {
+                Ok((
+                    r.get::<_, String>(0)?,
+                    r.get::<_, String>(1)?,
+                    r.get::<_, Option<String>>(2)?,
+                ))
+            })
+            .map_err(ioerr)?;
+        let mut seen_hashes: HashSet<String> = HashSet::new();
+        let mut items: Vec<(String, u64)> = Vec::new();
+        for row in rows {
+            let (url, sh, ch) = row.map_err(ioerr)?;
+            // Skip exact duplicates (any page whose content hash was already
+            // seen) — they're flagged by `duplicate-content` instead.
+            if let Some(ch) = ch {
+                if !seen_hashes.insert(ch) {
+                    continue;
+                }
+            }
+            if let Ok(h) = u64::from_str_radix(&sh, 16) {
+                items.push((url, h));
+            }
+        }
+        Ok(crate::dedup::near_duplicates(&items))
     }
 
     /// Normalized url/final_url → status, for broken-link detection.

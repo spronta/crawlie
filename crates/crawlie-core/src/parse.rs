@@ -42,6 +42,8 @@ pub struct Parsed {
     pub a11y: A11ySignals,
     pub markup: MarkupSignals,
     pub content_hash: Option<String>,
+    pub simhash: Option<String>,
+    pub readability: Option<f32>,
     pub extractions: Vec<ExtractValue>,
 }
 
@@ -475,6 +477,8 @@ pub fn parse_html(body: &str, final_url: &Url, host: &str, extractors: &[Extract
     } else {
         None
     };
+    let simhash = crate::dedup::simhash(&normalized).map(|h| format!("{h:016x}"));
+    let readability = crate::dedup::flesch_reading_ease(&normalized);
 
     // links
     let mut internal_links = Vec::new();
@@ -748,6 +752,8 @@ pub fn parse_html(body: &str, final_url: &Url, host: &str, extractors: &[Extract
         a11y,
         markup,
         content_hash,
+        simhash,
+        readability,
         extractions: run_extractors(&doc, body, extractors),
     }
 }

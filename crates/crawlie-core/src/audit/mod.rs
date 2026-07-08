@@ -72,6 +72,9 @@ pub struct CrossPage {
     /// found — enables the sitemap↔crawl cross-check rules. `None` disables
     /// them (no sitemap, or the caller didn't collect the set).
     pub in_sitemap: Option<HashSet<String>>,
+    /// url → (canonical url, similarity %) for pages whose text near-
+    /// duplicates an earlier page (simhash distance within threshold).
+    pub near_dup: HashMap<String, (String, u8)>,
 }
 
 /// Build the duplicate title/description/H1 and duplicate-URL-variant sets
@@ -109,6 +112,17 @@ pub fn cross_page(pages: &[Page]) -> CrossPage {
             .map(|(&k, _)| k.to_string())
             .collect()
     };
+    // Near-duplicate grouping over fingerprinted 200 pages (exact duplicates
+    // are excluded — they're already flagged by `duplicate-content`).
+    let candidates: Vec<(String, u64)> = pages
+        .iter()
+        .filter(|p| p.status == 200 && p.duplicate_of.is_none())
+        .filter_map(|p| {
+            let h = u64::from_str_radix(p.simhash.as_deref()?, 16).ok()?;
+            Some((p.url.clone(), h))
+        })
+        .collect();
+    let near_dup = crate::dedup::near_duplicates(&candidates);
     CrossPage {
         dup_title: dups(titles),
         dup_desc: dups(descs),
@@ -124,6 +138,7 @@ pub fn cross_page(pages: &[Page]) -> CrossPage {
             .map(|(k, _)| k.to_string())
             .collect(),
         in_sitemap: None,
+        near_dup,
     }
 }
 
@@ -991,6 +1006,46 @@ pub fn audit_one(
                 u,
                 Some(format!("Duplicate of {canon}")),
             ));
+        } else if let Some((canon, pct)) = cp.near_dup.get(u) {
+            if canon != u {
+                out.push(issue(
+                    "near-duplicate",
+                    "Near-Duplicate Content",
+                    Content,
+                    Warning,
+                    u,
+                    Some(format!("≈{pct}% similar to {canon}")),
+                ));
+            }
+        }
+        // Readability (English-language pages with enough text; the Flesch
+        // formula is English-calibrated so other languages are skipped).
+        if p.lang
+            .as_deref()
+            .map(|l| l.to_ascii_lowercase().starts_with("en"))
+            .unwrap_or(false)
+        {
+            if let Some(f) = p.readability {
+                if f < 30.0 {
+                    out.push(issue(
+                        "readability-very-difficult",
+                        "Very Difficult to Read",
+                        Content,
+                        Notice,
+                        u,
+                        Some(format!("Flesch score {f:.0}")),
+                    ));
+                } else if f < 50.0 {
+                    out.push(issue(
+                        "readability-difficult",
+                        "Difficult to Read",
+                        Content,
+                        Notice,
+                        u,
+                        Some(format!("Flesch score {f:.0}")),
+                    ));
+                }
+            }
         }
         if p.text_ratio > 0.0 && p.text_ratio < 0.08 && p.word_count < THIN_WORDS {
             out.push(issue(

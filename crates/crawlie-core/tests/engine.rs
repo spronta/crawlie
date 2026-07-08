@@ -197,6 +197,8 @@ fn ok_page(url: &str) -> Page {
         },
         content_hash: None,
         duplicate_of: None,
+        simhash: None,
+        readability: None,
         error: None,
     }
 }
@@ -376,6 +378,44 @@ fn audit_flags_markup_and_header_issues() {
     ] {
         assert!(r.contains(&expected), "expected {expected} in {r:?}");
     }
+}
+
+#[test]
+fn audit_flags_near_duplicate_pages() {
+    let seed = Url::parse("https://example.com/").unwrap();
+    let base: Vec<String> = (0..300).map(|i| format!("word{i}")).collect();
+    let text_a = base.join(" ");
+    let mut tweaked = base.clone();
+    for i in (0..300).step_by(60) {
+        tweaked[i] = format!("changed{i}");
+    }
+    let text_b = tweaked.join(" ");
+
+    let mut a = ok_page("https://example.com/a");
+    a.simhash = crawlie_core::dedup::simhash(&text_a).map(|h| format!("{h:016x}"));
+    let mut b = ok_page("https://example.com/b");
+    b.title = Some("A second, also perfectly reasonable title".into());
+    b.h1 = vec!["Second Heading".into()];
+    b.meta_description =
+        Some("Another meta description comfortably within the recommended length range.".into());
+    b.simhash = crawlie_core::dedup::simhash(&text_b).map(|h| format!("{h:016x}"));
+
+    let issues = crawlie_core::audit::audit(&[a, b], &HashMap::new(), &[], &seed);
+    let near: Vec<_> = issues
+        .iter()
+        .filter(|i| i.rule == "near-duplicate")
+        .collect();
+    assert_eq!(
+        near.len(),
+        1,
+        "exactly the later page is flagged: {issues:?}"
+    );
+    assert_eq!(near[0].url, "https://example.com/b");
+    assert!(near[0]
+        .detail
+        .as_deref()
+        .unwrap_or("")
+        .contains("similar to https://example.com/a"));
 }
 
 #[test]

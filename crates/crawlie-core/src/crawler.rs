@@ -1316,6 +1316,8 @@ fn build_page(
             .unwrap_or_default(),
         content_hash: parsed.as_ref().and_then(|p| p.content_hash.clone()),
         duplicate_of: None,
+        simhash: parsed.as_ref().and_then(|p| p.simhash.clone()),
+        readability: parsed.as_ref().and_then(|p| p.readability),
         error: None,
     };
     // Score against the real signals now that they're on the page.
@@ -1378,6 +1380,8 @@ fn error_page(url: &Url, depth: usize, error: String) -> Page {
         extractions: Vec::new(),
         content_hash: None,
         duplicate_of: None,
+        simhash: None,
+        readability: None,
         error: Some(error),
     }
 }

@@ -124,6 +124,10 @@ export interface Page {
   geo: GeoSignals;
   contentHash: string | null;
   duplicateOf: string | null;
+  /** 64-bit simhash (hex) for near-duplicate detection (older reports omit). */
+  simhash?: string | null;
+  /** Flesch Reading Ease, when the page had enough English text to score. */
+  readability?: number | null;
   error: string | null;
 }
 

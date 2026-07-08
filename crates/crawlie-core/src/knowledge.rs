@@ -320,6 +320,18 @@ entries! {
         "Two or more pages share near-identical content. Search engines must choose one to rank and may pick the wrong one, splitting signals across the duplicates.",
         "Consolidate duplicates with 301 redirects or canonical tags, or differentiate the content so each page serves a distinct intent.",
         "Diluted rankings and wasted crawl budget.";
+    "near-duplicate" => "Near-Duplicate Content", Content, Warning,
+        "This page's text is nearly identical to another page — only boilerplate or a few words differ. Search engines cluster near-duplicates and typically rank just one, and thin variations (templated location/product pages) are a common quality-signal drag.",
+        "Consolidate the pages (301 or canonical), or differentiate them with genuinely distinct content that serves a distinct intent.",
+        "Only one of the variants ranks, and the duplication drags on site quality signals.";
+    "readability-difficult" => "Difficult to Read", Content, Notice,
+        "The page scores as difficult on the Flesch reading-ease scale — long sentences and heavy vocabulary. Most web audiences (and featured-snippet extraction) favour clearer writing.",
+        "Shorten sentences, prefer common words, and break dense paragraphs into lists and subheadings.",
+        "Higher bounce rates and weaker snippet/AI-answer extraction.";
+    "readability-very-difficult" => "Very Difficult to Read", Content, Notice,
+        "The page scores as very difficult to read — academic-paper territory. Unless your audience expects that register, most visitors will struggle.",
+        "Rewrite for clarity: one idea per sentence, concrete words, structural aids like lists and examples.",
+        "Content most visitors give up on, and engines struggle to excerpt.";
     "low-text-ratio" => "Low Text-to-HTML Ratio", Content, Notice,
         "A page that is mostly markup with little readable text often signals thin or template-heavy content to search and AI engines.",
         "Increase the proportion of meaningful body text relative to code, and remove bloated markup.",

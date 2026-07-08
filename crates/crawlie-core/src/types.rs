@@ -307,6 +307,14 @@ pub struct Page {
     // --- dedup ---
     pub content_hash: Option<String>,
     pub duplicate_of: Option<String>,
+    /// 64-bit simhash of the page text (hex), for near-duplicate detection.
+    /// `None` for pages with too little text to fingerprint.
+    #[serde(default)]
+    pub simhash: Option<String>,
+    /// Flesch Reading Ease of the page text (English heuristic), when the
+    /// page has enough text to score.
+    #[serde(default)]
+    pub readability: Option<f32>,
 
     // --- error ---
     pub error: Option<String>,

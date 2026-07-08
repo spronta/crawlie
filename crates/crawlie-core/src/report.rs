@@ -480,6 +480,8 @@ mod tests {
                     extractions: vec![],
                     content_hash: None,
                     duplicate_of: None,
+                    simhash: None,
+                    readability: None,
                     error: None,
                 };
                 p.status = 200;
