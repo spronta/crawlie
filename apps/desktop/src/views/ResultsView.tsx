@@ -636,6 +636,41 @@ function PageDetail({
             <Row k="Response" v={`${ms(page.responseTimeMs)} · ${bytes(page.sizeBytes)}`} />
             <Row k="Compression" v={page.contentEncoding ?? "none"} />
             <Row k="HSTS" v={page.hsts ? "Yes" : "No"} />
+            {page.secHeaders && (
+              <Row
+                k="Security headers"
+                v={
+                  [
+                    page.secHeaders.csp && "CSP",
+                    page.secHeaders.xContentTypeOptions && "X-Content-Type-Options",
+                    page.secHeaders.xFrameOptions && "X-Frame-Options",
+                    page.secHeaders.referrerPolicy && "Referrer-Policy",
+                  ]
+                    .filter(Boolean)
+                    .join(", ") || "None"
+                }
+              />
+            )}
+            {typeof page.readability === "number" && (
+              <Row k="Readability" v={`Flesch ${Math.round(page.readability)} (${fleschLabel(page.readability)})`} />
+            )}
+            {page.renderDiff && (
+              <Row
+                k="JS render diff"
+                v={[
+                  page.renderDiff.noindexRawOnly && "noindex in raw HTML only",
+                  page.renderDiff.noindexRenderedOnly && "noindex injected by JS",
+                  page.renderDiff.canonicalMismatch && "canonical changed by JS",
+                  page.renderDiff.canonicalRenderedOnly && "canonical only after JS",
+                  page.renderDiff.titleRenderedOnly ? "title only after JS" : page.renderDiff.titleModified && "title modified by JS",
+                  page.renderDiff.descriptionRenderedOnly ? "description only after JS" : page.renderDiff.descriptionModified && "description modified by JS",
+                  page.renderDiff.h1RenderedOnly ? "H1 only after JS" : page.renderDiff.h1Modified && "H1 modified by JS",
+                  page.renderDiff.jsOnlyLinks > 0 && `${page.renderDiff.jsOnlyLinks} JS-only links`,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              />
+            )}
             {page.server && <Row k="Server" v={page.server} mono />}
             <Row k="Content type" v={page.contentType ?? "—"} mono />
             {page.lang && <Row k="Language" v={page.lang} />}
@@ -730,6 +765,12 @@ function fmtWhen(ms: number): string {
 }
 function pct(a: number, b: number): number {
   return b ? Math.round((a / b) * 100) : 0;
+}
+function fleschLabel(f: number): string {
+  if (f >= 70) return "easy";
+  if (f >= 50) return "standard";
+  if (f >= 30) return "difficult";
+  return "very difficult";
 }
 function scoreColor(n: number): string {
   return n >= 80 ? "var(--green-text)" : n >= 50 ? "var(--amber-text)" : "var(--red-text)";
