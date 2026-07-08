@@ -161,6 +161,33 @@ export function ProjectView({
         </div>
       </div>
 
+      {/* Crawl settings */}
+      <div style={{ ...panel, marginTop: 14 }}>
+        <div style={panelTitle}>Crawl settings</div>
+        <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+          <label style={{ fontSize: 13 }}>
+            <div style={{ color: "var(--text-secondary)", marginBottom: 5 }}>Max pages</div>
+            <input
+              type="number"
+              min={1}
+              style={{ ...select, width: 110 }}
+              defaultValue={Number(project.config?.maxPages ?? 500)}
+              onBlur={(e) => { const v = Math.max(1, Number(e.target.value) || 500); if (v !== (project.config?.maxPages ?? 500)) updateProject(id, { config: { ...(project.config ?? {}), maxPages: v } }).then(setProject); }}
+            />
+          </label>
+          <label style={{ fontSize: 13 }}>
+            <div style={{ color: "var(--text-secondary)", marginBottom: 5 }}>Max depth</div>
+            <input
+              type="number"
+              min={0}
+              style={{ ...select, width: 110 }}
+              defaultValue={Number(project.config?.maxDepth ?? 16)}
+              onBlur={(e) => { const v = Math.max(0, Number(e.target.value) || 16); if (v !== (project.config?.maxDepth ?? 16)) updateProject(id, { config: { ...(project.config ?? {}), maxDepth: v } }).then(setProject); }}
+            />
+          </label>
+        </div>
+      </div>
+
       {/* Custom extraction */}
       <div style={{ ...panel, marginTop: 14 }}>
         <div style={panelTitle}>Custom extraction</div>
