@@ -365,6 +365,10 @@ entries! {
         "Two or more pages share near-identical content. Search engines must choose one to rank and may pick the wrong one, splitting signals across the duplicates.",
         "Consolidate duplicates with 301 redirects or canonical tags, or differentiate the content so each page serves a distinct intent.",
         "Diluted rankings and wasted crawl budget.";
+    "spelling-errors" => "Spelling Errors", Content, Notice,
+        "The page text contains known English misspellings (matched against a curated typo list, so every hit is real). Typos erode trust with readers and read as low-quality signals to search and AI engines.",
+        "Fix the typos listed in the issue detail — each comes with its correction.",
+        "Reduced credibility with users and a quality drag in ranking systems.";
     "near-duplicate" => "Near-Duplicate Content", Content, Warning,
         "This page's text is nearly identical to another page — only boilerplate or a few words differ. Search engines cluster near-duplicates and typically rank just one, and thin variations (templated location/product pages) are a common quality-signal drag.",
         "Consolidate the pages (301 or canonical), or differentiate them with genuinely distinct content that serves a distinct intent.",

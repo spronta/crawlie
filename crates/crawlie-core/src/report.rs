@@ -485,6 +485,7 @@ mod tests {
                     duplicate_of: None,
                     simhash: None,
                     readability: None,
+                    misspellings: vec![],
                     error: None,
                 };
                 p.status = 200;

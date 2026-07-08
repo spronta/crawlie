@@ -45,6 +45,7 @@ pub struct Parsed {
     pub content_hash: Option<String>,
     pub simhash: Option<String>,
     pub readability: Option<f32>,
+    pub misspellings: Vec<String>,
     pub extractions: Vec<ExtractValue>,
 }
 
@@ -506,6 +507,16 @@ pub fn parse_html(body: &str, final_url: &Url, host: &str, extractors: &[Extract
     };
     let simhash = crate::dedup::simhash(&normalized).map(|h| format!("{h:016x}"));
     let readability = crate::dedup::flesch_reading_ease(&normalized);
+    // Spelling: English pages only (the misspelling table is English).
+    let misspellings = if lang
+        .as_deref()
+        .map(|l| l.to_ascii_lowercase().starts_with("en"))
+        .unwrap_or(true)
+    {
+        crate::spelling::check(&normalized)
+    } else {
+        Vec::new()
+    };
 
     // links
     let mut internal_links = Vec::new();
@@ -799,6 +810,7 @@ pub fn parse_html(body: &str, final_url: &Url, host: &str, extractors: &[Extract
         content_hash,
         simhash,
         readability,
+        misspellings,
         extractions: run_extractors(&doc, body, extractors),
     }
 }

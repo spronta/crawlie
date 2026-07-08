@@ -720,6 +720,15 @@
     "impact": "Diluted rankings and wasted crawl budget."
   },
   {
+    "rule": "spelling-errors",
+    "title": "Spelling Errors",
+    "category": "content",
+    "severity": "notice",
+    "why": "The page text contains known English misspellings (matched against a curated typo list, so every hit is real). Typos erode trust with readers and read as low-quality signals to search and AI engines.",
+    "howToFix": "Fix the typos listed in the issue detail — each comes with its correction.",
+    "impact": "Reduced credibility with users and a quality drag in ranking systems."
+  },
+  {
     "rule": "near-duplicate",
     "title": "Near-Duplicate Content",
     "category": "content",

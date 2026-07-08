@@ -1552,6 +1552,10 @@ fn build_page(
         duplicate_of: None,
         simhash: parsed.as_ref().and_then(|p| p.simhash.clone()),
         readability: parsed.as_ref().and_then(|p| p.readability),
+        misspellings: parsed
+            .as_ref()
+            .map(|p| p.misspellings.clone())
+            .unwrap_or_default(),
         error: None,
     };
     // Score against the real signals now that they're on the page.
@@ -1619,6 +1623,7 @@ fn error_page(url: &Url, depth: usize, error: String) -> Page {
         duplicate_of: None,
         simhash: None,
         readability: None,
+        misspellings: Vec::new(),
         error: Some(error),
     }
 }

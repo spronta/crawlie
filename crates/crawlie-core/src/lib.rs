@@ -30,6 +30,7 @@ pub mod report_html;
 pub mod robots;
 pub mod scoring;
 pub mod sitemap;
+pub mod spelling;
 pub mod structured_data;
 pub mod timefmt;
 pub mod types;

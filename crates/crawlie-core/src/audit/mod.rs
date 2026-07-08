@@ -1332,6 +1332,16 @@ pub fn audit_one(
                 }
             }
         }
+        if !p.misspellings.is_empty() {
+            out.push(issue(
+                "spelling-errors",
+                "Spelling Errors",
+                Content,
+                Notice,
+                u,
+                Some(p.misspellings.join(", ")),
+            ));
+        }
         if p.text_ratio > 0.0 && p.text_ratio < 0.08 && p.word_count < THIN_WORDS {
             out.push(issue(
                 "low-text-ratio",

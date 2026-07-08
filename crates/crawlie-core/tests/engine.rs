@@ -202,6 +202,7 @@ fn ok_page(url: &str) -> Page {
         duplicate_of: None,
         simhash: None,
         readability: None,
+        misspellings: vec![],
         error: None,
     }
 }

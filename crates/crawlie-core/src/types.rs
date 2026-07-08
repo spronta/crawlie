@@ -333,6 +333,10 @@ pub struct Page {
     /// page has enough text to score.
     #[serde(default)]
     pub readability: Option<f32>,
+    /// Known misspellings found in the page text ("teh → the"), English pages
+    /// only, curated-list matching so every hit is a real typo.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub misspellings: Vec<String>,
 
     // --- error ---
     pub error: Option<String>,
