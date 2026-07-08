@@ -142,6 +142,15 @@ export function ProjectView({
           <div style={{ padding: "8px 0" }}>
             <Toggle on={project.notify} onChange={setNotify} label="Email me on regressions" />
           </div>
+          <div style={{ paddingTop: 4 }}>
+            <div style={{ fontSize: 12.5, color: "var(--text-secondary)", marginBottom: 5 }}>Alert webhook (Slack / Discord)</div>
+            <input
+              style={webhookInput}
+              placeholder="https://hooks.slack.com/services/…"
+              defaultValue={project.notifyWebhook ?? ""}
+              onBlur={(e) => { if ((e.target.value.trim() || null) !== project.notifyWebhook) updateProject(id, { notifyWebhook: e.target.value.trim() || null }).then(setProject); }}
+            />
+          </div>
           {project.schedule !== "off" && project.nextRunAt && (
             <div style={{ color: "var(--text-secondary)", fontSize: 12.5, marginTop: 4 }}>
               Next crawl {relTime(project.nextRunAt)}
@@ -166,7 +175,13 @@ export function ProjectView({
       {trend.length > 1 && (
         <div style={{ ...panel, marginTop: 14 }}>
           <div style={panelTitle}>Health over time</div>
-          <Sparkline points={trend.map((t) => t.health)} />
+          <Sparkline points={trend.map((t) => t.health)} max={100} />
+        </div>
+      )}
+      {trend.filter((t) => t.packScore != null).length > 1 && (
+        <div style={{ ...panel, marginTop: 14 }}>
+          <div style={panelTitle}>Content-rule violations over time (lower is better)</div>
+          <Sparkline points={trend.map((t) => t.packScore ?? 0)} color="var(--red-text, #ff6166)" />
         </div>
       )}
 
@@ -195,19 +210,19 @@ export function ProjectView({
   );
 }
 
-function Sparkline({ points }: { points: number[] }) {
+function Sparkline({ points, max, color = "var(--blue, #0055ee)" }: { points: number[]; max?: number; color?: string }) {
   const w = 600;
   const h = 60;
-  const max = Math.max(100, ...points);
-  const min = Math.min(0, ...points);
+  const hi = max ?? Math.max(...points, 1);
+  const lo = Math.min(...points, 0);
   const step = points.length > 1 ? w / (points.length - 1) : w;
-  const y = (v: number) => h - ((v - min) / (max - min || 1)) * h;
+  const y = (v: number) => h - ((v - lo) / (hi - lo || 1)) * h;
   const d = points.map((p, i) => `${i === 0 ? "M" : "L"}${(i * step).toFixed(1)},${y(p).toFixed(1)}`).join(" ");
   const last = points[points.length - 1];
   return (
     <svg viewBox={`0 0 ${w} ${h}`} width="100%" height={h} preserveAspectRatio="none" style={{ display: "block" }}>
-      <path d={d} fill="none" stroke="var(--blue, #0055ee)" strokeWidth={2} vectorEffect="non-scaling-stroke" />
-      <circle cx={(points.length - 1) * step} cy={y(last)} r={3} fill="var(--blue, #0055ee)" />
+      <path d={d} fill="none" stroke={color} strokeWidth={2} vectorEffect="non-scaling-stroke" />
+      <circle cx={(points.length - 1) * step} cy={y(last)} r={3} fill={color} />
     </svg>
   );
 }
@@ -216,5 +231,6 @@ const panel: React.CSSProperties = { background: "var(--panel, var(--bg))", bord
 const panelTitle: React.CSSProperties = { fontSize: 12, textTransform: "uppercase", letterSpacing: ".08em", color: "var(--text-secondary)", marginBottom: 14 };
 const row: React.CSSProperties = { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "8px 0", fontSize: 14 };
 const select: React.CSSProperties = { height: 36, padding: "0 10px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg-soft, var(--bg))", color: "var(--text)", cursor: "pointer", fontSize: 13.5 };
+const webhookInput: React.CSSProperties = { width: "100%", height: 34, padding: "0 10px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg-soft, var(--bg))", color: "var(--text)", fontSize: 12.5, fontFamily: "var(--font-mono, monospace)" };
 const urlLink: React.CSSProperties = { background: "none", border: 0, padding: 0, color: "var(--link, #3b9eff)", cursor: "pointer", fontSize: 13.5, display: "inline-flex", alignItems: "center", gap: 5 };
 const histRow: React.CSSProperties = { display: "flex", alignItems: "center", gap: 14, width: "100%", textAlign: "left", background: "none", border: 0, borderTop: "1px solid var(--border-soft, var(--border))", padding: "12px 4px", cursor: "pointer", color: "var(--text)" };

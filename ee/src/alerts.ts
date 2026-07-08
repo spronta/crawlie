@@ -46,6 +46,28 @@ export async function sendRegressionAlert(env: Env, email: string, r: Regression
   }
 }
 
+/** Post a regression alert to a project webhook (Slack/Discord/generic `text`). */
+export async function sendWebhookAlert(url: string, r: Regression): Promise<boolean> {
+  try {
+    const lines = [
+      `:warning: *${r.projectName}* regressed`,
+      r.url,
+      `Health ${r.healthBefore} → ${r.healthAfter}`,
+    ];
+    if (r.newErrors) lines.push(`New errors: ${r.newErrors}`);
+    if (r.newWarnings) lines.push(`New warnings: ${r.newWarnings}`);
+    lines.push(r.reportUrl);
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ text: lines.join("\n") }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 /** Look up a user's email from the Better Auth `user` table. */
 export async function userEmail(env: Env, userId: string): Promise<string | null> {
   const row = await env.DB.prepare(`SELECT email FROM user WHERE id = ?`)

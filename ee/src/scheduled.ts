@@ -7,7 +7,7 @@ import type { Env } from "./env";
 import { dueProjects, recordCrawl, type Project } from "./projects";
 import { runCrawl } from "./crawler";
 import { saveReport, diffReports } from "./reports";
-import { sendRegressionAlert, userEmail } from "./alerts";
+import { sendRegressionAlert, sendWebhookAlert, userEmail } from "./alerts";
 import { incrementCrawls } from "./teams";
 import { enabledPackSources } from "./packs";
 
@@ -34,6 +34,7 @@ async function runScheduled(env: Env, teamId: string, project: Project, now: num
     const packs = await enabledPackSources(env, teamId);
     const result = (await runCrawl(env, config, () => {}, packs)) as {
       summary?: { healthScore: number; errors: number; warnings: number };
+      packs?: { totalScore?: number };
     };
     const health = result.summary?.healthScore ?? 0;
 
@@ -61,20 +62,28 @@ async function runScheduled(env: Env, teamId: string, project: Project, now: num
         if (newErrors > 0) regressed = true;
       }
     }
+
+    // Content regression: rule-pack violations increased vs the previous crawl.
+    const newPackScore = result.packs?.totalScore ?? null;
+    if (newPackScore != null && prevReport) {
+      const prev = await env.DB.prepare(`SELECT pack_score FROM reports WHERE team_id = ? AND id = ?`).bind(teamId, prevReport).first<{ pack_score: number | null }>();
+      if (prev?.pack_score != null && newPackScore > prev.pack_score + 0.5) regressed = true;
+    }
+
     if (!regressed) return;
 
+    const alert = {
+      projectName: project.name,
+      url: project.url,
+      healthBefore: before ?? health,
+      healthAfter: health,
+      newErrors,
+      newWarnings,
+      reportUrl: `https://crawlie.app/projects/${project.id}`,
+    };
     const email = owner?.owner_id ? await userEmail(env, owner.owner_id) : null;
-    if (email) {
-      await sendRegressionAlert(env, email, {
-        projectName: project.name,
-        url: project.url,
-        healthBefore: before ?? health,
-        healthAfter: health,
-        newErrors,
-        newWarnings,
-        reportUrl: `https://crawlie.app/projects/${project.id}`,
-      });
-    }
+    if (email) await sendRegressionAlert(env, email, alert);
+    if (project.notifyWebhook) await sendWebhookAlert(project.notifyWebhook, alert);
   } catch (err) {
     console.error(`scheduled crawl failed for project ${project.id}:`, err);
   }

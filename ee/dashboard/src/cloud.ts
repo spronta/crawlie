@@ -16,6 +16,7 @@ export interface Project {
   config: Record<string, unknown> | null;
   schedule: Schedule;
   notify: boolean;
+  notifyWebhook: string | null;
   nextRunAt: number | null;
   lastCrawlAt: number | null;
   lastHealth: number | null;
@@ -32,6 +33,7 @@ export interface TrendPoint {
   errors: number;
   warnings: number;
   pages: number;
+  packScore: number | null;
 }
 
 export function activeTeam(): string | null {
@@ -96,7 +98,7 @@ export const createProject = (input: {
 }) => j<Project>("/v1/projects", { method: "POST", body: JSON.stringify(input) });
 export const updateProject = (
   id: string,
-  patch: { name?: string; schedule?: Schedule; notify?: boolean; config?: Record<string, unknown> | null },
+  patch: { name?: string; schedule?: Schedule; notify?: boolean; notifyWebhook?: string | null; config?: Record<string, unknown> | null },
 ) => j<Project>(`/v1/projects/${id}`, { method: "PATCH", body: JSON.stringify(patch) });
 export const deleteProject = (id: string) =>
   j<{ ok: boolean }>(`/v1/projects/${id}`, { method: "DELETE" });

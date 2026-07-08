@@ -14,6 +14,7 @@ export interface Project {
   config: Record<string, unknown> | null;
   schedule: Schedule;
   notify: boolean;
+  notifyWebhook: string | null;
   nextRunAt: number | null;
   lastCrawlAt: number | null;
   lastHealth: number | null;
@@ -36,6 +37,7 @@ function rowToProject(r: Record<string, unknown>): Project {
     config: r.config ? (JSON.parse(String(r.config)) as Record<string, unknown>) : null,
     schedule: (SCHEDULES.includes(r.schedule as Schedule) ? r.schedule : "off") as Schedule,
     notify: Number(r.notify) === 1,
+    notifyWebhook: r.notify_webhook == null ? null : String(r.notify_webhook),
     nextRunAt: r.next_run_at == null ? null : Number(r.next_run_at),
     lastCrawlAt: r.last_crawl_at == null ? null : Number(r.last_crawl_at),
     lastHealth: r.last_health == null ? null : Number(r.last_health),
@@ -88,7 +90,7 @@ export async function updateProject(
   env: Env,
   teamId: string,
   pid: string,
-  patch: { name?: string; schedule?: Schedule; notify?: boolean; config?: Record<string, unknown> | null },
+  patch: { name?: string; schedule?: Schedule; notify?: boolean; notifyWebhook?: string | null; config?: Record<string, unknown> | null },
   now: number,
 ): Promise<Project | null> {
   const p = await getProject(env, teamId, pid);
@@ -96,10 +98,11 @@ export async function updateProject(
   const schedule: Schedule = patch.schedule && SCHEDULES.includes(patch.schedule) ? patch.schedule : p.schedule;
   const name = patch.name?.trim() || p.name;
   const notify = patch.notify == null ? p.notify : patch.notify;
+  const webhook = patch.notifyWebhook === undefined ? p.notifyWebhook : patch.notifyWebhook?.trim() || null;
   const config = patch.config === undefined ? p.config : patch.config;
   const anchor = p.lastCrawlAt ?? now;
-  await env.DB.prepare(`UPDATE projects SET name=?, schedule=?, notify=?, config=?, next_run_at=? WHERE team_id=? AND id=?`)
-    .bind(name, schedule, notify ? 1 : 0, config ? JSON.stringify(config) : null, nextRun(schedule, anchor), teamId, pid)
+  await env.DB.prepare(`UPDATE projects SET name=?, schedule=?, notify=?, notify_webhook=?, config=?, next_run_at=? WHERE team_id=? AND id=?`)
+    .bind(name, schedule, notify ? 1 : 0, webhook, config ? JSON.stringify(config) : null, nextRun(schedule, anchor), teamId, pid)
     .run();
   return getProject(env, teamId, pid);
 }
@@ -118,11 +121,11 @@ export async function recordCrawl(env: Env, teamId: string, pid: string, reportI
 
 export async function projectTrend(env: Env, teamId: string, pid: string) {
   const { results } = await env.DB.prepare(
-    `SELECT id, created_at, health_score, geo_score, a11y_score, errors, warnings, total_pages
+    `SELECT id, created_at, health_score, geo_score, a11y_score, errors, warnings, total_pages, pack_score
        FROM reports WHERE team_id = ? AND project_id = ? ORDER BY created_at ASC`,
   )
     .bind(teamId, pid)
-    .all<Record<string, number | string>>();
+    .all<Record<string, number | string | null>>();
   return (results ?? []).map((r) => ({
     id: String(r.id),
     at: Number(r.created_at),
@@ -132,6 +135,7 @@ export async function projectTrend(env: Env, teamId: string, pid: string) {
     errors: Number(r.errors),
     warnings: Number(r.warnings),
     pages: Number(r.total_pages),
+    packScore: r.pack_score == null ? null : Number(r.pack_score),
   }));
 }
 

@@ -24,6 +24,7 @@ interface CrawlResult {
   summary: Summary;
   pages?: { url: string }[];
   issues?: Issue[];
+  packs?: { totalScore?: number } | null;
 }
 interface ReportMeta {
   id: string;
@@ -57,12 +58,13 @@ export async function saveReport(
   const id = `${result.startedAt}-${slug(result.config.url)}`;
   await env.REPORTS.put(key(teamId, id), JSON.stringify(result), { httpMetadata: { contentType: "application/json" } });
   const s = result.summary;
+  const packScore = result.packs && typeof result.packs.totalScore === "number" ? result.packs.totalScore : null;
   await env.DB.prepare(
     `INSERT OR REPLACE INTO reports
-       (id, user_id, team_id, url, created_at, total_pages, errors, warnings, health_score, geo_score, a11y_score, project_id)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+       (id, user_id, team_id, url, created_at, total_pages, errors, warnings, health_score, geo_score, a11y_score, project_id, pack_score)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
   )
-    .bind(id, creatorId, teamId, result.config.url, result.startedAt, s.totalPages, s.errors, s.warnings, s.healthScore, s.geoScore, s.a11yScore, projectId ?? null)
+    .bind(id, creatorId, teamId, result.config.url, result.startedAt, s.totalPages, s.errors, s.warnings, s.healthScore, s.geoScore, s.a11yScore, projectId ?? null, packScore)
     .run();
   return id;
 }

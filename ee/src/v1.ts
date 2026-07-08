@@ -148,7 +148,7 @@ v1.get("/projects/:id", async (c) => {
 
 v1.patch("/projects/:id", async (c) => {
   const team = c.get("team");
-  const body = await c.req.json<{ name?: string; schedule?: Schedule; notify?: boolean; config?: Record<string, unknown> | null }>().catch(() => ({}) as { name?: string; schedule?: Schedule; notify?: boolean; config?: Record<string, unknown> | null });
+  const body = await c.req.json<{ name?: string; schedule?: Schedule; notify?: boolean; notifyWebhook?: string | null; config?: Record<string, unknown> | null }>().catch(() => ({}) as { name?: string; schedule?: Schedule; notify?: boolean; notifyWebhook?: string | null; config?: Record<string, unknown> | null });
   if (body.schedule && body.schedule !== "off" && !PLANS[team.plan].scheduling) {
     return c.json({ error: "Scheduled crawls are a paid feature.", code: "plan_limit" }, 402);
   }
