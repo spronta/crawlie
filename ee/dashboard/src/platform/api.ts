@@ -15,8 +15,13 @@ import type {
 } from "@ui/lib/types";
 import { DEMO_RESULT } from "@ui/lib/demo";
 
-// Hosted crawler API base (the Worker in front of the container crawlers).
-const API = import.meta.env.VITE_CRAWLIE_API ?? "https://api.crawlie.app";
+// Hosted crawler API base. The dashboard is served as static assets by the
+// same Worker that hosts /v1, so same-origin ("") is correct in production —
+// /v1 sends no CORS headers, and a cross-origin default here makes the browser
+// silently block every credentialed call (reports "not found", web crawls
+// failing) while the same-origin calls in cloud.ts keep working.
+// VITE_CRAWLIE_API stays as a dev/preview override only.
+const API = import.meta.env.VITE_CRAWLIE_API ?? "";
 // Hosted crawler backend is live (crawlie.app/v1 → Cloudflare Container).
 const HOSTED = true;
 
