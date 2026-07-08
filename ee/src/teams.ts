@@ -35,26 +35,55 @@ export interface Team {
 
 const sid = () => crypto.randomUUID().slice(0, 12);
 
-/** Ensure the user has at least a personal team; returns their default team id. */
+/** Ensure the user has at least a personal team; returns their default team id.
+ *  The personal team id is DETERMINISTIC (u_<userId>) + inserted with OR IGNORE,
+ *  so concurrent first-requests converge to ONE team instead of racing to make
+ *  duplicates. Ordering is tie-broken by id so "oldest team" is stable. */
 export async function ensurePersonalTeam(env: Env, userId: string, email?: string | null): Promise<string> {
-  const existing = await env.DB.prepare(`SELECT team_id FROM team_members WHERE user_id = ? ORDER BY created_at ASC LIMIT 1`)
+  const existing = await env.DB.prepare(`SELECT team_id FROM team_members WHERE user_id = ? ORDER BY created_at ASC, team_id ASC LIMIT 1`)
     .bind(userId)
     .first<{ team_id: string }>();
   if (existing) return existing.team_id;
 
-  const id = sid();
+  const id = `u_${userId}`.slice(0, 60);
   const now = Date.now();
   const name = email ? `${email.split("@")[0]}'s workspace` : "My workspace";
   await env.DB.batch([
-    env.DB.prepare(`INSERT INTO teams (id, name, plan, owner_id, created_at) VALUES (?,?,'free',?,?)`).bind(id, name, userId, now),
-    env.DB.prepare(`INSERT INTO team_members (team_id, user_id, role, created_at) VALUES (?,?, 'owner', ?)`).bind(id, userId, now),
+    env.DB.prepare(`INSERT OR IGNORE INTO teams (id, name, plan, owner_id, created_at) VALUES (?,?,'free',?,?)`).bind(id, name, userId, now),
+    env.DB.prepare(`INSERT OR IGNORE INTO team_members (team_id, user_id, role, created_at) VALUES (?,?, 'owner', ?)`).bind(id, userId, now),
   ]);
   return id;
+}
+
+/** Migrate pre-teams data (team_id IS NULL) owned by this user into their team.
+ *  No-ops once adopted. Also moves report blobs from the old R2 path. */
+export async function adoptOrphans(env: Env, teamId: string, userId: string): Promise<void> {
+  const orphanProject = await env.DB.prepare(`SELECT 1 FROM projects WHERE user_id = ? AND team_id IS NULL LIMIT 1`).bind(userId).first();
+  const orphanReports = await env.DB.prepare(`SELECT id FROM reports WHERE user_id = ? AND team_id IS NULL`).bind(userId).all<{ id: string }>();
+  const reps = orphanReports.results ?? [];
+  if (!orphanProject && reps.length === 0) return;
+
+  if (orphanProject) {
+    await env.DB.prepare(`UPDATE projects SET team_id = ? WHERE user_id = ? AND team_id IS NULL`).bind(teamId, userId).run();
+  }
+  if (reps.length) {
+    await env.DB.prepare(`UPDATE reports SET team_id = ? WHERE user_id = ? AND team_id IS NULL`).bind(teamId, userId).run();
+    // Report bodies were stored under the old user-scoped R2 path; move them.
+    for (const r of reps) {
+      const oldKey = `reports/${userId}/${r.id}.json`;
+      const obj = await env.REPORTS.get(oldKey);
+      if (obj) {
+        await env.REPORTS.put(`reports/${teamId}/${r.id}.json`, await obj.arrayBuffer(), { httpMetadata: { contentType: "application/json" } });
+        await env.REPORTS.delete(oldKey);
+      }
+    }
+  }
 }
 
 /** Resolve the active team for a request (honours a requested team the user belongs to). */
 export async function resolveTeam(env: Env, userId: string, email: string | null, requested?: string | null): Promise<Team> {
   const defaultId = await ensurePersonalTeam(env, userId, email);
+  await adoptOrphans(env, defaultId, userId);
   let teamId = defaultId;
   if (requested) {
     const m = await env.DB.prepare(`SELECT 1 FROM team_members WHERE team_id = ? AND user_id = ?`).bind(requested, userId).first();
