@@ -296,6 +296,35 @@ mod real {
         }
     }
 
+    impl Renderer {
+        /// Load `url` (typically a `file://` report) and print it to PDF.
+        pub async fn pdf(&self, url: &Url) -> Result<Vec<u8>, String> {
+            use chromiumoxide::cdp::browser_protocol::page::PrintToPdfParams;
+            let fut = async {
+                let page = self
+                    .browser
+                    .new_page(url.as_str())
+                    .await
+                    .map_err(|e| format!("new tab failed: {e}"))?;
+                let _ = page.wait_for_navigation().await;
+                let params = PrintToPdfParams {
+                    print_background: Some(true),
+                    ..Default::default()
+                };
+                let bytes = page
+                    .pdf(params)
+                    .await
+                    .map_err(|e| format!("print to PDF failed: {e}"));
+                let _ = page.close().await;
+                bytes
+            };
+            match tokio::time::timeout(self.nav_timeout, fut).await {
+                Ok(res) => res,
+                Err(_) => Err("PDF render timed out".to_string()),
+            }
+        }
+    }
+
     impl Drop for Renderer {
         fn drop(&mut self) {
             if let Some(h) = self.handler.take() {
@@ -330,6 +359,10 @@ mod stub {
             _wait_ms: u64,
             _custom_js: Option<&str>,
         ) -> Result<super::Rendered, String> {
+            Err("rendering unavailable".to_string())
+        }
+
+        pub async fn pdf(&self, _url: &Url) -> Result<Vec<u8>, String> {
             Err("rendering unavailable".to_string())
         }
     }

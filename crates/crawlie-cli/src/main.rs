@@ -318,6 +318,9 @@ enum Format {
     Pretty,
     Csv,
     Html,
+    /// Print the HTML report to PDF via headless Chrome (requires a
+    /// Chrome/Chromium/Edge install).
+    Pdf,
 }
 
 #[derive(Copy, Clone, ValueEnum)]
@@ -365,7 +368,7 @@ async fn main() -> ExitCode {
         Command::Pack(a) => run_pack(a),
         Command::Explain { rule } => explain(rule),
         Command::Reports => list_reports(),
-        Command::Report(a) => show_report(a),
+        Command::Report(a) => show_report(a).await,
         Command::Logs(a) => analyze_logs(a),
         Command::Gsc(a) => analyze_gsc(a),
         Command::Diff(a) => diff_reports(a),
@@ -958,6 +961,9 @@ fn render(r: &CrawlResult, format: Format, min: Option<u8>) -> String {
         Format::Csv if !r.config.extract.is_empty() => render_extract_csv(r),
         Format::Csv => render_csv(r, min),
         Format::Html => report_html::render(r),
+        // PDF is handled by the async export path before render() is reached;
+        // fall back to the HTML source here.
+        Format::Pdf => report_html::render(r),
     }
 }
 
@@ -1391,7 +1397,54 @@ fn analyze_logs(a: LogsArgs) -> ExitCode {
     ExitCode::SUCCESS
 }
 
-fn show_report(a: ReportArgs) -> ExitCode {
+/// Render the HTML report in headless Chrome and print it to PDF.
+async fn export_pdf(result: &CrawlResult, output: Option<&str>, id: &str) -> ExitCode {
+    let html = report_html::render(result);
+    let tmp = std::env::temp_dir().join(format!("crawlie-report-{id}.html"));
+    if let Err(e) = std::fs::write(&tmp, html) {
+        eprintln!("crawlie: could not write temp report: {e}");
+        return ExitCode::from(2);
+    }
+    let renderer = match crawlie_core::render::Renderer::launch(None, 60).await {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("crawlie: {e}");
+            return ExitCode::from(2);
+        }
+    };
+    let url = match url::Url::from_file_path(&tmp) {
+        Ok(u) => u,
+        Err(_) => {
+            eprintln!("crawlie: bad temp path");
+            return ExitCode::from(2);
+        }
+    };
+    match renderer.pdf(&url).await {
+        Ok(bytes) => {
+            let out = output
+                .map(|o| o.to_string())
+                .unwrap_or_else(|| format!("crawlie-report-{id}.pdf"));
+            let _ = std::fs::remove_file(&tmp);
+            match std::fs::write(&out, bytes) {
+                Ok(()) => {
+                    println!("  written to {out}");
+                    ExitCode::SUCCESS
+                }
+                Err(e) => {
+                    eprintln!("crawlie: could not write '{out}': {e}");
+                    ExitCode::from(2)
+                }
+            }
+        }
+        Err(e) => {
+            let _ = std::fs::remove_file(&tmp);
+            eprintln!("crawlie: {e}");
+            ExitCode::from(2)
+        }
+    }
+}
+
+async fn show_report(a: ReportArgs) -> ExitCode {
     let store = ReportStore::new(reports_dir());
     if a.delete {
         return match store.delete(&a.id) {
@@ -1407,6 +1460,9 @@ fn show_report(a: ReportArgs) -> ExitCode {
     }
     match store.load(&a.id) {
         Some(result) => {
+            if matches!(a.format, Format::Pdf) {
+                return export_pdf(&result, a.output.as_deref(), &a.id).await;
+            }
             let rendered = render(&result, a.format, None);
             emit(rendered, a.output, false)
                 .err()
