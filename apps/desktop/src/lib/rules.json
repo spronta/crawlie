@@ -567,6 +567,24 @@
     "impact": "Mixed canonicalisation signals across sitemap and markup."
   },
   {
+    "rule": "sitemap-too-many-urls",
+    "title": "Sitemap Over 50,000 URLs",
+    "category": "indexability",
+    "severity": "error",
+    "why": "A single sitemap file lists more than 50,000 URLs — the sitemap protocol's hard limit. Search engines may reject or truncate the file.",
+    "howToFix": "Split the sitemap into multiple files under 50,000 URLs each and reference them from a sitemap index.",
+    "impact": "URLs beyond the limit may never be read from the sitemap."
+  },
+  {
+    "rule": "sitemap-too-large",
+    "title": "Sitemap Over 50 MB",
+    "category": "indexability",
+    "severity": "error",
+    "why": "A sitemap file exceeds 50 MB uncompressed — the protocol's size limit. Engines may refuse to process it.",
+    "howToFix": "Split the sitemap into smaller files (and serve them gzipped) referenced from a sitemap index.",
+    "impact": "The oversized sitemap may be ignored entirely."
+  },
+  {
     "rule": "not-in-sitemap",
     "title": "Indexable Page Not in Sitemap",
     "category": "indexability",

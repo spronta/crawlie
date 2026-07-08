@@ -620,6 +620,8 @@ function PageDetail({
             </div>
           )}
 
+          {page.status === 200 && <SerpPreview page={page} />}
+
           {page.status === 200 && <GeoCard geo={page.geo} />}
 
           <dl className="kv">
@@ -710,6 +712,47 @@ function MetaPill({ children, color }: { children: React.ReactNode; color?: stri
     >
       {children}
     </span>
+  );
+}
+
+/* Google-style snippet mock so title/description truncation is visible at a
+ * glance. Character-based approximation of Google's pixel limits. */
+function SerpPreview({ page }: { page: Page }) {
+  const TITLE_CHARS = 60;
+  const DESC_CHARS = 155;
+  const title = page.title ?? "(no title — Google will invent one)";
+  const desc = page.metaDescription ?? "No meta description — Google will pick a snippet from the page text.";
+  const titleCut = title.length > TITLE_CHARS;
+  const descCut = desc.length > DESC_CHARS;
+  const crumb = (() => {
+    try {
+      const u = new URL(page.url);
+      const segs = u.pathname.split("/").filter(Boolean);
+      return [u.host, ...segs].join(" › ");
+    } catch {
+      return page.url;
+    }
+  })();
+  return (
+    <div className="card card-pad col" style={{ gap: 10 }}>
+      <div className="row between">
+        <span className="h3">Search preview</span>
+        <span className="tertiary" style={{ font: "var(--label-12)" }}>
+          title {title.length}/{TITLE_CHARS} · description {desc.length}/{DESC_CHARS} chars
+        </span>
+      </div>
+      <div style={{ maxWidth: 600, fontFamily: "arial, sans-serif" }}>
+        <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{crumb}</div>
+        <div style={{ fontSize: 18, lineHeight: 1.3, color: "#3b82f6", marginBottom: 3 }}>
+          {titleCut ? `${title.slice(0, TITLE_CHARS).trimEnd()}…` : title}
+          {titleCut && <span title="Truncated in search results" style={{ color: "var(--amber-text)", fontSize: 12, marginLeft: 6 }}>truncated</span>}
+        </div>
+        <div style={{ fontSize: 13, lineHeight: 1.45, color: "var(--text-secondary)" }}>
+          {descCut ? `${desc.slice(0, DESC_CHARS).trimEnd()}…` : desc}
+          {descCut && <span title="Truncated in search results" style={{ color: "var(--amber-text)", fontSize: 12, marginLeft: 6 }}>truncated</span>}
+        </div>
+      </div>
+    </div>
   );
 }
 

@@ -290,6 +290,14 @@ entries! {
         "This sitemap URL canonicals to a different page — you're asking engines to index a URL that defers to another. Sitemaps should list canonical URLs only.",
         "Replace the entry with the canonical target URL.",
         "Mixed canonicalisation signals across sitemap and markup.";
+    "sitemap-too-many-urls" => "Sitemap Over 50,000 URLs", Indexability, Error,
+        "A single sitemap file lists more than 50,000 URLs — the sitemap protocol's hard limit. Search engines may reject or truncate the file.",
+        "Split the sitemap into multiple files under 50,000 URLs each and reference them from a sitemap index.",
+        "URLs beyond the limit may never be read from the sitemap.";
+    "sitemap-too-large" => "Sitemap Over 50 MB", Indexability, Error,
+        "A sitemap file exceeds 50 MB uncompressed — the protocol's size limit. Engines may refuse to process it.",
+        "Split the sitemap into smaller files (and serve them gzipped) referenced from a sitemap index.",
+        "The oversized sitemap may be ignored entirely.";
     "not-in-sitemap" => "Indexable Page Not in Sitemap", Indexability, Notice,
         "This indexable page isn't listed in your XML sitemap, so engines must find it via links alone — slower discovery and weaker freshness signals, especially for deep pages.",
         "Add the page to the sitemap (or fix the generator that's skipping it).",

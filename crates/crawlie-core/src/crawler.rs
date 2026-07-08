@@ -356,6 +356,8 @@ struct Prep {
     /// Normalized URLs listed in the site's sitemaps (empty when none found),
     /// for the sitemap↔crawl cross-check rules.
     in_sitemap: HashSet<String>,
+    /// Per-sitemap-file stats for the protocol-limit rules.
+    sitemap_stats: Vec<sitemap::SitemapStat>,
     robots_blocked: Vec<String>,
     max_pages: usize,
     follow: bool,
@@ -469,6 +471,7 @@ where
     // Sitemap seeding (Site mode only).
     let mut sitemap_urls = 0usize;
     let mut in_sitemap: HashSet<String> = HashSet::new();
+    let mut sitemap_stats: Vec<sitemap::SitemapStat> = Vec::new();
     if follow && config.use_sitemap {
         let mut sm_locations = robots.sitemaps.clone();
         if sm_locations.is_empty() {
@@ -476,7 +479,9 @@ where
                 sm_locations.push(def);
             }
         }
-        let discovered = sitemap::discover(&client, &sm_locations).await;
+        let discovery = sitemap::discover(&client, &sm_locations).await;
+        sitemap_stats = discovery.stats;
+        let discovered = discovery.pages;
         sitemap_urls = discovered.len();
         in_sitemap = discovered.iter().map(|s| normalize_str(s)).collect();
         for s in discovered {
@@ -518,11 +523,41 @@ where
         visited,
         sitemap_urls,
         in_sitemap,
+        sitemap_stats,
         robots_blocked,
         max_pages,
         follow,
         concurrency,
     })
+}
+
+/// Sitemap-protocol limit issues (50k URLs / 50 MB per file), shared by both
+/// crawl paths.
+fn sitemap_limit_issues(stats: &[sitemap::SitemapStat], out: &mut Vec<Issue>) {
+    const URL_LIMIT: usize = 50_000;
+    const BYTE_LIMIT: usize = 50 * 1024 * 1024;
+    for st in stats {
+        if st.url_count > URL_LIMIT {
+            out.push(Issue {
+                rule: "sitemap-too-many-urls".into(),
+                title: "Sitemap Over 50,000 URLs".into(),
+                category: Category::Indexability,
+                severity: Severity::Error,
+                url: st.url.clone(),
+                detail: Some(format!("{} URLs", st.url_count)),
+            });
+        }
+        if st.bytes > BYTE_LIMIT {
+            out.push(Issue {
+                rule: "sitemap-too-large".into(),
+                title: "Sitemap Over 50 MB".into(),
+                category: Category::Indexability,
+                severity: Severity::Error,
+                url: st.url.clone(),
+                detail: Some(format!("{} MB", st.bytes / (1024 * 1024))),
+            });
+        }
+    }
 }
 
 /// Run a full crawl + audit. `on_event` receives streaming progress; `cancel`
@@ -551,6 +586,7 @@ where
         mut visited,
         sitemap_urls,
         in_sitemap,
+        sitemap_stats,
         mut robots_blocked,
         max_pages,
         follow,
@@ -819,6 +855,7 @@ where
             detail: None,
         });
     }
+    sitemap_limit_issues(&sitemap_stats, &mut issues);
     if !llms_txt_found {
         issues.push(Issue {
             rule: "geo-no-llms-txt".into(),
@@ -899,6 +936,7 @@ where
         mut visited,
         sitemap_urls,
         in_sitemap,
+        sitemap_stats,
         mut robots_blocked,
         max_pages,
         follow,
@@ -1175,6 +1213,7 @@ where
             detail: None,
         });
     }
+    sitemap_limit_issues(&sitemap_stats, &mut issues);
     if !llms_txt_found {
         issues.push(Issue {
             rule: "geo-no-llms-txt".into(),
