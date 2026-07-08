@@ -106,6 +106,47 @@ export async function deleteReport(env: Env, userId: string, id: string): Promis
   await env.DB.prepare(`DELETE FROM reports WHERE user_id = ? AND id = ?`).bind(userId, id).run();
 }
 
+// --- Public sharing ----------------------------------------------------
+
+/** Publish a report to a public token; returns the token. */
+export async function shareReport(env: Env, userId: string, id: string): Promise<string | null> {
+  const existing = await env.DB.prepare(`SELECT share_token FROM reports WHERE user_id = ? AND id = ?`)
+    .bind(userId, id)
+    .first<{ share_token?: string }>();
+  if (!existing) return null;
+  if (existing.share_token) return existing.share_token;
+  const token = crypto.randomUUID().replace(/-/g, "");
+  await env.DB.prepare(`UPDATE reports SET share_token = ? WHERE user_id = ? AND id = ?`)
+    .bind(token, userId, id)
+    .run();
+  return token;
+}
+
+export async function unshareReport(env: Env, userId: string, id: string): Promise<void> {
+  await env.DB.prepare(`UPDATE reports SET share_token = NULL WHERE user_id = ? AND id = ?`)
+    .bind(userId, id)
+    .run();
+}
+
+/** Get a report's current share token (null if not shared). */
+export async function reportShareToken(env: Env, userId: string, id: string): Promise<string | null> {
+  const row = await env.DB.prepare(`SELECT share_token FROM reports WHERE user_id = ? AND id = ?`)
+    .bind(userId, id)
+    .first<{ share_token?: string }>();
+  return row?.share_token ?? null;
+}
+
+/** Load a publicly-shared report by its token (no auth). */
+export async function loadPublicReport(env: Env, token: string): Promise<CrawlResult | null> {
+  if (!token) return null;
+  const row = await env.DB.prepare(`SELECT user_id, id FROM reports WHERE share_token = ?`)
+    .bind(token)
+    .first<{ user_id: string; id: string }>();
+  if (!row) return null;
+  const obj = await env.REPORTS.get(key(row.user_id, row.id));
+  return obj ? obj.json<CrawlResult>() : null;
+}
+
 // Crawl-over-crawl diff, computed from the two stored results (JS mirror of the
 // desktop ReportStore::diff so the Compare UI works on hosted reports).
 export async function diffReports(env: Env, userId: string, oldId: string, newId: string) {

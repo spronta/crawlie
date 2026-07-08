@@ -47,6 +47,13 @@ app.on(["GET", "POST"], "/api/auth/*", (c) =>
 // Hosted crawler API (auth-gated inside).
 app.route("/v1", v1);
 
+// Public, unauthenticated: a shared report by token (powers crawlie.app/p/…).
+app.get("/pub/reports/:token", async (c) => {
+  const { loadPublicReport } = await import("./reports");
+  const report = await loadPublicReport(c.env, c.req.param("token"));
+  return report ? c.json(report) : c.json({ error: "not found" }, 404);
+});
+
 // Device verification / approval page for `crawlie login`.
 app.get("/device", (c) => {
   const userCode = c.req.query("user_code") ?? "";

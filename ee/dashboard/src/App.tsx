@@ -8,9 +8,10 @@ import { ResultsView } from "@ui/views/ResultsView";
 import { ProjectsView } from "./views/ProjectsView";
 import { ProjectView } from "./views/ProjectView";
 import { AccountView } from "./views/AccountView";
-import { loadReport } from "./cloud";
+import { loadReport, loadPublicReport, shareReport, unshareReport, getShare } from "./cloud";
 import { getSession, signOut, type SessionUser } from "./auth";
 import { SignIn } from "./SignIn";
+import { IconShare } from "@ui/components/ui";
 
 type Phase =
   | { name: "projects" }
@@ -23,6 +24,13 @@ type Phase =
   | { name: "error"; message: string };
 
 export function App() {
+  // Public shared report — no auth, no dashboard chrome.
+  const shareMatch = typeof location !== "undefined" && location.pathname.match(/^\/p\/([a-z0-9]+)/i);
+  if (shareMatch) return <PublicReport token={shareMatch[1]} />;
+  return <AuthedApp />;
+}
+
+function AuthedApp() {
   const [user, setUser] = useState<SessionUser | null | undefined>(undefined);
   useEffect(() => {
     getSession().then((u) => {
@@ -142,9 +150,27 @@ function Dashboard({ user }: { user: SessionUser }) {
 
 function ReportView({ id, onBack, onReports }: { id: string; onBack: () => void; onReports: () => void }) {
   const [result, setResult] = useState<CrawlResult | null | undefined>(undefined);
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   useEffect(() => {
     loadReport(id).then((r) => setResult(r));
+    getShare(id)
+      .then((s) => setShareUrl(s.token ? `https://crawlie.app/p/${s.token}` : null))
+      .catch(() => {});
   }, [id]);
+
+  async function share() {
+    const s = await shareReport(id);
+    setShareUrl(s.url);
+    navigator.clipboard?.writeText(s.url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }
+  async function unshare() {
+    await unshareReport(id);
+    setShareUrl(null);
+  }
+
   if (result === undefined) return <div style={{ display: "flex", justifyContent: "center", padding: 80 }}><Spinner /></div>;
   if (result === null)
     return (
@@ -153,7 +179,50 @@ function ReportView({ id, onBack, onReports }: { id: string; onBack: () => void;
         <button className="btn btn-primary" onClick={onBack}>Back</button>
       </div>
     );
-  return <ResultsView result={result} onReset={onBack} onReports={onReports} />;
+  return (
+    <>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 20px", borderBottom: "1px solid var(--border)", background: "var(--panel, var(--bg))", flexWrap: "wrap" }}>
+        {shareUrl ? (
+          <>
+            <span style={{ fontSize: 12.5, color: "var(--text-secondary)" }}>Public link:</span>
+            <code style={{ fontFamily: "var(--font-mono, monospace)", fontSize: 12, background: "var(--panel-2, transparent)", padding: "3px 7px", borderRadius: 6, border: "1px solid var(--border-soft, var(--border))" }}>{shareUrl}</code>
+            <button className="btn btn-sm" onClick={() => { navigator.clipboard?.writeText(shareUrl); setCopied(true); setTimeout(() => setCopied(false), 1500); }}>{copied ? "Copied!" : "Copy"}</button>
+            <button className="btn btn-sm" onClick={unshare}>Make private</button>
+          </>
+        ) : (
+          <button className="btn btn-sm" onClick={share}><IconShare size={14} /> Share public link</button>
+        )}
+      </div>
+      <ResultsView result={result} onReset={onBack} onReports={onReports} />
+    </>
+  );
+}
+
+function PublicReport({ token }: { token: string }) {
+  const [result, setResult] = useState<CrawlResult | null | undefined>(undefined);
+  useEffect(() => {
+    loadPublicReport(token).then((r) => setResult(r));
+  }, [token]);
+  const home = () => { window.location.href = "https://crawlie.app/"; };
+  return (
+    <div className="app">
+      <div className="content">
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "12px 20px", borderBottom: "1px solid var(--border)" }}>
+          <button onClick={home} style={{ background: "none", border: 0, cursor: "pointer", display: "flex" }}><Logo /></button>
+          <a href="https://crawlie.app/" style={{ fontSize: 13, color: "var(--link, #3b9eff)", textDecoration: "none" }}>Run your own free crawl →</a>
+        </div>
+        <main className="main flush">
+          {result === undefined ? (
+            <div style={{ display: "flex", justifyContent: "center", padding: 80 }}><Spinner /></div>
+          ) : result === null ? (
+            <div className="hero"><h1 style={{ fontSize: 24 }}>This report isn't available</h1><a className="btn btn-primary" href="https://crawlie.app/">Go to Crawlie</a></div>
+          ) : (
+            <ResultsView result={result} onReset={home} onReports={home} />
+          )}
+        </main>
+      </div>
+    </div>
+  );
 }
 
 function AccountMenu({ user, onAccount }: { user: SessionUser; onAccount: () => void }) {

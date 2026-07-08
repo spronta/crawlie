@@ -8,7 +8,16 @@ import type { Context } from "hono";
 import type { Env } from "./env";
 import { createAuth } from "./auth";
 import { runCrawl, cancelCrawl } from "./crawler";
-import { listReports, loadReport, deleteReport, saveReport, diffReports } from "./reports";
+import {
+  listReports,
+  loadReport,
+  deleteReport,
+  saveReport,
+  diffReports,
+  shareReport,
+  unshareReport,
+  reportShareToken,
+} from "./reports";
 import {
   listProjects,
   getProject,
@@ -153,6 +162,19 @@ v1.get("/reports/:id", async (c) => {
 
 v1.delete("/reports/:id", async (c) => {
   await deleteReport(c.env, c.get("userId"), c.req.param("id"));
+  return c.json({ ok: true });
+});
+
+// Public sharing: publish a report to crawlie.app/p/<token>.
+v1.get("/reports/:id/share", async (c) =>
+  c.json({ token: await reportShareToken(c.env, c.get("userId"), c.req.param("id")) }),
+);
+v1.post("/reports/:id/share", async (c) => {
+  const token = await shareReport(c.env, c.get("userId"), c.req.param("id"));
+  return token ? c.json({ token, url: `https://crawlie.app/p/${token}` }) : c.json({ error: "not found" }, 404);
+});
+v1.delete("/reports/:id/share", async (c) => {
+  await unshareReport(c.env, c.get("userId"), c.req.param("id"));
   return c.json({ ok: true });
 });
 
