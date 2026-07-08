@@ -413,6 +413,11 @@ pub fn parse_html(body: &str, final_url: &Url, host: &str, extractors: &[Extract
                 markup.rel_next = Some(n.to_string());
             }
         }
+        if rels.iter().any(|r| r == "amphtml") {
+            if let Some(a) = el.value().attr("href").and_then(|h| resolve(final_url, h)) {
+                markup.amp_url = Some(a.to_string());
+            }
+        }
         if rels.iter().any(|r| r == "canonical") {
             if let Some(c) = el.value().attr("href").and_then(|h| resolve(final_url, h)) {
                 markup.canonical_count += 1;

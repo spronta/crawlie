@@ -173,6 +173,7 @@ export interface MarkupSignals {
   loremIpsum: boolean;
   relPrev?: string | null;
   relNext?: string | null;
+  ampUrl?: string | null;
 }
 
 export interface Issue {

@@ -490,6 +490,29 @@ fn audit_flags_missing_hreflang_return_links() {
 }
 
 #[test]
+fn audit_flags_directives_amp_and_internal_search() {
+    let seed = Url::parse("https://example.com/").unwrap();
+    let mut p = ok_page("https://example.com/a?q=widgets");
+    p.meta_robots = Some("nosnippet, noarchive, noimageindex".into());
+    p.markup.amp_url = Some("https://example.com/amp/a".into());
+    let mut status_map = HashMap::new();
+    status_map.insert("https://example.com/amp/a".to_string(), 404u16);
+
+    let issues = crawlie_core::audit::audit(&[p], &status_map, &[], &seed);
+    let r = rules(&issues);
+    for expected in [
+        "robots-nosnippet",
+        "robots-noarchive",
+        "robots-noimageindex",
+        "amp-broken",
+        "url-internal-search",
+    ] {
+        assert!(r.contains(&expected), "expected {expected} in {r:?}");
+    }
+    assert!(!r.contains(&"robots-none"), "none not present: {r:?}");
+}
+
+#[test]
 fn audit_flags_broken_pagination() {
     let seed = Url::parse("https://example.com/").unwrap();
     let mut p = ok_page("https://example.com/list?page=2");

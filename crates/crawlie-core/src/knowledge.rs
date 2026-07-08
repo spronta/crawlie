@@ -128,6 +128,18 @@ entries! {
         "Internal links carrying utm_/gclid-style parameters create duplicate URLs and pollute your analytics (internal clicks masquerade as campaign traffic).",
         "Never use UTM parameters on internal links. Canonicalise or redirect tracked URLs to the clean version.",
         "Duplicate indexed URLs and corrupted campaign analytics.";
+    "url-internal-search" => "Internal Search URL Crawled", Category::Url, Notice,
+        "Internal search-result URLs (?s=, ?q=, ?search=) form an infinite URL space: every query is a new page of templated results. Crawled and indexed search pages waste crawl budget and are classic thin content.",
+        "Disallow the search path/parameter in robots.txt and noindex search result pages.",
+        "Crawl budget burned on unbounded, low-value result pages.";
+    "amp-broken" => "Broken AMP URL", Indexability, Warning,
+        "The page declares a rel=amphtml alternate that returns an error, so the AMP version can't be served and the annotation misleads crawlers.",
+        "Fix the AMP page or remove the amphtml link if AMP has been retired.",
+        "No AMP serving and wasted crawler fetches on a dead alternate.";
+    "amp-redirect" => "Redirecting AMP URL", Indexability, Notice,
+        "The declared AMP alternate redirects. AMP annotations should point directly at the final AMP document.",
+        "Update the amphtml href to the final URL.",
+        "Extra hops on every AMP discovery fetch.";
     "url-repetitive-path" => "Repetitive Path Segments", Category::Url, Warning,
         "The same path segment repeats several times (/page/page/page) — the signature of a relative-link bug generating an infinite URL space crawlers can fall into.",
         "Find the template emitting relative links without a trailing-slash-aware base and switch to absolute or root-relative URLs.",
@@ -230,6 +242,26 @@ entries! {
         "A page-level nofollow stops link equity flowing from this page's links, which can strand the pages it links to.",
         "Remove the blanket nofollow unless you deliberately want to seal off link flow from this page.",
         "Reduced crawl discovery and equity distribution.";
+    "robots-none" => "Robots Directive: none", Indexability, Warning,
+        "The robots \"none\" directive is shorthand for noindex, nofollow — the page is fully sealed off from search. It's obscure enough that it's often set by accident.",
+        "Confirm the page really should be invisible to search. If not, remove the directive.",
+        "The page can't be indexed and passes no link signals.";
+    "robots-nosnippet" => "Robots Directive: nosnippet", Indexability, Notice,
+        "nosnippet stops search engines showing any text snippet (or AI Overview citation) for this page — the listing is just a bare title and URL.",
+        "Remove nosnippet unless you have a specific legal/licensing reason to suppress snippets.",
+        "Dramatically lower click-through from featureless search listings.";
+    "robots-noarchive" => "Robots Directive: noarchive", Indexability, Notice,
+        "noarchive prevents cached copies of the page. Harmless for most sites, but worth confirming it's intentional since some SEO plugins set it silently.",
+        "Remove the directive unless you deliberately want to block cached copies.",
+        "No cached version available to users or crawl-diagnostics tools.";
+    "robots-noimageindex" => "Robots Directive: noimageindex", Indexability, Notice,
+        "noimageindex keeps this page's images out of image search — a whole discovery channel switched off.",
+        "Remove the directive unless the images must stay out of image search.",
+        "Zero image-search traffic from this page.";
+    "robots-unavailable-after" => "Robots Directive: unavailable_after", Indexability, Warning,
+        "An unavailable_after directive tells Google to drop this page from the index after a set date. Stale dates from old campaigns silently de-index evergreen pages.",
+        "Check the date. If the page should stay indexed, remove the directive.",
+        "The page disappears from search on the specified date.";
     "x-robots-noindex" => "X-Robots-Tag: noindex", Indexability, Warning,
         "A noindex set via HTTP header is easy to overlook because it isn't visible in the HTML, yet it removes the page from search just the same.",
         "Audit your server/CDN config and remove the X-Robots-Tag noindex if the page should be indexable.",

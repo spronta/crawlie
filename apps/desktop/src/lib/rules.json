@@ -216,6 +216,33 @@
     "impact": "Duplicate indexed URLs and corrupted campaign analytics."
   },
   {
+    "rule": "url-internal-search",
+    "title": "Internal Search URL Crawled",
+    "category": "url",
+    "severity": "notice",
+    "why": "Internal search-result URLs (?s=, ?q=, ?search=) form an infinite URL space: every query is a new page of templated results. Crawled and indexed search pages waste crawl budget and are classic thin content.",
+    "howToFix": "Disallow the search path/parameter in robots.txt and noindex search result pages.",
+    "impact": "Crawl budget burned on unbounded, low-value result pages."
+  },
+  {
+    "rule": "amp-broken",
+    "title": "Broken AMP URL",
+    "category": "indexability",
+    "severity": "warning",
+    "why": "The page declares a rel=amphtml alternate that returns an error, so the AMP version can't be served and the annotation misleads crawlers.",
+    "howToFix": "Fix the AMP page or remove the amphtml link if AMP has been retired.",
+    "impact": "No AMP serving and wasted crawler fetches on a dead alternate."
+  },
+  {
+    "rule": "amp-redirect",
+    "title": "Redirecting AMP URL",
+    "category": "indexability",
+    "severity": "notice",
+    "why": "The declared AMP alternate redirects. AMP annotations should point directly at the final AMP document.",
+    "howToFix": "Update the amphtml href to the final URL.",
+    "impact": "Extra hops on every AMP discovery fetch."
+  },
+  {
     "rule": "url-repetitive-path",
     "title": "Repetitive Path Segments",
     "category": "url",
@@ -430,6 +457,51 @@
     "why": "A page-level nofollow stops link equity flowing from this page's links, which can strand the pages it links to.",
     "howToFix": "Remove the blanket nofollow unless you deliberately want to seal off link flow from this page.",
     "impact": "Reduced crawl discovery and equity distribution."
+  },
+  {
+    "rule": "robots-none",
+    "title": "Robots Directive: none",
+    "category": "indexability",
+    "severity": "warning",
+    "why": "The robots \"none\" directive is shorthand for noindex, nofollow — the page is fully sealed off from search. It's obscure enough that it's often set by accident.",
+    "howToFix": "Confirm the page really should be invisible to search. If not, remove the directive.",
+    "impact": "The page can't be indexed and passes no link signals."
+  },
+  {
+    "rule": "robots-nosnippet",
+    "title": "Robots Directive: nosnippet",
+    "category": "indexability",
+    "severity": "notice",
+    "why": "nosnippet stops search engines showing any text snippet (or AI Overview citation) for this page — the listing is just a bare title and URL.",
+    "howToFix": "Remove nosnippet unless you have a specific legal/licensing reason to suppress snippets.",
+    "impact": "Dramatically lower click-through from featureless search listings."
+  },
+  {
+    "rule": "robots-noarchive",
+    "title": "Robots Directive: noarchive",
+    "category": "indexability",
+    "severity": "notice",
+    "why": "noarchive prevents cached copies of the page. Harmless for most sites, but worth confirming it's intentional since some SEO plugins set it silently.",
+    "howToFix": "Remove the directive unless you deliberately want to block cached copies.",
+    "impact": "No cached version available to users or crawl-diagnostics tools."
+  },
+  {
+    "rule": "robots-noimageindex",
+    "title": "Robots Directive: noimageindex",
+    "category": "indexability",
+    "severity": "notice",
+    "why": "noimageindex keeps this page's images out of image search — a whole discovery channel switched off.",
+    "howToFix": "Remove the directive unless the images must stay out of image search.",
+    "impact": "Zero image-search traffic from this page."
+  },
+  {
+    "rule": "robots-unavailable-after",
+    "title": "Robots Directive: unavailable_after",
+    "category": "indexability",
+    "severity": "warning",
+    "why": "An unavailable_after directive tells Google to drop this page from the index after a set date. Stale dates from old campaigns silently de-index evergreen pages.",
+    "howToFix": "Check the date. If the page should stay indexed, remove the directive.",
+    "impact": "The page disappears from search on the specified date."
   },
   {
     "rule": "x-robots-noindex",

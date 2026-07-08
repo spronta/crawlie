@@ -515,6 +515,22 @@ pub fn audit_one(
                     None,
                 ));
             }
+            // Internal search-result URLs — infinite spaces that shouldn't be
+            // crawled or indexed.
+            if parsed.query_pairs().any(|(k, v)| {
+                let k = k.to_ascii_lowercase();
+                (k == "s" || k == "q" || k == "query" || k == "search" || k == "keyword")
+                    && !v.is_empty()
+            }) {
+                out.push(issue(
+                    "url-internal-search",
+                    "Internal Search URL Crawled",
+                    Category::Url,
+                    Notice,
+                    u,
+                    None,
+                ));
+            }
             // A path segment repeating 3+ times is usually a relative-link
             // crawl trap (/page/page/page/…).
             {
@@ -817,6 +833,33 @@ pub fn audit_one(
                 Some(format!("{} link(s)", m.generic_anchors)),
             ));
         }
+        // AMP alternate that resolves to an error.
+        if let Some(amp) = &m.amp_url {
+            if let Some(&s) = status_map.get(&norm(amp)) {
+                if s == 0 || s >= 400 {
+                    out.push(issue(
+                        "amp-broken",
+                        "Broken AMP URL",
+                        Indexability,
+                        Warning,
+                        u,
+                        Some(format!(
+                            "{} → {amp}",
+                            if s == 0 { "ERR".into() } else { s.to_string() }
+                        )),
+                    ));
+                } else if (300..400).contains(&s) {
+                    out.push(issue(
+                        "amp-redirect",
+                        "Redirecting AMP URL",
+                        Indexability,
+                        Notice,
+                        u,
+                        Some(format!("{s} → {amp}")),
+                    ));
+                }
+            }
+        }
         // Pagination targets that resolve to an error.
         for (rel, target) in [("prev", &m.rel_prev), ("next", &m.rel_next)] {
             if let Some(t) = target {
@@ -993,6 +1036,61 @@ pub fn audit_one(
             .unwrap_or(false)
         {
             out.push(issue("nofollow", "Nofollow", Indexability, Notice, u, None));
+        }
+        // Less-common robots directives worth surfacing (the string is already
+        // lowercased at parse time).
+        if let Some(robots) = p.meta_robots.as_deref() {
+            let has = |token: &str| robots.split(',').any(|t| t.trim() == token);
+            if has("none") {
+                out.push(issue(
+                    "robots-none",
+                    "Robots Directive: none",
+                    Indexability,
+                    Warning,
+                    u,
+                    Some("\"none\" = noindex, nofollow".into()),
+                ));
+            }
+            if has("nosnippet") {
+                out.push(issue(
+                    "robots-nosnippet",
+                    "Robots Directive: nosnippet",
+                    Indexability,
+                    Notice,
+                    u,
+                    None,
+                ));
+            }
+            if has("noarchive") {
+                out.push(issue(
+                    "robots-noarchive",
+                    "Robots Directive: noarchive",
+                    Indexability,
+                    Notice,
+                    u,
+                    None,
+                ));
+            }
+            if has("noimageindex") {
+                out.push(issue(
+                    "robots-noimageindex",
+                    "Robots Directive: noimageindex",
+                    Indexability,
+                    Notice,
+                    u,
+                    None,
+                ));
+            }
+            if robots.contains("unavailable_after") {
+                out.push(issue(
+                    "robots-unavailable-after",
+                    "Robots Directive: unavailable_after",
+                    Indexability,
+                    Warning,
+                    u,
+                    Some(robots.to_string()),
+                ));
+            }
         }
         if !meta_noindex
             && p.x_robots_tag

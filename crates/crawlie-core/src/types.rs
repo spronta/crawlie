@@ -428,6 +428,10 @@ pub struct MarkupSignals {
     /// Resolved `rel="next"` pagination target, when declared.
     #[serde(default)]
     pub rel_next: Option<String>,
+    /// Resolved `rel="amphtml"` alternate, when the page declares an AMP
+    /// version.
+    #[serde(default)]
+    pub amp_url: Option<String>,
 }
 
 /// How the rendered DOM differs from the raw server HTML for the head signals
