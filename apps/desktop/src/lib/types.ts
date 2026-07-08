@@ -171,6 +171,8 @@ export interface MarkupSignals {
   protocolRelative: number;
   soft404Phrase: boolean;
   loremIpsum: boolean;
+  relPrev?: string | null;
+  relNext?: string | null;
 }
 
 export interface Issue {

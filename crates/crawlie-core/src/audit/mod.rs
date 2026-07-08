@@ -75,6 +75,11 @@ pub struct CrossPage {
     /// url → (canonical url, similarity %) for pages whose text near-
     /// duplicates an earlier page (simhash distance within threshold).
     pub near_dup: HashMap<String, (String, u8)>,
+    /// hreflang alternates declared by each crawled 200 page (normalized page
+    /// URL → normalized alternate hrefs). An empty set means the page was
+    /// crawled and declares none — a missing entry means it wasn't crawled,
+    /// so reciprocity can't be judged.
+    pub hreflang_out: HashMap<String, HashSet<String>>,
 }
 
 /// Build the duplicate title/description/H1 and duplicate-URL-variant sets
@@ -123,6 +128,12 @@ pub fn cross_page(pages: &[Page]) -> CrossPage {
         })
         .collect();
     let near_dup = crate::dedup::near_duplicates(&candidates);
+    let mut hreflang_out: HashMap<String, HashSet<String>> = HashMap::new();
+    for p in pages.iter().filter(|p| p.status == 200) {
+        let hrefs: HashSet<String> = p.hreflang.iter().map(|h| norm(&h.href)).collect();
+        hreflang_out.insert(norm(&p.url), hrefs.clone());
+        hreflang_out.insert(norm(&p.final_url), hrefs);
+    }
     CrossPage {
         dup_title: dups(titles),
         dup_desc: dups(descs),
@@ -139,6 +150,7 @@ pub fn cross_page(pages: &[Page]) -> CrossPage {
             .collect(),
         in_sitemap: None,
         near_dup,
+        hreflang_out,
     }
 }
 
@@ -805,6 +817,26 @@ pub fn audit_one(
                 Some(format!("{} link(s)", m.generic_anchors)),
             ));
         }
+        // Pagination targets that resolve to an error.
+        for (rel, target) in [("prev", &m.rel_prev), ("next", &m.rel_next)] {
+            if let Some(t) = target {
+                if let Some(&s) = status_map.get(&norm(t)) {
+                    if s == 0 || s == 404 || s == 410 || s >= 500 {
+                        out.push(issue(
+                            "pagination-broken",
+                            "Broken Pagination URL",
+                            Links,
+                            Warning,
+                            u,
+                            Some(format!(
+                                "rel={rel}: {} → {t}",
+                                if s == 0 { "ERR".into() } else { s.to_string() }
+                            )),
+                        ));
+                    }
+                }
+            }
+        }
 
         // --- Titles & meta ---
         match p.title.as_deref() {
@@ -1416,6 +1448,27 @@ pub fn audit_one(
                     u,
                     None,
                 ));
+            }
+            // Reciprocity: every crawled alternate must link back, or the
+            // whole cluster is ignored by search engines.
+            let self_keys = [norm(u), norm(&p.final_url)];
+            for h in &p.hreflang {
+                let target = norm(&h.href);
+                if self_keys.contains(&target) {
+                    continue;
+                }
+                if let Some(back) = cp.hreflang_out.get(&target) {
+                    if !self_keys.iter().any(|k| back.contains(k)) {
+                        out.push(issue(
+                            "hreflang-no-return",
+                            "hreflang Missing Return Link",
+                            International,
+                            Warning,
+                            u,
+                            Some(format!("{} does not link back", h.href)),
+                        ));
+                    }
+                }
             }
             let has_self = p
                 .lang

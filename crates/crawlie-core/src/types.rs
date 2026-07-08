@@ -422,6 +422,12 @@ pub struct MarkupSignals {
     pub soft404_phrase: bool,
     /// Body contains lorem-ipsum placeholder text.
     pub lorem_ipsum: bool,
+    /// Resolved `rel="prev"` pagination target, when declared.
+    #[serde(default)]
+    pub rel_prev: Option<String>,
+    /// Resolved `rel="next"` pagination target, when declared.
+    #[serde(default)]
+    pub rel_next: Option<String>,
 }
 
 /// How the rendered DOM differs from the raw server HTML for the head signals

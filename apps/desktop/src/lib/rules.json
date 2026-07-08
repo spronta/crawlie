@@ -927,6 +927,24 @@
     "impact": "Broken language targeting for the whole alternate cluster."
   },
   {
+    "rule": "hreflang-no-return",
+    "title": "hreflang Missing Return Link",
+    "category": "international",
+    "severity": "warning",
+    "why": "This page lists an alternate that doesn't list this page back. hreflang only works when both sides confirm the relationship — without the return link, engines ignore the annotation entirely.",
+    "howToFix": "Add the reciprocal hreflang annotation on the alternate page so every variant lists every other (including itself).",
+    "impact": "The whole language cluster's targeting is discarded by search engines."
+  },
+  {
+    "rule": "pagination-broken",
+    "title": "Broken Pagination URL",
+    "category": "links",
+    "severity": "warning",
+    "why": "A rel=prev/next pagination link points at a URL that returns an error, breaking the paginated series for crawlers walking it.",
+    "howToFix": "Fix or remove the pagination link so the series resolves end to end.",
+    "impact": "Crawlers abandon the series and deeper paginated content goes undiscovered."
+  },
+  {
     "rule": "hreflang-no-x-default",
     "title": "hreflang Missing x-default",
     "category": "international",

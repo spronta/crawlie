@@ -403,6 +403,16 @@ pub fn parse_html(body: &str, final_url: &Url, host: &str, extractors: &[Extract
         if rels.iter().any(|r| r.contains("icon")) {
             markup.has_favicon = true;
         }
+        if rels.iter().any(|r| r == "prev") {
+            if let Some(p) = el.value().attr("href").and_then(|h| resolve(final_url, h)) {
+                markup.rel_prev = Some(p.to_string());
+            }
+        }
+        if rels.iter().any(|r| r == "next") {
+            if let Some(n) = el.value().attr("href").and_then(|h| resolve(final_url, h)) {
+                markup.rel_next = Some(n.to_string());
+            }
+        }
         if rels.iter().any(|r| r == "canonical") {
             if let Some(c) = el.value().attr("href").and_then(|h| resolve(final_url, h)) {
                 markup.canonical_count += 1;

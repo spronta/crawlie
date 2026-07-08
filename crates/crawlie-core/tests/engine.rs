@@ -383,6 +383,7 @@ fn audit_flags_markup_and_header_issues() {
         protocol_relative: 1,
         soft404_phrase: true,
         lorem_ipsum: true,
+        ..Default::default()
     };
     p.sec_headers = SecurityHeaders::default();
 
@@ -448,6 +449,60 @@ fn audit_flags_near_duplicate_pages() {
         .as_deref()
         .unwrap_or("")
         .contains("similar to https://example.com/a"));
+}
+
+#[test]
+fn audit_flags_missing_hreflang_return_links() {
+    let seed = Url::parse("https://example.com/").unwrap();
+    // /en lists /de as an alternate; /de was crawled but lists nothing back.
+    let mut en = ok_page("https://example.com/en");
+    en.hreflang = vec![
+        Hreflang {
+            lang: "en".into(),
+            href: "https://example.com/en".into(),
+        },
+        Hreflang {
+            lang: "de".into(),
+            href: "https://example.com/de".into(),
+        },
+        Hreflang {
+            lang: "x-default".into(),
+            href: "https://example.com/en".into(),
+        },
+    ];
+    let mut de = ok_page("https://example.com/de");
+    de.title = Some("A second, also perfectly reasonable title".into());
+    de.h1 = vec!["Second Heading".into()];
+    de.meta_description =
+        Some("Another meta description comfortably within the recommended length range.".into());
+
+    let issues = crawlie_core::audit::audit(&[en, de], &HashMap::new(), &[], &seed);
+    let missing: Vec<_> = issues
+        .iter()
+        .filter(|i| i.rule == "hreflang-no-return")
+        .collect();
+    assert_eq!(
+        missing.len(),
+        1,
+        "exactly one missing return link: {issues:?}"
+    );
+    assert_eq!(missing[0].url, "https://example.com/en");
+}
+
+#[test]
+fn audit_flags_broken_pagination() {
+    let seed = Url::parse("https://example.com/").unwrap();
+    let mut p = ok_page("https://example.com/list?page=2");
+    p.markup.rel_next = Some("https://example.com/list?page=3".into());
+    let mut status_map = HashMap::new();
+    status_map.insert("https://example.com/list?page=3".to_string(), 404u16);
+
+    let issues = crawlie_core::audit::audit(&[p], &status_map, &[], &seed);
+    let r = rules(&issues);
+    assert!(
+        r.contains(&"pagination-broken"),
+        "expected pagination-broken in {r:?}"
+    );
 }
 
 #[test]

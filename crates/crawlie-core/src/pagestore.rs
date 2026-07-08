@@ -324,7 +324,43 @@ impl PageStore {
             // Sitemap membership comes from the crawler, not the store.
             in_sitemap: None,
             near_dup: self.near_duplicates()?,
+            hreflang_out: self.hreflang_out()?,
         })
+    }
+
+    /// hreflang alternates per crawled 200 page, keyed by normalized url and
+    /// final_url — the reciprocity context for `hreflang-no-return`.
+    fn hreflang_out(&self) -> io::Result<HashMap<String, HashSet<String>>> {
+        let mut stmt = self
+            .conn
+            .prepare(
+                "SELECT url, final_url, json_extract(blob, '$.hreflang') \
+                 FROM page WHERE status = 200",
+            )
+            .map_err(ioerr)?;
+        let rows = stmt
+            .query_map([], |r| {
+                Ok((
+                    r.get::<_, String>(0)?,
+                    r.get::<_, String>(1)?,
+                    r.get::<_, Option<String>>(2)?,
+                ))
+            })
+            .map_err(ioerr)?;
+        let mut out: HashMap<String, HashSet<String>> = HashMap::new();
+        for row in rows {
+            let (url, final_url, hl) = row.map_err(ioerr)?;
+            let hrefs: HashSet<String> = hl
+                .as_deref()
+                .and_then(|j| serde_json::from_str::<Vec<crate::types::Hreflang>>(j).ok())
+                .unwrap_or_default()
+                .iter()
+                .map(|h| norm(&h.href))
+                .collect();
+            out.insert(norm(&url), hrefs.clone());
+            out.insert(norm(&final_url), hrefs);
+        }
+        Ok(out)
     }
 
     /// Near-duplicate grouping over fingerprinted 200 pages, streamed as

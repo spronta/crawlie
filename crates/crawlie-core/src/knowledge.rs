@@ -464,6 +464,14 @@ entries! {
         "An hreflang alternate on this page points to a URL that returns an error, so engines can't establish the language cluster and may distrust the remaining annotations.",
         "Fix or remove the broken alternate URL and keep hreflang sets in sync with your live URLs.",
         "Broken language targeting for the whole alternate cluster.";
+    "hreflang-no-return" => "hreflang Missing Return Link", International, Warning,
+        "This page lists an alternate that doesn't list this page back. hreflang only works when both sides confirm the relationship — without the return link, engines ignore the annotation entirely.",
+        "Add the reciprocal hreflang annotation on the alternate page so every variant lists every other (including itself).",
+        "The whole language cluster's targeting is discarded by search engines.";
+    "pagination-broken" => "Broken Pagination URL", Links, Warning,
+        "A rel=prev/next pagination link points at a URL that returns an error, breaking the paginated series for crawlers walking it.",
+        "Fix or remove the pagination link so the series resolves end to end.",
+        "Crawlers abandon the series and deeper paginated content goes undiscovered.";
     "hreflang-no-x-default" => "hreflang Missing x-default", International, Notice,
         "Without an x-default annotation, search engines have no instruction for users whose language matches none of your alternates.",
         "Add an x-default hreflang pointing at your default/global version (often the language-selector or English page).",
