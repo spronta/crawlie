@@ -245,6 +245,9 @@ pub struct Page {
     /// rendered and something differed.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub render_diff: Option<RenderDiff>,
+    /// Lab Core Web Vitals from the headless browser (render mode only).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub web_vitals: Option<WebVitals>,
 
     // --- indexability (derived) ---
     pub indexable: bool,
@@ -436,6 +439,20 @@ pub struct MarkupSignals {
     /// version.
     #[serde(default)]
     pub amp_url: Option<String>,
+}
+
+/// Lab Core Web Vitals captured from the headless browser during a rendered
+/// crawl. Lab numbers (no real-user field data), but directly comparable to
+/// Lighthouse's.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct WebVitals {
+    /// Largest Contentful Paint in milliseconds.
+    pub lcp_ms: u32,
+    /// Cumulative Layout Shift (unitless).
+    pub cls: f32,
+    /// First Contentful Paint in milliseconds.
+    pub fcp_ms: u32,
 }
 
 /// How the rendered DOM differs from the raw server HTML for the head signals

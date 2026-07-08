@@ -945,6 +945,51 @@
     "impact": "Slower page loads and higher bandwidth use."
   },
   {
+    "rule": "lcp-poor",
+    "title": "Poor LCP",
+    "category": "performance",
+    "severity": "warning",
+    "why": "Largest Contentful Paint above 4 seconds (lab measurement) — the main content takes far too long to appear. LCP is a Core Web Vital and a confirmed ranking input.",
+    "howToFix": "Optimise the LCP element: compress/preload the hero image, cut render-blocking CSS/JS, improve server response time, use a CDN.",
+    "impact": "A Core Web Vitals failure that hurts rankings and drives users away."
+  },
+  {
+    "rule": "lcp-needs-improvement",
+    "title": "LCP Needs Improvement",
+    "category": "performance",
+    "severity": "notice",
+    "why": "Largest Contentful Paint between 2.5 s and 4 s (lab) — short of Google's 'good' threshold.",
+    "howToFix": "Preload the LCP resource, trim render-blocking assets, and reduce TTFB to get under 2.5 s.",
+    "impact": "Missing the 'good' Core Web Vitals bucket costs ranking benefit."
+  },
+  {
+    "rule": "cls-poor",
+    "title": "Poor CLS",
+    "category": "performance",
+    "severity": "warning",
+    "why": "Cumulative Layout Shift above 0.25 (lab) — the page visibly jumps as it loads. A Core Web Vital failure and a major annoyance for users.",
+    "howToFix": "Reserve space for images/ads/embeds (width/height or aspect-ratio), avoid inserting content above existing content, and preload fonts.",
+    "impact": "Rage-inducing layout jumps and a failing Core Web Vital."
+  },
+  {
+    "rule": "cls-needs-improvement",
+    "title": "CLS Needs Improvement",
+    "category": "performance",
+    "severity": "notice",
+    "why": "Cumulative Layout Shift between 0.1 and 0.25 (lab) — noticeable movement during load.",
+    "howToFix": "Add explicit dimensions to media and embeds, and stabilise late-loading UI.",
+    "impact": "Short of the 'good' Core Web Vitals bucket."
+  },
+  {
+    "rule": "fcp-slow",
+    "title": "Slow First Contentful Paint",
+    "category": "performance",
+    "severity": "notice",
+    "why": "First Contentful Paint above 3 seconds (lab) — users stare at a blank screen too long before anything renders.",
+    "howToFix": "Reduce render-blocking resources, inline critical CSS, and improve server response time.",
+    "impact": "High perceived latency and elevated bounce rates."
+  },
+  {
     "rule": "viewport-missing",
     "title": "Missing Viewport",
     "category": "mobile",

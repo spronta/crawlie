@@ -21,6 +21,41 @@ pub use real::Renderer;
 #[cfg(not(feature = "render"))]
 pub use stub::Renderer;
 
+/// What one page render produced: the post-JavaScript DOM plus lab Web Vitals
+/// when the browser could report them.
+pub struct Rendered {
+    pub html: String,
+    pub vitals: Option<crate::types::WebVitals>,
+}
+
+/// JS evaluated in the page to read buffered performance entries — the same
+/// buffered-PerformanceObserver technique the web-vitals library uses.
+#[cfg(feature = "render")]
+const VITALS_JS: &str = r#"
+(() => {
+  const grab = (type) => {
+    try {
+      const po = new PerformanceObserver(() => {});
+      po.observe({ type, buffered: true });
+      const rec = po.takeRecords();
+      po.disconnect();
+      return rec;
+    } catch (e) { return []; }
+  };
+  let lcp = 0;
+  const lcpRec = grab('largest-contentful-paint');
+  if (lcpRec.length) lcp = lcpRec[lcpRec.length - 1].startTime;
+  let cls = 0;
+  for (const e of grab('layout-shift')) if (!e.hadRecentInput) cls += e.value;
+  let fcp = 0;
+  try {
+    const p = performance.getEntriesByName('first-contentful-paint');
+    if (p.length) fcp = p[0].startTime;
+  } catch (e) {}
+  return { lcp, cls, fcp };
+})()
+"#;
+
 /// Common macOS/Linux/Windows locations for a Chromium-family binary, tried in
 /// order when the caller doesn't pin one. Returned to both impls so the error
 /// path can hint at what was searched.
@@ -108,10 +143,14 @@ mod real {
             })
         }
 
-        /// Render `url` and return its post-JavaScript serialized DOM. `wait_ms`
-        /// is an extra settle delay after navigation for late hydration. Always
-        /// closes the tab, even on error.
-        pub async fn render_html(&self, url: &Url, wait_ms: u64) -> Result<String, String> {
+        /// Render `url` and return its post-JavaScript serialized DOM plus lab
+        /// Web Vitals. `wait_ms` is an extra settle delay after navigation for
+        /// late hydration. Always closes the tab, even on error.
+        pub async fn render_html(
+            &self,
+            url: &Url,
+            wait_ms: u64,
+        ) -> Result<super::Rendered, String> {
             let fut = self.render_inner(url, wait_ms);
             match tokio::time::timeout(self.nav_timeout, fut).await {
                 Ok(res) => res,
@@ -119,7 +158,7 @@ mod real {
             }
         }
 
-        async fn render_inner(&self, url: &Url, wait_ms: u64) -> Result<String, String> {
+        async fn render_inner(&self, url: &Url, wait_ms: u64) -> Result<super::Rendered, String> {
             let page = self
                 .browser
                 .new_page(url.as_str())
@@ -136,8 +175,26 @@ mod real {
                 // (e.g. a slow sub-resource). Try to read it anyway.
                 Err(_) => page.content().await,
             };
+            // Read buffered performance entries; failure is non-fatal.
+            #[derive(serde::Deserialize)]
+            struct Raw {
+                lcp: f64,
+                cls: f64,
+                fcp: f64,
+            }
+            let vitals = match page.evaluate(super::VITALS_JS).await {
+                Ok(v) => v.into_value::<Raw>().ok().and_then(|r| {
+                    (r.lcp > 0.0 || r.fcp > 0.0 || r.cls > 0.0).then_some(crate::types::WebVitals {
+                        lcp_ms: r.lcp.round().max(0.0) as u32,
+                        cls: r.cls as f32,
+                        fcp_ms: r.fcp.round().max(0.0) as u32,
+                    })
+                }),
+                Err(_) => None,
+            };
             let _ = page.close().await;
-            html.map_err(|e| format!("could not read rendered DOM: {e}"))
+            html.map(|html| super::Rendered { html, vitals })
+                .map_err(|e| format!("could not read rendered DOM: {e}"))
         }
     }
 
@@ -169,7 +226,11 @@ mod stub {
             )
         }
 
-        pub async fn render_html(&self, _url: &Url, _wait_ms: u64) -> Result<String, String> {
+        pub async fn render_html(
+            &self,
+            _url: &Url,
+            _wait_ms: u64,
+        ) -> Result<super::Rendered, String> {
             Err("rendering unavailable".to_string())
         }
     }

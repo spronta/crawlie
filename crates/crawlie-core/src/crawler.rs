@@ -47,6 +47,7 @@ struct Fetched {
     rendered: bool,
     pre_render_word_count: usize,
     render_diff: Option<RenderDiff>,
+    web_vitals: Option<WebVitals>,
 }
 
 /// Compare the raw-HTML parse with the rendered-DOM parse, flagging head
@@ -109,6 +110,7 @@ async fn fetch_one(
     let mut rendered = false;
     let mut pre_render_word_count = 0usize;
     let mut raw_parsed: Option<Parsed> = None;
+    let mut web_vitals: Option<WebVitals> = None;
     let mut html = o.body.clone();
 
     if o.is_html && o.status == 200 {
@@ -120,8 +122,9 @@ async fn fetch_one(
                 pre_render_word_count = rp.word_count;
                 raw_parsed = Some(rp);
             }
-            if let Ok(dom) = r.render_html(&o.final_url, render_wait_ms).await {
-                html = Some(dom);
+            if let Ok(res) = r.render_html(&o.final_url, render_wait_ms).await {
+                html = Some(res.html);
+                web_vitals = res.vitals;
                 rendered = true;
             }
         }
@@ -148,6 +151,7 @@ async fn fetch_one(
         rendered,
         pre_render_word_count,
         render_diff,
+        web_vitals,
     })
 }
 
@@ -597,6 +601,7 @@ where
                     rendered,
                     pre_render_word_count,
                     render_diff,
+                    web_vitals,
                 }) => {
                     let page = build_page(
                         &u,
@@ -606,6 +611,7 @@ where
                         rendered,
                         pre_render_word_count,
                         render_diff,
+                        web_vitals,
                     );
                     visited.insert(normalize_str(&page.final_url));
                     if follow && depth < config.max_depth {
@@ -946,6 +952,7 @@ where
                     rendered,
                     pre_render_word_count,
                     render_diff,
+                    web_vitals,
                 }) => {
                     let page = build_page(
                         &u,
@@ -955,6 +962,7 @@ where
                         rendered,
                         pre_render_word_count,
                         render_diff,
+                        web_vitals,
                     );
                     visited.insert(normalize_str(&page.final_url));
                     if follow && depth < config.max_depth {
@@ -1356,6 +1364,7 @@ fn build_page(
     rendered: bool,
     pre_render_word_count: usize,
     render_diff: Option<RenderDiff>,
+    web_vitals: Option<WebVitals>,
 ) -> Page {
     let final_url_str = o.final_url.to_string();
     let canonical = parsed.as_ref().and_then(|p| p.canonical.clone());
@@ -1430,6 +1439,7 @@ fn build_page(
         rendered,
         pre_render_word_count,
         render_diff,
+        web_vitals,
         indexable,
         indexability,
         canonicalized,
@@ -1520,6 +1530,7 @@ fn error_page(url: &Url, depth: usize, error: String) -> Page {
         rendered: false,
         pre_render_word_count: 0,
         render_diff: None,
+        web_vitals: None,
         indexable: false,
         indexability: Some("Connection Error".into()),
         canonicalized: false,

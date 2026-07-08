@@ -1386,6 +1386,58 @@ pub fn audit_one(
             ));
         }
 
+        // --- Performance: lab Core Web Vitals (render mode) ---
+        if let Some(v) = &p.web_vitals {
+            if v.lcp_ms > 4000 {
+                out.push(issue(
+                    "lcp-poor",
+                    "Poor LCP",
+                    Performance,
+                    Warning,
+                    u,
+                    Some(format!("{} ms (needs ≤ 2500 ms)", v.lcp_ms)),
+                ));
+            } else if v.lcp_ms > 2500 {
+                out.push(issue(
+                    "lcp-needs-improvement",
+                    "LCP Needs Improvement",
+                    Performance,
+                    Notice,
+                    u,
+                    Some(format!("{} ms (good is ≤ 2500 ms)", v.lcp_ms)),
+                ));
+            }
+            if v.cls > 0.25 {
+                out.push(issue(
+                    "cls-poor",
+                    "Poor CLS",
+                    Performance,
+                    Warning,
+                    u,
+                    Some(format!("{:.2} (needs ≤ 0.1)", v.cls)),
+                ));
+            } else if v.cls > 0.1 {
+                out.push(issue(
+                    "cls-needs-improvement",
+                    "CLS Needs Improvement",
+                    Performance,
+                    Notice,
+                    u,
+                    Some(format!("{:.2} (good is ≤ 0.1)", v.cls)),
+                ));
+            }
+            if v.fcp_ms > 3000 {
+                out.push(issue(
+                    "fcp-slow",
+                    "Slow First Contentful Paint",
+                    Performance,
+                    Notice,
+                    u,
+                    Some(format!("{} ms (good is ≤ 1800 ms)", v.fcp_ms)),
+                ));
+            }
+        }
+
         // --- Performance ---
         if is_html && p.content_encoding.is_none() && p.size_bytes > 4096 {
             out.push(issue(

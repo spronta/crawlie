@@ -147,6 +147,7 @@ fn ok_page(url: &str) -> Page {
         rendered: false,
         pre_render_word_count: 500,
         render_diff: None,
+        web_vitals: None,
         indexable: true,
         indexability: None,
         canonicalized: false,
@@ -511,6 +512,41 @@ fn audit_flags_directives_amp_and_internal_search() {
         assert!(r.contains(&expected), "expected {expected} in {r:?}");
     }
     assert!(!r.contains(&"robots-none"), "none not present: {r:?}");
+}
+
+#[test]
+fn audit_flags_core_web_vitals() {
+    let seed = Url::parse("https://example.com/").unwrap();
+    let mut p = ok_page("https://example.com/slow");
+    p.web_vitals = Some(WebVitals {
+        lcp_ms: 5200,
+        cls: 0.31,
+        fcp_ms: 3400,
+    });
+    let mut ok = ok_page("https://example.com/fast");
+    ok.title = Some("A second, also perfectly reasonable title".into());
+    ok.h1 = vec!["Second Heading".into()];
+    ok.meta_description =
+        Some("Another meta description comfortably within the recommended length range.".into());
+    ok.web_vitals = Some(WebVitals {
+        lcp_ms: 1200,
+        cls: 0.02,
+        fcp_ms: 800,
+    });
+
+    let issues = crawlie_core::audit::audit(&[p, ok], &HashMap::new(), &[], &seed);
+    let r = rules(&issues);
+    for expected in ["lcp-poor", "cls-poor", "fcp-slow"] {
+        assert!(r.contains(&expected), "expected {expected} in {r:?}");
+    }
+    let fast_issues: Vec<_> = issues
+        .iter()
+        .filter(|i| i.url.contains("/fast") && i.category == Category::Performance)
+        .collect();
+    assert!(
+        fast_issues.is_empty(),
+        "fast page is clean: {fast_issues:?}"
+    );
 }
 
 #[test]

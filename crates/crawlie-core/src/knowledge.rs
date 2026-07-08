@@ -470,6 +470,27 @@ entries! {
         "Enable gzip or brotli compression for text responses at your server or CDN.",
         "Slower page loads and higher bandwidth use.";
 
+    "lcp-poor" => "Poor LCP", Performance, Warning,
+        "Largest Contentful Paint above 4 seconds (lab measurement) — the main content takes far too long to appear. LCP is a Core Web Vital and a confirmed ranking input.",
+        "Optimise the LCP element: compress/preload the hero image, cut render-blocking CSS/JS, improve server response time, use a CDN.",
+        "A Core Web Vitals failure that hurts rankings and drives users away.";
+    "lcp-needs-improvement" => "LCP Needs Improvement", Performance, Notice,
+        "Largest Contentful Paint between 2.5 s and 4 s (lab) — short of Google's 'good' threshold.",
+        "Preload the LCP resource, trim render-blocking assets, and reduce TTFB to get under 2.5 s.",
+        "Missing the 'good' Core Web Vitals bucket costs ranking benefit.";
+    "cls-poor" => "Poor CLS", Performance, Warning,
+        "Cumulative Layout Shift above 0.25 (lab) — the page visibly jumps as it loads. A Core Web Vital failure and a major annoyance for users.",
+        "Reserve space for images/ads/embeds (width/height or aspect-ratio), avoid inserting content above existing content, and preload fonts.",
+        "Rage-inducing layout jumps and a failing Core Web Vital.";
+    "cls-needs-improvement" => "CLS Needs Improvement", Performance, Notice,
+        "Cumulative Layout Shift between 0.1 and 0.25 (lab) — noticeable movement during load.",
+        "Add explicit dimensions to media and embeds, and stabilise late-loading UI.",
+        "Short of the 'good' Core Web Vitals bucket.";
+    "fcp-slow" => "Slow First Contentful Paint", Performance, Notice,
+        "First Contentful Paint above 3 seconds (lab) — users stare at a blank screen too long before anything renders.",
+        "Reduce render-blocking resources, inline critical CSS, and improve server response time.",
+        "High perceived latency and elevated bounce rates.";
+
     // ---- Mobile ----
     "viewport-missing" => "Missing Viewport", Mobile, Warning,
         "The viewport meta tag is required for responsive layouts. Without it, mobile browsers render a zoomed-out desktop page that's unusable on phones.",

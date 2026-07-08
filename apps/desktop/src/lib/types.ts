@@ -121,6 +121,8 @@ export interface Page {
   mixedContent: number;
   /** Response-vs-render differences (render mode; absent when none). */
   renderDiff?: RenderDiff | null;
+  /** Lab Core Web Vitals from the headless browser (render mode only). */
+  webVitals?: WebVitals | null;
   /** Recommended HTTP security headers present (older reports omit this). */
   secHeaders?: SecurityHeaders;
   /** Head/markup hygiene signals (older reports omit this). */
@@ -133,6 +135,13 @@ export interface Page {
   /** Flesch Reading Ease, when the page had enough English text to score. */
   readability?: number | null;
   error: string | null;
+}
+
+/** Lab Core Web Vitals captured during a rendered crawl. */
+export interface WebVitals {
+  lcpMs: number;
+  cls: number;
+  fcpMs: number;
 }
 
 /** Raw-HTML vs rendered-DOM head-signal differences (render mode only). */
