@@ -8,7 +8,7 @@ import {
   SCHEDULE_LABEL, type Project, type Schedule, type TrendPoint, type Extractor,
 } from "../cloud";
 import type { ReportMeta } from "@ui/lib/types";
-import { relTime, absDateTime } from "../format";
+import { relTime, relFuture, absDateTime } from "../format";
 import { ExtractorEditor } from "../extraction";
 import { toast, confirmDialog } from "../ui-kit";
 import { Card, Tabs, Field, fieldInput } from "../kit";
@@ -106,7 +106,7 @@ export function ProjectView({ id, onBack, onOpenReport }: { id: string; onBack: 
                     <ScoreRing value={project.lastHealth} size={92} />
                     <div style={{ color: "var(--text-secondary)", fontSize: 13.5 }}>
                       <div>Crawled {project.lastCrawlAt ? relTime(project.lastCrawlAt) : "—"}</div>
-                      {project.schedule !== "off" && project.nextRunAt && <div style={{ marginTop: 2 }}>Next crawl {relTime(project.nextRunAt)}</div>}
+                      {project.schedule !== "off" && project.nextRunAt && <div style={{ marginTop: 2 }}>Next crawl {relFuture(project.nextRunAt)}</div>}
                       {project.lastReport && <button className="btn btn-sm" style={{ marginTop: 12 }} onClick={() => onOpenReport(project.lastReport!)}>View report →</button>}
                     </div>
                   </div>

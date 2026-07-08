@@ -39,15 +39,20 @@ export function PacksView() {
 
   if (building) {
     return (
-      <div style={{ maxWidth: 860, margin: "0 auto", padding: "28px 28px 60px", width: "100%" }}>
-        <button className="btn btn-sm" onClick={() => setBuilding(false)} style={{ marginBottom: 18 }}>← Rules</button>
-        <h1 style={{ fontSize: 24, margin: "0 0 4px" }}>New custom check</h1>
-        <p style={{ color: "var(--text-secondary)", marginTop: 0, marginBottom: 20, maxWidth: "62ch" }}>
-          Encode your site standards. Checks run on every crawl (including scheduled ones) and show up in
-          reports with your severity and how-to-fix guidance, exactly like crawlie's built-in rules.
-        </p>
-        {!customRulesAllowed && <UpsellBanner />}
-        <CheckBuilder onSave={saveCheck} onCancel={() => setBuilding(false)} />
+      <div className="view">
+        <header className="view-bar">
+          <div style={{ minWidth: 0 }}>
+            <h1>New custom check</h1>
+            <p className="sub">Runs on every crawl and shows up in reports with your severity and fix guidance.</p>
+          </div>
+          <button className="btn" onClick={() => setBuilding(false)} style={{ flex: "0 0 auto" }}>← Rules</button>
+        </header>
+        <div className="view-body">
+          <div className="view-body-inner" style={{ maxWidth: 860 }}>
+            {!customRulesAllowed && <UpsellBanner />}
+            <CheckBuilder onSave={saveCheck} onCancel={() => setBuilding(false)} />
+          </div>
+        </div>
       </div>
     );
   }
@@ -55,21 +60,26 @@ export function PacksView() {
   if (editing) return <Editor pack={editing === "new" ? null : editing} onDone={() => { setEditing(null); refresh(); }} />;
 
   return (
-    <div style={{ maxWidth: 820, margin: "0 auto", padding: "40px 28px", width: "100%" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, gap: 10, flexWrap: "wrap" }}>
-        <h1 style={{ fontSize: 26, margin: 0 }}>Rules</h1>
-        <div style={{ display: "flex", gap: 8 }}>
+    <div className="view">
+      <header className="view-bar">
+        <div style={{ minWidth: 0 }}>
+          <h1>Rules</h1>
+          <p className="sub">Your standards as code — checks and content rules that run on every crawl.</p>
+        </div>
+        <div style={{ display: "flex", gap: "var(--sp-2)", flex: "0 0 auto" }}>
           <button className="btn" onClick={() => setEditing("new")}>New rule pack</button>
           <button className="btn btn-primary" onClick={() => setBuilding(true)}>
             <IconSpark size={15} /> New check
             {!customRulesAllowed && <span style={proPill}>PRO</span>}
           </button>
         </div>
-      </div>
-      <p style={{ color: "var(--text-secondary)", marginTop: 0, marginBottom: 24, maxWidth: "62ch" }}>
-        Your standards as code. <b>Custom checks</b> audit every page ("product pages need Product schema",
-        "never link to staging") and appear in reports like built-in rules. <b>Content rules</b> score copy —
-        brand voice, banned words, AI slop. Both run on every crawl, including scheduled ones.
+      </header>
+      <div className="view-body">
+      <div className="view-body-inner" style={{ maxWidth: 820 }}>
+      <p style={{ color: "var(--text-secondary)", marginTop: 0, marginBottom: 24, maxWidth: "62ch", font: "var(--copy-14)" }}>
+        <b>Custom checks</b> audit every page ("product pages need Product schema", "never link to staging")
+        and appear in reports like built-in rules. <b>Content rules</b> score copy — brand voice, banned words,
+        AI slop. Both run on every crawl, including scheduled ones.
       </p>
 
       {packs === null ? (
@@ -105,6 +115,8 @@ export function PacksView() {
           );
         })
       )}
+      </div>
+      </div>
     </div>
   );
 }
@@ -144,8 +156,16 @@ function Editor({ pack, onDone }: { pack: RulePack | null; onDone: () => void })
   }
 
   return (
-    <div style={{ maxWidth: 820, margin: "0 auto", padding: "28px 28px 60px", width: "100%" }}>
-      <button className="btn btn-sm" onClick={onDone} style={{ marginBottom: 18 }}>← Rules</button>
+    <div className="view">
+      <header className="view-bar">
+        <div style={{ minWidth: 0 }}>
+          <h1>{pack ? "Edit rule pack" : "New rule pack"}</h1>
+          <p className="sub">Write content and audit rules directly as <code style={code}>.crawlie</code> source.</p>
+        </div>
+        <button className="btn" onClick={onDone} style={{ flex: "0 0 auto" }}>← Rules</button>
+      </header>
+      <div className="view-body">
+      <div className="view-body-inner" style={{ maxWidth: 820 }}>
       <div style={{ display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
         <input style={{ ...input, flex: "1 1 220px" }} placeholder="Pack name" value={name} onChange={(e) => setName(e.target.value)} />
         {!pack && (
@@ -176,6 +196,8 @@ function Editor({ pack, onDone }: { pack: RulePack | null; onDone: () => void })
         {" "}with predicates <code style={code}>field(...)</code>, <code style={code}>schema("Product")</code>,
         {" "}<code style={code}>links_to("host")</code>, <code style={code}>extraction("name")</code>.
       </p>
+      </div>
+      </div>
     </div>
   );
 }

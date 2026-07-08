@@ -138,6 +138,20 @@
   --focus-gap: #0a0a0a;
 }
 
+/* ---- Semantic aliases ----
+   Convenience names used across the cloud dashboard (and some report views).
+   Defined once here so every surface resolves to the same system value in both
+   themes — never a hardcoded fallback. Custom properties resolve at use time,
+   so a single :root alias tracks whichever theme is active. */
+:root {
+  --panel: var(--surface);      /* raised card / bar surface */
+  --panel-2: var(--bg-2);       /* inset / track surface */
+  --bg-soft: var(--bg-2);       /* input + subtle field background */
+  --link: var(--blue);          /* the one true link/brand blue */
+  --border-soft: var(--border); /* interior dividers */
+  --muted-2: var(--text-tertiary);
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;

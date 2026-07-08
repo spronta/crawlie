@@ -74,7 +74,7 @@ function Dashboard({ user, route }: { user: SessionUser; route: Route }) {
 
   const onProjects = route.name === "projects" || route.name === "project" || route.name === "report";
   const onNew = route.name === "new";
-  const flush = route.name === "project" || route.name === "report";
+  const flush = route.name === "project" || route.name === "report" || route.name === "projects" || route.name === "rules";
 
   return (
     <div className="app">
