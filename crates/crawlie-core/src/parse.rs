@@ -718,7 +718,8 @@ pub fn parse_html(body: &str, final_url: &Url, host: &str, extractors: &[Extract
         }
     }
 
-    // Heading order: flag a downward jump of more than one level (e.g. h2 → h4).
+    // Heading order: flag a downward jump of more than one level (e.g. h2 → h4)
+    // and headings with no text at all.
     let mut last_level = 0u8;
     for el in doc.select(&sel("h1, h2, h3, h4, h5, h6")) {
         let level = el.value().name().as_bytes()[1] - b'0';
@@ -726,7 +727,23 @@ pub fn parse_html(body: &str, final_url: &Url, host: &str, extractors: &[Extract
             a11y.skipped_heading = true;
         }
         last_level = level;
+        if collapse(&el.text().collect::<String>()).is_empty() && !has_named_image(&el) {
+            a11y.empty_headings += 1;
+        }
     }
+
+    // Deprecated presentational elements (axe: blink/marquee must not be used).
+    a11y.deprecated_tags = doc.select(&sel("marquee, blink, font, center")).count();
+
+    // html lang present but not a plausible BCP-47-ish tag.
+    a11y.invalid_lang = lang
+        .as_deref()
+        .map(|l| {
+            let mut parts = l.split('-');
+            let base = parts.next().unwrap_or("");
+            !(base.len() == 2 || base.len() == 3) || !base.chars().all(|c| c.is_ascii_alphabetic())
+        })
+        .unwrap_or(false);
 
     a11y.viewport_blocks_zoom = viewport_content
         .as_deref()

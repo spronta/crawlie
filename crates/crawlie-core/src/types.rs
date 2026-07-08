@@ -387,6 +387,15 @@ pub struct A11ySignals {
     /// The viewport meta blocks pinch-zoom (`user-scalable=no` or
     /// `maximum-scale` below 2), a WCAG 1.4.4 failure.
     pub viewport_blocks_zoom: bool,
+    /// Headings (h1–h6) with no text content.
+    #[serde(default)]
+    pub empty_headings: usize,
+    /// The html lang attribute exists but isn't a valid language tag.
+    #[serde(default)]
+    pub invalid_lang: bool,
+    /// Deprecated presentational elements present (marquee, blink, font, center).
+    #[serde(default)]
+    pub deprecated_tags: usize,
     /// 0–100 accessibility score for this page (100 minus weighted penalties for
     /// the failures above). Filled by `scoring::a11y_score`; 0 for non-HTML pages.
     pub score: u8,

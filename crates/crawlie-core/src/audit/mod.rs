@@ -1762,6 +1762,36 @@ pub fn audit_one(
                 None,
             ));
         }
+        if a.empty_headings > 0 {
+            out.push(issue(
+                "a11y-empty-heading",
+                "Empty Headings",
+                Accessibility,
+                Notice,
+                u,
+                Some(format!("{} heading(s)", a.empty_headings)),
+            ));
+        }
+        if a.invalid_lang {
+            out.push(issue(
+                "a11y-invalid-lang",
+                "Invalid Lang Attribute",
+                Accessibility,
+                Warning,
+                u,
+                p.lang.clone(),
+            ));
+        }
+        if a.deprecated_tags > 0 {
+            out.push(issue(
+                "deprecated-html",
+                "Deprecated HTML Elements",
+                Accessibility,
+                Notice,
+                u,
+                Some(format!("{} element(s)", a.deprecated_tags)),
+            ));
+        }
 
         // Soft SEO/GEO rules only for indexable pages (no point on noindexed).
         if !p.indexable {

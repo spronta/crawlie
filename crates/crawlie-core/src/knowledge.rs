@@ -605,6 +605,19 @@ entries! {
         "Use heading levels in order without skipping (h1 → h2 → h3). Style headings with CSS if you need a different visual size, rather than picking a level for its appearance.",
         "The page outline is broken, making heading navigation confusing (WCAG 1.3.1).";
 
+    "a11y-empty-heading" => "Empty Headings", Accessibility, Notice,
+        "A heading element with no text gives screen-reader users a blank entry in the page outline and adds noise to the document structure engines parse.",
+        "Remove empty heading elements, or fill them with the section's actual heading text.",
+        "A confusing document outline for assistive tech (WCAG 1.3.1).";
+    "a11y-invalid-lang" => "Invalid Lang Attribute", Accessibility, Warning,
+        "The html lang attribute isn't a valid language tag, so screen readers can't pick the right speech engine and engines can't trust the language declaration.",
+        "Use a valid BCP-47 tag: a 2–3 letter language code, optionally with a region (en, en-GB, pt-BR).",
+        "Wrong pronunciation for screen-reader users and weaker language targeting (WCAG 3.1.1).";
+    "deprecated-html" => "Deprecated HTML Elements", Accessibility, Notice,
+        "The page uses deprecated presentational elements (marquee, blink, font, center). marquee/blink are accessibility failures outright; the others signal legacy markup.",
+        "Replace them with semantic HTML and CSS.",
+        "Assistive-tech problems and legacy markup that modern browsers may drop.";
+
     // ---- GEO (Generative Engine Optimization) ----
     "geo-no-structured-data" => "GEO: No Machine-Readable Structure", Geo, Warning,
         "Generative engines (ChatGPT, Perplexity, Google AI Overviews) lean on structured data and clean semantics to understand and cite sources. Pages without it are harder to quote accurately.",
