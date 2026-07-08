@@ -10,6 +10,8 @@ description = "Crawlie Cloud hosted-crawl service — HTTP wrapper around crawli
 # headless Chrome is unreliable inside the Cloudflare Container sandbox; it'll
 # come via Cloudflare Browser Rendering. Desktop/CLI still render locally.
 crawlie-core = { path = "../../crates/crawlie-core" }
+# Deterministic .crawlie rule packs (slop / brand / tone) — marketing monitoring.
+crawlie-rules = { path = "../../crates/crawlie-rules" }
 tokio = { version = "1", features = ["full"] }
 axum = "0.7"
 serde = { version = "1", features = ["derive"] }

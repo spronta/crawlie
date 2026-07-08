@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
 import type { CrawlConfig, CrawlResult } from "@ui/lib/types";
 import { cancelCrawl, openExternal, startCrawl } from "@platform/api";
-import { Logo, IconBook, IconExternal, IconGlobe, IconSearch, IconChevron, IconUser, Spinner } from "@ui/components/ui";
+import { Logo, IconBook, IconExternal, IconGlobe, IconSearch, IconChevron, IconUser, IconSpark, Spinner } from "@ui/components/ui";
 import { StartView } from "@ui/views/StartView";
 import { CrawlingView, type Progress } from "@ui/views/CrawlingView";
 import { ResultsView } from "@ui/views/ResultsView";
 import { ProjectsView } from "./views/ProjectsView";
 import { ProjectView } from "./views/ProjectView";
 import { AccountView } from "./views/AccountView";
+import { PacksView } from "./views/PacksView";
+import { PackViolations } from "./packs-ui";
 import { loadReport, loadPublicReport, shareReport, unshareReport, getShare } from "./cloud";
 import { getSession, signOut, type SessionUser } from "./auth";
 import { SignIn } from "./SignIn";
@@ -71,6 +73,9 @@ function Dashboard({ user, route }: { user: SessionUser; route: Route }) {
           <button className={`nav-item${onNew ? " active" : ""}`} onClick={() => navigate("/new")} title="New crawl">
             <IconSearch size={16} /> <span className="nav-label">New crawl</span>
           </button>
+          <button className={`nav-item${route.name === "rules" ? " active" : ""}`} onClick={() => navigate("/rules")} title="Rules">
+            <IconSpark size={16} /> <span className="nav-label">Rules</span>
+          </button>
         </nav>
         <div className="sidebar-foot">
           <a className="nav-item" href="https://crawlie.dev/docs" onClick={(e) => { e.preventDefault(); openExternal("https://crawlie.dev/docs"); }} title="Docs">
@@ -100,6 +105,7 @@ function Dashboard({ user, route }: { user: SessionUser; route: Route }) {
           )}
           {route.name === "report" && <ReportView id={route.id} />}
           {route.name === "new" && <NewCrawl />}
+          {route.name === "rules" && <PacksView />}
           {route.name === "account" && <AccountView email={user.email} onBack={() => navigate("/projects")} />}
         </main>
       </div>
@@ -187,6 +193,7 @@ function ReportView({ id }: { id: string }) {
           <button className="btn btn-sm" onClick={share}><IconShare size={14} /> Share public link</button>
         )}
       </div>
+      <PackViolations packs={(result as { packs?: unknown }).packs} />
       <ExtractionTable pages={(result.pages ?? []) as Parameters<typeof ExtractionTable>[0]["pages"]} />
       <ResultsView result={result} onReset={() => back()} onReports={() => navigate("/projects")} />
     </>

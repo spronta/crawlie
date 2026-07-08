@@ -28,6 +28,7 @@ import {
   type Schedule,
 } from "./projects";
 import { createKey, listKeys, revokeKey, userIdForKey } from "./keys";
+import { listPacks, getPack, createPack, updatePack, deletePack, enabledPackSources } from "./packs";
 import { userEmail } from "./alerts";
 import {
   resolveTeam,
@@ -92,7 +93,8 @@ function crawlStream(c: Ctx, config: unknown, projectId: string | null) {
   c.executionCtx.waitUntil(
     (async () => {
       try {
-        const result = await runCrawl(c.env, config, (ev) => send(ev));
+        const packs = await enabledPackSources(c.env, team.id);
+        const result = await runCrawl(c.env, config, (ev) => send(ev), packs);
         const health = (result as { summary?: { healthScore?: number } }).summary?.healthScore ?? 0;
         const reportId = await saveReport(c.env, team.id, userId, result as Parameters<typeof saveReport>[3], projectId);
         await incrementCrawls(c.env, team.id);
@@ -234,6 +236,27 @@ v1.get("/invites", async (c) => c.json(await pendingInvites(c.env, c.get("email"
 v1.post("/invites/:id/accept", async (c) => {
   const ok = await acceptInvite(c.env, c.req.param("id"), c.get("userId"), c.get("email"));
   return c.json({ ok });
+});
+
+// --- Rule packs (marketing monitoring) ---------------------------------
+v1.get("/packs", async (c) => c.json(await listPacks(c.env, c.get("team").id)));
+v1.post("/packs", async (c) => {
+  const body = await c.req.json<{ name?: string; source?: string; enabled?: boolean }>().catch(() => ({}) as { name?: string; source?: string; enabled?: boolean });
+  if (!body.source) return c.json({ error: "source required" }, 400);
+  return c.json(await createPack(c.env, c.get("team").id, { name: body.name ?? "New pack", source: body.source, enabled: body.enabled }), 201);
+});
+v1.get("/packs/:id", async (c) => {
+  const p = await getPack(c.env, c.get("team").id, c.req.param("id"));
+  return p ? c.json(p) : c.json({ error: "not found" }, 404);
+});
+v1.patch("/packs/:id", async (c) => {
+  const body = await c.req.json<{ name?: string; source?: string; enabled?: boolean }>().catch(() => ({}) as { name?: string; source?: string; enabled?: boolean });
+  const p = await updatePack(c.env, c.get("team").id, c.req.param("id"), body);
+  return p ? c.json(p) : c.json({ error: "not found" }, 404);
+});
+v1.delete("/packs/:id", async (c) => {
+  await deletePack(c.env, c.get("team").id, c.req.param("id"));
+  return c.json({ ok: true });
 });
 
 // --- API keys ----------------------------------------------------------

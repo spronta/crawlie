@@ -9,6 +9,7 @@ import { runCrawl } from "./crawler";
 import { saveReport, diffReports } from "./reports";
 import { sendRegressionAlert, userEmail } from "./alerts";
 import { incrementCrawls } from "./teams";
+import { enabledPackSources } from "./packs";
 
 // Health drop (points) that counts as a regression on its own.
 const HEALTH_DROP = 3;
@@ -30,7 +31,8 @@ export async function scheduled(
 async function runScheduled(env: Env, teamId: string, project: Project, now: number): Promise<void> {
   try {
     const config = { url: project.url, ...(project.config ?? {}) };
-    const result = (await runCrawl(env, config, () => {})) as {
+    const packs = await enabledPackSources(env, teamId);
+    const result = (await runCrawl(env, config, () => {}, packs)) as {
       summary?: { healthScore: number; errors: number; warnings: number };
     };
     const health = result.summary?.healthScore ?? 0;

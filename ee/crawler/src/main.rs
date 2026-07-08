@@ -17,20 +17,71 @@ use axum::{
     Json, Router,
 };
 use crawlie_core::{crawl, types::CrawlConfig, types::CrawlEvent, types::CrawlResult, CancelToken};
-use serde::Serialize;
+use crawlie_rules::{load, RulePack};
+use serde::Deserialize;
+use serde_json::{json, Value};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use tokio_stream::StreamExt;
 
-/// Terminal line of the stream — the full report or an error.
-#[derive(Serialize)]
-#[serde(tag = "type", rename_all = "camelCase")]
-enum Final {
-    Result { result: Box<CrawlResult> },
-    Error { message: String },
+/// One `.crawlie` rule pack source (marketing / brand / slop monitoring).
+#[derive(Deserialize)]
+struct PackSrc {
+    name: String,
+    source: String,
 }
 
-async fn crawl_handler(Json(config): Json<CrawlConfig>) -> Response {
+/// Crawl request = a CrawlConfig plus optional rule packs to evaluate.
+#[derive(Deserialize)]
+struct CrawlRequest {
+    #[serde(flatten)]
+    config: CrawlConfig,
+    #[serde(default)]
+    packs: Vec<PackSrc>,
+}
+
+/// Evaluate each pack against every crawled page's text; returns a JSON summary
+/// (per-URL ledgers + aggregate) grafted onto the report as `packs`.
+fn evaluate_packs(packs: &[PackSrc], result: &CrawlResult) -> Value {
+    let parsed: Vec<RulePack> = packs
+        .iter()
+        .filter_map(|p| load(&p.name, &p.source).ok())
+        .collect();
+    if parsed.is_empty() {
+        return Value::Null;
+    }
+    let mut by_url = serde_json::Map::new();
+    let mut total = 0.0f64;
+    let mut pages_flagged = 0usize;
+    for page in &result.pages {
+        let text = page.text.as_deref().unwrap_or("");
+        if text.is_empty() {
+            continue;
+        }
+        let ledgers: Vec<_> = parsed
+            .iter()
+            .map(|pack| pack.evaluate(text))
+            .filter(|l| !l.hits.is_empty())
+            .collect();
+        if !ledgers.is_empty() {
+            let page_score: f64 = ledgers.iter().map(|l| l.score).sum();
+            total += page_score;
+            pages_flagged += 1;
+            by_url.insert(
+                page.url.clone(),
+                json!({ "score": page_score, "ledgers": ledgers }),
+            );
+        }
+    }
+    json!({
+        "totalScore": total,
+        "pagesFlagged": pages_flagged,
+        "packNames": parsed.iter().map(|p| p.name.clone()).collect::<Vec<_>>(),
+        "byUrl": by_url,
+    })
+}
+
+async fn crawl_handler(Json(req): Json<CrawlRequest>) -> Response {
     let (tx, rx) = mpsc::unbounded_channel::<String>();
 
     tokio::spawn(async move {
@@ -42,13 +93,16 @@ async fn crawl_handler(Json(config): Json<CrawlConfig>) -> Response {
             }
         };
 
-        let final_line = match crawl(config, on_event, CancelToken::new()).await {
-            Ok(result) => Final::Result {
-                result: Box::new(result),
-            },
-            Err(e) => Final::Error {
-                message: e.to_string(),
-            },
+        let final_line = match crawl(req.config, on_event, CancelToken::new()).await {
+            Ok(result) => {
+                let packs = evaluate_packs(&req.packs, &result);
+                let mut rv = serde_json::to_value(&result).unwrap_or_else(|_| json!({}));
+                if let Value::Object(ref mut m) = rv {
+                    m.insert("packs".into(), packs);
+                }
+                json!({ "type": "result", "result": rv })
+            }
+            Err(e) => json!({ "type": "error", "message": e.to_string() }),
         };
         if let Ok(s) = serde_json::to_string(&final_line) {
             let _ = tx.send(s);

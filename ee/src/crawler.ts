@@ -10,6 +10,7 @@ export async function runCrawl(
   env: Env,
   config: unknown,
   onEvent: (event: unknown) => void,
+  packs: Array<{ name: string; source: string }> = [],
 ): Promise<unknown> {
   // A fresh container instance id per crawl keeps concurrent crawls isolated.
   const id = crypto.randomUUID();
@@ -19,7 +20,8 @@ export async function runCrawl(
     new Request("http://crawler/crawl", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify(config),
+      // The container expects the CrawlConfig fields flattened, plus `packs`.
+      body: JSON.stringify({ ...(config as Record<string, unknown>), packs }),
     }),
   );
   if (!res.ok || !res.body) throw new Error(`Crawler returned ${res.status}`);

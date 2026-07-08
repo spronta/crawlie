@@ -168,6 +168,66 @@ export const acceptInvite = (id: string) => j<{ ok: boolean }>(`/v1/invites/${id
 export const checkout = (plan: Plan) => j<{ url: string }>("/v1/billing/checkout", { method: "POST", body: JSON.stringify({ plan }) });
 export const billingPortal = () => j<{ url: string }>("/v1/billing/portal", { method: "POST" });
 
+// --- Rule packs (marketing monitoring) ---
+export interface RulePack {
+  id: string;
+  name: string;
+  source: string;
+  enabled: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+export const listPacks = () => j<RulePack[]>("/v1/packs");
+export const createPack = (name: string, source: string) =>
+  j<RulePack>("/v1/packs", { method: "POST", body: JSON.stringify({ name, source }) });
+export const updatePack = (id: string, patch: { name?: string; source?: string; enabled?: boolean }) =>
+  j<RulePack>(`/v1/packs/${id}`, { method: "PATCH", body: JSON.stringify(patch) });
+export const deletePack = (id: string) => j<{ ok: boolean }>(`/v1/packs/${id}`, { method: "DELETE" });
+
+export const PACK_TEMPLATES: Array<{ name: string; label: string; description: string; source: string }> = [
+  {
+    name: "ai-slop",
+    label: "AI slop detector",
+    description: "Flags AI-cliché phrases that make copy sound generated.",
+    source: `# AI slop / cliché detector — tune the weights to your voice.
+phrase_rule("ai-cliches", weight = 3, phrases = [
+    "in today's fast-paced world",
+    "in the ever-evolving",
+    "unlock the power of",
+    "elevate your",
+    "take your", "to the next level",
+    "it's worth noting",
+    "at the end of the day",
+    "delve into", "dive into",
+    "a testament to",
+    "in conclusion",
+])`,
+  },
+  {
+    name: "banned-words",
+    label: "Banned words",
+    description: "Words your brand should never publish.",
+    source: `# Words we never say
+phrase_rule("banned", weight = 5, phrases = [
+    "cheap",
+    "guaranteed",
+    "revolutionary",
+    "world-class",
+])`,
+  },
+  {
+    name: "competitor-mentions",
+    label: "Competitor mentions",
+    description: "Flag pages that name competitors.",
+    source: `# Competitor mentions
+phrase_rule("competitors", weight = 4, phrases = [
+    "screaming frog",
+    "sitebulb",
+    "ahrefs",
+])`,
+  },
+];
+
 export { loadReport };
 
 export const SCHEDULE_LABEL: Record<Schedule, string> = {

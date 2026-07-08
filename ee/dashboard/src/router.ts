@@ -9,6 +9,7 @@ export type Route =
   | { name: "project"; id: string }
   | { name: "report"; id: string }
   | { name: "new" }
+  | { name: "rules" }
   | { name: "account" }
   | { name: "public"; token: string };
 
@@ -18,6 +19,7 @@ export function parse(path: string): Route {
   if ((m = path.match(/^\/projects\/([^/]+)/))) return { name: "project", id: decodeURIComponent(m[1]) };
   if ((m = path.match(/^\/reports\/([^/]+)/))) return { name: "report", id: decodeURIComponent(m[1]) };
   if (path.startsWith("/account")) return { name: "account" };
+  if (path.startsWith("/rules")) return { name: "rules" };
   if (path.startsWith("/new")) return { name: "new" };
   return { name: "projects" }; // "/" and "/projects"
 }

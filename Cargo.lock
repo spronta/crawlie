@@ -450,6 +450,7 @@ version = "0.1.0"
 dependencies = [
  "axum",
  "crawlie-core",
+ "crawlie-rules",
  "serde",
  "serde_json",
  "tokio",
