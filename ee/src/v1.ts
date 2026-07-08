@@ -16,6 +16,7 @@ import {
   shareReport,
   unshareReport,
   reportShareToken,
+  projectHistory,
 } from "./reports";
 import {
   listProjects,
@@ -170,7 +171,11 @@ v1.post("/projects/:id/crawls", async (c) => {
   return crawlStream(c, { url: p.url, ...(p.config ?? {}) }, p.id);
 });
 
-v1.get("/projects/:id/reports", async (c) => c.json(await listReports(c.env, c.get("team").id, c.req.param("id"))));
+v1.get("/projects/:id/reports", async (c) => {
+  const p = await getProject(c.env, c.get("team").id, c.req.param("id"));
+  if (!p) return c.json([]);
+  return c.json(await projectHistory(c.env, c.get("team").id, p.id, p.url));
+});
 v1.get("/projects/:id/trend", async (c) => c.json(await projectTrend(c.env, c.get("team").id, c.req.param("id"))));
 
 // --- Reports -----------------------------------------------------------

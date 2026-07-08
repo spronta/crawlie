@@ -90,6 +90,30 @@ export async function listReports(env: Env, teamId: string, projectId?: string):
   }));
 }
 
+/** All audits of a project: crawls tied to it PLUS ad-hoc crawls of the same
+ *  URL (project_id NULL) — so nothing about the site is hidden. */
+export async function projectHistory(env: Env, teamId: string, projectId: string, url: string): Promise<ReportMeta[]> {
+  const { results } = await env.DB.prepare(
+    `SELECT id, url, created_at, total_pages, errors, warnings, health_score, geo_score, a11y_score
+       FROM reports
+      WHERE team_id = ? AND (project_id = ? OR (project_id IS NULL AND url = ?))
+      ORDER BY created_at DESC`,
+  )
+    .bind(teamId, projectId, url)
+    .all<Record<string, number | string>>();
+  return (results ?? []).map((r) => ({
+    id: String(r.id),
+    url: String(r.url),
+    createdAt: Number(r.created_at),
+    totalPages: Number(r.total_pages),
+    errors: Number(r.errors),
+    warnings: Number(r.warnings),
+    healthScore: Number(r.health_score),
+    geoScore: Number(r.geo_score),
+    a11yScore: Number(r.a11y_score),
+  }));
+}
+
 export async function loadReport(env: Env, teamId: string, id: string): Promise<CrawlResult | null> {
   const obj = await env.REPORTS.get(key(teamId, id));
   return obj ? obj.json<CrawlResult>() : null;

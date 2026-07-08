@@ -122,25 +122,23 @@ export function ProjectView({ id, onBack, onOpenReport }: { id: string; onBack: 
                   <Sparkline points={trend.map((t) => t.packScore ?? 0)} color="var(--red-text, #ff6166)" />
                 </Card>
               )}
+              {reports.length > 0 && (
+                <Card
+                  title="Recent audits"
+                  right={reports.length > 5 ? <button className="linklike" style={{ fontSize: 13 }} onClick={() => setTab("history")}>View all {reports.length} →</button> : undefined}
+                >
+                  {reports.slice(0, 5).map((r) => <AuditRow key={r.id} r={r} onOpen={onOpenReport} />)}
+                </Card>
+              )}
             </>
           )}
 
           {tab === "history" && (
-            <Card title="Crawl history">
+            <Card title={`All audits${reports.length ? ` (${reports.length})` : ""}`}>
               {reports.length === 0 ? (
-                <p style={{ color: "var(--text-secondary)", margin: 0 }}>No crawls yet.</p>
+                <p style={{ color: "var(--text-secondary)", margin: 0 }}>No audits yet — run a crawl to see it here.</p>
               ) : (
-                reports.map((r) => (
-                  <button key={r.id} style={histRow} onClick={() => onOpenReport(r.id)}>
-                    <span style={{ color: "var(--text-secondary)", fontSize: 13, width: 150, flex: "0 0 auto" }}>{absDateTime(r.createdAt)}</span>
-                    <ScoreRing value={r.healthScore} size={30} stroke={4} />
-                    <span style={{ display: "flex", gap: 6 }}>
-                      {r.errors > 0 && <SeverityBadge severity="error" count={r.errors} />}
-                      {r.warnings > 0 && <SeverityBadge severity="warning" count={r.warnings} />}
-                    </span>
-                    <span style={{ marginLeft: "auto", color: "var(--text-secondary)", fontSize: 12.5 }}>{r.totalPages} pages</span>
-                  </button>
-                ))
+                reports.map((r) => <AuditRow key={r.id} r={r} onOpen={onOpenReport} />)
               )}
             </Card>
           )}
@@ -184,6 +182,20 @@ export function ProjectView({ id, onBack, onOpenReport }: { id: string; onBack: 
         </div>
       </div>
     </div>
+  );
+}
+
+function AuditRow({ r, onOpen }: { r: ReportMeta; onOpen: (id: string) => void }) {
+  return (
+    <button style={histRow} onClick={() => onOpen(r.id)}>
+      <span style={{ color: "var(--text-secondary)", fontSize: 13, width: 150, flex: "0 0 auto" }}>{absDateTime(r.createdAt)}</span>
+      <ScoreRing value={r.healthScore} size={30} stroke={4} />
+      <span style={{ display: "flex", gap: 6 }}>
+        {r.errors > 0 && <SeverityBadge severity="error" count={r.errors} />}
+        {r.warnings > 0 && <SeverityBadge severity="warning" count={r.warnings} />}
+      </span>
+      <span style={{ marginLeft: "auto", color: "var(--text-secondary)", fontSize: 12.5 }}>{r.totalPages} pages</span>
+    </button>
   );
 }
 
