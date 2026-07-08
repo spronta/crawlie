@@ -10,9 +10,19 @@ import { topFixes } from "../lib/priority";
 import { bytes, ms, num, severityRank, shortUrl } from "../lib/format";
 import { LinkGraphView } from "./LinkGraphView";
 
-type Tab = "overview" | "issues" | "pages" | "graph";
+type Tab = string;
 
-export function ResultsView({ result, onReset, onReports }: { result: CrawlResult; onReset: () => void; onReports: () => void }) {
+/** Host-injected extra tabs (used by the cloud report to add Insights, Rules,
+ *  Extraction into the same tab bar instead of stacking them above). */
+export interface ExtraTab {
+  id: string;
+  label: string;
+  count?: number;
+  wide?: boolean;
+  content: React.ReactNode;
+}
+
+export function ResultsView({ result, onReset, onReports, extraTabs }: { result: CrawlResult; onReset: () => void; onReports: () => void; extraTabs?: ExtraTab[] }) {
   const [tab, setTab] = useState<Tab>("overview");
   const [page, setPage] = useState<Page | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -114,13 +124,16 @@ export function ResultsView({ result, onReset, onReports }: { result: CrawlResul
             {result.linkGraph && result.linkGraph.nodes.length > 0 && (
               <Tabish id="graph" tab={tab} set={setTab}>Link graph</Tabish>
             )}
+            {extraTabs?.map((t) => (
+              <Tabish key={t.id} id={t.id} tab={tab} set={setTab} count={t.count}>{t.label}</Tabish>
+            ))}
           </div>
         </div>
       </div>
 
       {toast && <div className="toast">{toast}</div>}
 
-      <div className={`report-body${tab === "pages" || tab === "graph" ? " wide" : ""}`}>
+      <div className={`report-body${tab === "pages" || tab === "graph" || extraTabs?.find((t) => t.id === tab)?.wide ? " wide" : ""}`}>
       {tab === "overview" && <Overview result={result} onCategory={goCategory} onSeverity={goSeverity} onStatus={goStatus} onDepth={goDepth} />}
       {tab === "issues" && (
         <Issues
@@ -145,6 +158,7 @@ export function ResultsView({ result, onReset, onReports }: { result: CrawlResul
       {tab === "graph" && (
         <LinkGraphView result={result} onOpenUrl={(u) => openByUrl(result, u, setPage, setTab)} />
       )}
+      {extraTabs?.find((t) => t.id === tab)?.content}
 
       </div>
     </>

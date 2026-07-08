@@ -4,7 +4,7 @@ import { cancelCrawl, openExternal, startCrawl } from "@platform/api";
 import { Logo, IconBook, IconExternal, IconGlobe, IconSearch, IconChevron, IconUser, IconSpark, Spinner } from "@ui/components/ui";
 import { StartView } from "@ui/views/StartView";
 import { CrawlingView, type Progress } from "@ui/views/CrawlingView";
-import { ResultsView } from "@ui/views/ResultsView";
+import { ResultsView, type ExtraTab } from "@ui/views/ResultsView";
 import { ProjectsView } from "./views/ProjectsView";
 import { ProjectView } from "./views/ProjectView";
 import { AccountView } from "./views/AccountView";
@@ -15,6 +15,7 @@ import { getSession, signOut, type SessionUser } from "./auth";
 import { SignIn } from "./SignIn";
 import { IconShare, ThemeToggle } from "@ui/components/ui";
 import { ExtractionTable } from "./extraction";
+import { Insights } from "./insights";
 import { useRoute, navigate, back, type Route } from "./router";
 import { Toaster, ConfirmHost, ErrorBoundary, toast } from "./ui-kit";
 import { pendingInvites, acceptInvite, setActiveTeam } from "./cloud";
@@ -179,12 +180,30 @@ function NewCrawl() {
   return <StartView onStart={start} />;
 }
 
+// Build the cloud-only report tabs (Insights, Rules, Extraction) injected into
+// the shared ResultsView tab bar — so everything lives in one set of tabs.
+function reportExtraTabs(result: CrawlResult): ExtraTab[] {
+  const packs = (result as { packs?: { pagesFlagged?: number } | null }).packs;
+  const pages = (result.pages ?? []) as Array<{ extractions?: unknown[] }>;
+  const hasExtraction = pages.some((p) => (p.extractions ?? []).length > 0);
+  const tabs: ExtraTab[] = [
+    { id: "insights", label: "Insights", wide: true, content: <Insights pages={result.pages} /> },
+  ];
+  if (packs) tabs.push({ id: "rules", label: "Rules", count: packs.pagesFlagged, wide: true, content: <PackViolations packs={packs} /> });
+  if (hasExtraction) tabs.push({ id: "extraction", label: "Extraction", wide: true, content: <ExtractionTable pages={result.pages as Parameters<typeof ExtractionTable>[0]["pages"]} /> });
+  return tabs;
+}
+
 function ReportView({ id }: { id: string }) {
   const [result, setResult] = useState<CrawlResult | null | undefined>(undefined);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   useEffect(() => {
-    loadReport(id).then((r) => setResult(r));
+    loadReport(id).then(async (r) => {
+      if (r) return setResult(r);
+      if (import.meta.env.DEV) setResult((await import("@ui/lib/demo")).DEMO_RESULT as unknown as CrawlResult);
+      else setResult(null);
+    });
     getShare(id).then((s) => setShareUrl(s.token ? `https://crawlie.app/p/${s.token}` : null)).catch(() => {});
   }, [id]);
 
@@ -227,9 +246,7 @@ function ReportView({ id }: { id: string }) {
           <button className="btn btn-sm" onClick={share}><IconShare size={14} /> Share public link</button>
         )}
       </div>
-      <PackViolations packs={(result as { packs?: unknown }).packs} />
-      <ExtractionTable pages={(result.pages ?? []) as Parameters<typeof ExtractionTable>[0]["pages"]} />
-      <ResultsView result={result} onReset={() => back()} onReports={() => navigate("/projects")} />
+      <ResultsView result={result} onReset={() => back()} onReports={() => navigate("/projects")} extraTabs={reportExtraTabs(result)} />
     </>
   );
 }
@@ -253,7 +270,7 @@ function PublicReport({ token }: { token: string }) {
           ) : result === null ? (
             <div className="hero"><h1 style={{ fontSize: 24 }}>This report isn't available</h1><a className="btn btn-primary" href="https://crawlie.app/">Go to Crawlie</a></div>
           ) : (
-            <ResultsView result={result} onReset={home} onReports={home} />
+            <ResultsView result={result} onReset={home} onReports={home} extraTabs={reportExtraTabs(result)} />
           )}
         </main>
       </div>
