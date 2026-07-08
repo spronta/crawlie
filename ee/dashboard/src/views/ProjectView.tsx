@@ -12,6 +12,7 @@ import { relTime, absDateTime } from "../format";
 import { ExtractorEditor } from "../extraction";
 import { toast, confirmDialog } from "../ui-kit";
 import { Card, Tabs, Field, fieldInput } from "../kit";
+import { CompareView } from "./CompareView";
 
 export function ProjectView({ id, onBack, onOpenReport }: { id: string; onBack: () => void; onOpenReport: (reportId: string) => void }) {
   const [project, setProject] = useState<Project | null>(null);
@@ -88,6 +89,7 @@ export function ProjectView({ id, onBack, onOpenReport }: { id: string; onBack: 
         tabs={[
           { id: "overview", label: "Overview" },
           { id: "history", label: "History", badge: reports.length },
+          { id: "compare", label: "Compare" },
           { id: "settings", label: "Settings" },
           { id: "extraction", label: "Extraction" },
         ]}
@@ -145,6 +147,8 @@ export function ProjectView({ id, onBack, onOpenReport }: { id: string; onBack: 
               )}
             </Card>
           )}
+
+          {tab === "compare" && <CompareView reports={reports} />}
 
           {tab === "settings" && (
             <>

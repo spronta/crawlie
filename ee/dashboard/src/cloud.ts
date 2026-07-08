@@ -2,7 +2,7 @@
 // Same-origin (crawlie.app/v1/*), reuses the shared crawl streamer + report
 // loader from the platform seam.
 
-import type { CrawlEvent, CrawlResult, ReportMeta } from "@ui/lib/types";
+import type { CrawlDiff, CrawlEvent, CrawlResult, ReportMeta } from "@ui/lib/types";
 import { streamCrawl, loadReport } from "@platform/api";
 
 const API = import.meta.env.VITE_CRAWLIE_API ?? "";
@@ -127,6 +127,11 @@ export const shareReport = (id: string) =>
   j<{ token: string; url: string }>(`/v1/reports/${id}/share`, { method: "POST" });
 export const unshareReport = (id: string) =>
   j<{ ok: boolean }>(`/v1/reports/${id}/share`, { method: "DELETE" });
+/** Compare two saved audits of the same site (Sitebulb-style diff). */
+export async function diffReports(oldId: string, newId: string): Promise<CrawlDiff> {
+  return j<CrawlDiff>(`/v1/diff?old=${encodeURIComponent(oldId)}&new=${encodeURIComponent(newId)}`);
+}
+
 export async function loadPublicReport(token: string): Promise<CrawlResult | null> {
   const res = await fetch(`${API}/pub/reports/${encodeURIComponent(token)}`);
   return res.ok ? ((await res.json()) as CrawlResult) : null;
