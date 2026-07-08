@@ -16,6 +16,7 @@ import { SignIn } from "./SignIn";
 import { IconShare, ThemeToggle } from "@ui/components/ui";
 import { ExtractionTable } from "./extraction";
 import { Insights } from "./insights";
+import { Redirects } from "./redirects";
 import { useRoute, navigate, back, type Route } from "./router";
 import { Toaster, ConfirmHost, ErrorBoundary, toast } from "./ui-kit";
 import { pendingInvites, acceptInvite, setActiveTeam } from "./cloud";
@@ -184,11 +185,13 @@ function NewCrawl() {
 // the shared ResultsView tab bar — so everything lives in one set of tabs.
 function reportExtraTabs(result: CrawlResult): ExtraTab[] {
   const packs = (result as { packs?: { pagesFlagged?: number } | null }).packs;
-  const pages = (result.pages ?? []) as Array<{ extractions?: unknown[] }>;
+  const pages = (result.pages ?? []) as Array<{ extractions?: unknown[]; redirectChain?: unknown[] }>;
   const hasExtraction = pages.some((p) => (p.extractions ?? []).length > 0);
+  const redirectCount = pages.filter((p) => (p.redirectChain ?? []).length > 0).length;
   const tabs: ExtraTab[] = [
     { id: "insights", label: "Insights", wide: true, content: <Insights pages={result.pages} /> },
   ];
+  if (redirectCount > 0) tabs.push({ id: "redirects", label: "Redirects", count: redirectCount, wide: true, content: <Redirects pages={result.pages} /> });
   if (packs) tabs.push({ id: "rules", label: "Rules", count: packs.pagesFlagged, wide: true, content: <PackViolations packs={packs} /> });
   if (hasExtraction) tabs.push({ id: "extraction", label: "Extraction", wide: true, content: <ExtractionTable pages={result.pages as Parameters<typeof ExtractionTable>[0]["pages"]} /> });
   return tabs;
