@@ -54,6 +54,10 @@ enum Command {
     /// traffic, bot-hit errors, and — with a saved report — log-file orphans
     /// and pages bots never visit.
     Logs(LogsArgs),
+    /// Cross-reference a Google Search Console Performance→Pages CSV export
+    /// with a saved crawl: traffic to noindex/broken/redirecting pages, GSC
+    /// orphans, and indexable pages with zero impressions.
+    Gsc(GscArgs),
     /// Inspect a streamed crawl database (created with `crawl --store <path>`).
     Store(StoreArgs),
     /// Sign in to Crawlie Cloud (opens your browser).
@@ -247,6 +251,18 @@ struct SlopArgs {
 }
 
 #[derive(Parser)]
+struct GscArgs {
+    /// Path to the GSC Performance → Pages CSV export.
+    file: String,
+    /// Saved report id to cross-reference (see `crawlie reports`).
+    #[arg(long, value_name = "ID")]
+    report: String,
+    /// Output JSON instead of the text summary.
+    #[arg(long)]
+    json: bool,
+}
+
+#[derive(Parser)]
 struct LogsArgs {
     /// Path to the access log file (Common or Combined Log Format).
     file: String,
@@ -351,6 +367,7 @@ async fn main() -> ExitCode {
         Command::Reports => list_reports(),
         Command::Report(a) => show_report(a),
         Command::Logs(a) => analyze_logs(a),
+        Command::Gsc(a) => analyze_gsc(a),
         Command::Diff(a) => diff_reports(a),
         Command::Store(a) => show_store(a),
         Command::Login(a) => ExitCode::from(auth::run_login(a.no_browser).await),
@@ -1198,6 +1215,79 @@ fn list_reports() -> ExitCode {
     println!(
         "\n  Print one with `crawlie report <id>` · delete with `crawlie report <id> --delete`.\n"
     );
+    ExitCode::SUCCESS
+}
+
+fn analyze_gsc(a: GscArgs) -> ExitCode {
+    let text = match std::fs::read_to_string(&a.file) {
+        Ok(t) => t,
+        Err(e) => {
+            eprintln!("crawlie: could not read '{}': {e}", a.file);
+            return ExitCode::from(2);
+        }
+    };
+    let Some(report) = ReportStore::new(reports_dir()).load(&a.report) else {
+        eprintln!("crawlie: report '{}' not found.", a.report);
+        return ExitCode::from(2);
+    };
+    let rows = crawlie_core::gsc::parse_csv(&text);
+    if rows.is_empty() {
+        eprintln!("crawlie: no rows parsed — is this a GSC Performance→Pages export?");
+        return ExitCode::from(2);
+    }
+    let g = crawlie_core::gsc::analyze(&rows, &report.pages);
+    if a.json {
+        println!("{}", serde_json::to_string_pretty(&g).unwrap_or_default());
+        return ExitCode::SUCCESS;
+    }
+    println!(
+        "\n  {} GSC rows × {} crawled pages\n",
+        g.gsc_rows, g.crawled_pages
+    );
+    let section = |title: &str, rows: &[(String, u64)], unit: &str| {
+        if rows.is_empty() {
+            return;
+        }
+        println!("  {title}:");
+        for (u, n) in rows.iter().take(15) {
+            println!("    {n:>7} {unit}  {u}");
+        }
+        println!();
+    };
+    if !g.traffic_to_error.is_empty() {
+        println!("  Search traffic landing on error pages:");
+        for (u, n, s) in g.traffic_to_error.iter().take(15) {
+            println!("    {n:>7} clicks  [{s}]  {u}");
+        }
+        println!();
+    }
+    section(
+        "Search traffic landing on NOINDEXED pages",
+        &g.traffic_to_noindex,
+        "clicks",
+    );
+    section(
+        "Search traffic landing on redirecting URLs",
+        &g.traffic_to_redirect,
+        "clicks",
+    );
+    section(
+        "Search traffic landing on canonicalised pages",
+        &g.traffic_to_canonicalized,
+        "clicks",
+    );
+    section(
+        "GSC orphans (Google shows these, the crawl never found them)",
+        &g.gsc_orphans,
+        "impr.",
+    );
+    if !g.zero_impressions.is_empty() {
+        println!("  Indexable pages with zero impressions:");
+        for u in g.zero_impressions.iter().take(15) {
+            println!("    {u}");
+        }
+        println!();
+    }
     ExitCode::SUCCESS
 }
 

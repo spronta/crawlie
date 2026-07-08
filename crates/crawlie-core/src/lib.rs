@@ -19,6 +19,7 @@ pub mod audit;
 pub mod crawler;
 pub mod dedup;
 pub mod fetch;
+pub mod gsc;
 pub mod knowledge;
 pub mod logs;
 pub mod pagestore;
