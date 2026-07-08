@@ -11,7 +11,8 @@ export type Route =
   | { name: "new" }
   | { name: "rules" }
   | { name: "account" }
-  | { name: "public"; token: string };
+  | { name: "public"; token: string }
+  | { name: "notfound" };
 
 export function parse(path: string): Route {
   let m: RegExpMatchArray | null;
@@ -21,7 +22,8 @@ export function parse(path: string): Route {
   if (path.startsWith("/account")) return { name: "account" };
   if (path.startsWith("/rules")) return { name: "rules" };
   if (path.startsWith("/new")) return { name: "new" };
-  return { name: "projects" }; // "/" and "/projects"
+  if (path === "/" || path.startsWith("/projects")) return { name: "projects" };
+  return { name: "notfound" };
 }
 
 const listeners = new Set<() => void>();

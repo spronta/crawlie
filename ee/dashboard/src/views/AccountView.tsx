@@ -5,9 +5,12 @@ import {
   getTeamInfo, listTeams, renameTeam, inviteMember, removeMember, setActiveTeam, activeTeam,
   checkout, billingPortal, type TeamInfo, type Plan,
 } from "../cloud";
+import { updateName, signOutEverywhere } from "../auth";
+import { toast, confirmDialog } from "../ui-kit";
 import { relTime } from "../format";
 
-export function AccountView({ email, onBack }: { email: string; onBack: () => void }) {
+export function AccountView({ user, onBack }: { user: { email: string; name?: string | null }; onBack: () => void }) {
+  const email = user.email;
   const [info, setInfo] = useState<TeamInfo | null>(null);
   const [teams, setTeams] = useState<Array<{ id: string; name: string; role: string; plan: Plan }>>([]);
   const load = () => {
@@ -37,6 +40,7 @@ export function AccountView({ email, onBack }: { email: string; onBack: () => vo
         )}
       </div>
 
+      <ProfileSection user={user} />
       {!info ? (
         <div style={{ display: "flex", justifyContent: "center", padding: 40 }}><Spinner /></div>
       ) : (
@@ -46,6 +50,23 @@ export function AccountView({ email, onBack }: { email: string; onBack: () => vo
         </>
       )}
       <KeysSection />
+    </div>
+  );
+}
+
+function ProfileSection({ user }: { user: { email: string; name?: string | null } }) {
+  const [name, setName] = useState(user.name ?? "");
+  const [busy, setBusy] = useState(false);
+  return (
+    <div style={panel}>
+      <div style={panelTitle}>Profile</div>
+      <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+        <input style={{ ...input, flex: "1 1 200px" }} placeholder="Display name" value={name} onChange={(e) => setName(e.target.value)} />
+        <button className="btn btn-sm" disabled={busy || name === (user.name ?? "")} onClick={async () => { setBusy(true); const ok = await updateName(name.trim()); setBusy(false); toast(ok ? "Name updated" : "Could not update name", ok ? "success" : "error"); }}>Save</button>
+      </div>
+      <button className="btn btn-sm" onClick={async () => { if (await confirmDialog("Sign out of all devices?", { detail: "Every active session for your account will be signed out.", confirmLabel: "Sign out everywhere" })) signOutEverywhere(); }}>
+        Sign out of all devices
+      </button>
     </div>
   );
 }
@@ -62,7 +83,7 @@ function PlanSection({ info }: { info: TeamInfo }) {
       const { url } = await checkout(p);
       window.location.href = url;
     } catch (e) {
-      alert((e as Error).message);
+      toast((e as Error).message, "error");
       setBusy(null);
     }
   }
@@ -71,7 +92,7 @@ function PlanSection({ info }: { info: TeamInfo }) {
       const { url } = await billingPortal();
       window.location.href = url;
     } catch (e) {
-      alert((e as Error).message);
+      toast((e as Error).message, "error");
     }
   }
 
@@ -146,7 +167,7 @@ function TeamSection({ info, onChange }: { info: TeamInfo; onChange: () => void 
             setBusy(true);
             inviteMember(inviteEmail.trim())
               .then(() => { setInviteEmail(""); onChange(); })
-              .catch((err) => alert(err.message))
+              .catch((err) => toast(err.message, "error"))
               .finally(() => setBusy(false));
           }}
         >

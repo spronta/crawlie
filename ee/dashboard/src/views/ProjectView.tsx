@@ -19,6 +19,7 @@ import type { ReportMeta } from "@ui/lib/types";
 import { relTime, absDateTime } from "../format";
 import { ExtractorEditor } from "../extraction";
 import type { Extractor } from "../cloud";
+import { toast, confirmDialog } from "../ui-kit";
 
 export function ProjectView({
   id,
@@ -66,8 +67,9 @@ export function ProjectView({
     setProject(await updateProject(id, { notify }));
   }
   async function remove() {
-    if (!confirm("Delete this project? Its crawl history is kept.")) return;
+    if (!(await confirmDialog("Delete this project?", { detail: "Its crawl history is kept, but the project and its schedule are removed.", danger: true, confirmLabel: "Delete project" }))) return;
     await deleteProject(id);
+    toast("Project deleted", "success");
     onBack();
   }
 

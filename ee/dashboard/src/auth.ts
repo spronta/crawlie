@@ -62,5 +62,21 @@ export async function signOut(): Promise<void> {
   } catch {
     /* ignore */
   }
-  window.location.reload();
+  window.location.href = "/";
+}
+
+/** Update the signed-in user's display name. */
+export async function updateName(name: string): Promise<boolean> {
+  const res = await api("/update-user", { name });
+  return res.ok;
+}
+
+/** Revoke every session for this user (sign out on all devices). */
+export async function signOutEverywhere(): Promise<void> {
+  try {
+    await api("/revoke-sessions");
+  } catch {
+    /* ignore */
+  }
+  window.location.href = "/";
 }

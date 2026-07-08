@@ -1,0 +1,7 @@
+/* Dashboard-only additions on top of the reused desktop styles. */
+@keyframes crawlie-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}

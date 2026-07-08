@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { IconSpark, IconTrash, Toggle, Spinner } from "@ui/components/ui";
 import { listPacks, createPack, updatePack, deletePack, PACK_TEMPLATES, type RulePack } from "../cloud";
+import { toast, confirmDialog } from "../ui-kit";
 
 export function PacksView() {
   const [packs, setPacks] = useState<RulePack[] | null>(null);
@@ -38,7 +39,7 @@ export function PacksView() {
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <Toggle on={p.enabled} onChange={(v) => updatePack(p.id, { enabled: v }).then(refresh)} label="" />
               <button className="btn btn-sm" onClick={() => setEditing(p)}>Edit</button>
-              <button className="btn btn-sm" onClick={() => { if (confirm(`Delete "${p.name}"?`)) deletePack(p.id).then(refresh); }}><IconTrash size={13} /></button>
+              <button className="btn btn-sm" onClick={async () => { if (await confirmDialog(`Delete "${p.name}"?`, { danger: true, confirmLabel: "Delete" })) { await deletePack(p.id); toast("Pack deleted", "success"); refresh(); } }}><IconTrash size={13} /></button>
             </div>
           </div>
         ))

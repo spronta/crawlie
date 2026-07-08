@@ -13,14 +13,22 @@ import { PackViolations } from "./packs-ui";
 import { loadReport, loadPublicReport, shareReport, unshareReport, getShare } from "./cloud";
 import { getSession, signOut, type SessionUser } from "./auth";
 import { SignIn } from "./SignIn";
-import { IconShare } from "@ui/components/ui";
+import { IconShare, ThemeToggle } from "@ui/components/ui";
 import { ExtractionTable } from "./extraction";
 import { useRoute, navigate, back, type Route } from "./router";
+import { Toaster, ConfirmHost, toast } from "./ui-kit";
+import { pendingInvites, acceptInvite, setActiveTeam } from "./cloud";
 
 export function App() {
   const route = useRoute();
-  if (route.name === "public") return <PublicReport token={route.token} />;
-  return <AuthedApp route={route} />;
+  const view = route.name === "public" ? <PublicReport token={route.token} /> : <AuthedApp route={route} />;
+  return (
+    <>
+      {view}
+      <Toaster />
+      <ConfirmHost />
+    </>
+  );
 }
 
 function AuthedApp({ route }: { route: Route }) {
@@ -94,6 +102,7 @@ function Dashboard({ user, route }: { user: SessionUser; route: Route }) {
       </aside>
 
       <div className="content">
+        <InvitesBanner />
         <main className={`main${flush ? " flush" : ""}`}>
           {route.name === "projects" && <ProjectsView onOpen={(id) => navigate(`/projects/${id}`)} />}
           {route.name === "project" && (
@@ -106,7 +115,14 @@ function Dashboard({ user, route }: { user: SessionUser; route: Route }) {
           {route.name === "report" && <ReportView id={route.id} />}
           {route.name === "new" && <NewCrawl />}
           {route.name === "rules" && <PacksView />}
-          {route.name === "account" && <AccountView email={user.email} onBack={() => navigate("/projects")} />}
+          {route.name === "account" && <AccountView user={user} onBack={() => navigate("/projects")} />}
+          {route.name === "notfound" && (
+            <div className="hero">
+              <h1 style={{ fontSize: 28 }}>Page not found</h1>
+              <p style={{ color: "var(--text-secondary)" }}>That page doesn't exist.</p>
+              <button className="btn btn-primary" onClick={() => navigate("/projects")}>Go to Projects</button>
+            </div>
+          )}
         </main>
       </div>
     </div>
@@ -239,11 +255,31 @@ function AccountMenu({ user, active }: { user: SessionUser; active: boolean }) {
       {open && (
         <div role="dialog" style={{ position: "absolute", bottom: "calc(100% + 8px)", left: 0, width: 232, background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "var(--shadow-pop, 0 8px 30px rgba(0,0,0,.18))", padding: 14, zIndex: 40 }}>
           <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 6 }}>Signed in as</div>
-          <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text)", wordBreak: "break-all" }}>{user.email}</div>
-          <button onClick={() => { setOpen(false); navigate("/account"); }} style={item}>Account &amp; API keys</button>
+          <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text)", wordBreak: "break-all" }}>{user.name || user.email}</div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 12, fontSize: 13 }}>
+            <span style={{ color: "var(--text-secondary)" }}>Theme</span>
+            <ThemeToggle />
+          </div>
+          <button onClick={() => { setOpen(false); navigate("/account"); }} style={item}>Account &amp; settings</button>
           <button onClick={() => signOut()} style={item}>Sign out</button>
         </div>
       )}
+    </div>
+  );
+}
+
+function InvitesBanner() {
+  const [invites, setInvites] = useState<Array<{ id: string; teamId: string; teamName: string }>>([]);
+  useEffect(() => { pendingInvites().then(setInvites).catch(() => {}); }, []);
+  if (!invites.length) return null;
+  return (
+    <div>
+      {invites.map((i) => (
+        <div key={i.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "10px 20px", background: "color-mix(in srgb, var(--blue, #0055ee) 12%, transparent)", borderBottom: "1px solid var(--border)", flexWrap: "wrap" }}>
+          <span style={{ fontSize: 13.5 }}>You've been invited to join <b>{i.teamName}</b>.</span>
+          <button className="btn btn-primary btn-sm" onClick={() => acceptInvite(i.id).then(() => { toast(`Joined ${i.teamName}`, "success"); setActiveTeam(i.teamId); setTimeout(() => location.reload(), 700); })}>Accept invite</button>
+        </div>
+      ))}
     </div>
   );
 }
