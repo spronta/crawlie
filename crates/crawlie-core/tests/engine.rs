@@ -194,6 +194,111 @@ fn audit_detects_duplicate_titles_and_broken_links() {
 }
 
 #[test]
+fn audit_flags_url_hygiene_and_variant_duplicates() {
+    let seed = Url::parse("https://example.com/").unwrap();
+    let ugly = ok_page("https://example.com/Blog_Posts//My%20Page?utm_source=x&page=2&sort=asc");
+    // Case + trailing-slash variants of the same URL, crawled separately.
+    let a = ok_page("https://example.com/dup");
+    let mut b = ok_page("https://example.com/Dup");
+    let mut c = ok_page("https://example.com/dup/");
+    // Distinct content so only the URL rules fire on the variants.
+    b.title = Some("A second, also perfectly reasonable title".into());
+    b.h1 = vec!["Second Heading".into()];
+    b.meta_description = Some(
+        "Another meta description that is comfortably within the recommended length range.".into(),
+    );
+    c.title = Some("A third, also perfectly reasonable title".into());
+    c.h1 = vec!["Third Heading".into()];
+    c.meta_description = Some(
+        "Yet another meta description comfortably within the recommended length range here.".into(),
+    );
+    let trap = ok_page("https://example.com/page/page/page/x");
+
+    let issues = crawlie_core::audit::audit(&[ugly, a, b, c, trap], &HashMap::new(), &[], &seed);
+    let r = rules(&issues);
+    for expected in [
+        "url-uppercase",
+        "url-underscores",
+        "url-double-slash",
+        "url-space",
+        "url-parameters",
+        "url-tracking-params",
+        "url-case-duplicate",
+        "url-slash-duplicate",
+        "url-repetitive-path",
+    ] {
+        assert!(r.contains(&expected), "expected {expected} in {r:?}");
+    }
+}
+
+#[test]
+fn audit_flags_canonical_health_and_hreflang() {
+    let seed = Url::parse("https://example.com/").unwrap();
+    let mut p = ok_page("https://example.com/a");
+    p.canonical = Some("https://example.com/gone".into());
+    p.canonicalized = true;
+    p.hreflang = vec![
+        crawlie_core::types::Hreflang {
+            lang: "en-UK!".into(), // invalid region tag
+            href: "https://example.com/en".into(),
+        },
+        crawlie_core::types::Hreflang {
+            lang: "de".into(),
+            href: "https://example.com/de-gone".into(),
+        },
+    ];
+    let mut redirecting = ok_page("https://example.com/b");
+    redirecting.canonical = Some("https://example.com/moved".into());
+    redirecting.title = Some("A second, also perfectly reasonable title".into());
+    redirecting.h1 = vec!["Second Heading".into()];
+    redirecting.meta_description =
+        Some("Another meta description comfortably within the recommended length range.".into());
+
+    let mut status_map = HashMap::new();
+    status_map.insert("https://example.com/gone".to_string(), 404u16);
+    status_map.insert("https://example.com/moved".to_string(), 301u16);
+    status_map.insert("https://example.com/de-gone".to_string(), 404u16);
+
+    let issues = crawlie_core::audit::audit(&[p, redirecting], &status_map, &[], &seed);
+    let r = rules(&issues);
+    for expected in [
+        "canonical-to-broken",
+        "canonical-to-redirect",
+        "hreflang-invalid-code",
+        "hreflang-broken",
+        "hreflang-no-x-default",
+    ] {
+        assert!(r.contains(&expected), "expected {expected} in {r:?}");
+    }
+}
+
+#[test]
+fn audit_flags_redirect_loops_and_insecure_links() {
+    let seed = Url::parse("https://example.com/").unwrap();
+    let mut looper = ok_page("https://example.com/loop");
+    looper.status = 0;
+    looper.error = Some("too many redirects".into());
+
+    let mut insecure = ok_page("https://example.com/secure");
+    insecure.external_links = vec!["http://other.example/x".into()];
+
+    let issues = crawlie_core::audit::audit(&[looper, insecure], &HashMap::new(), &[], &seed);
+    let r = rules(&issues);
+    assert!(
+        r.contains(&"redirect-loop"),
+        "expected redirect-loop in {r:?}"
+    );
+    assert!(
+        !r.contains(&"connection-error"),
+        "redirect loop must not double-report as connection error: {r:?}"
+    );
+    assert!(
+        r.contains(&"https-to-http-link"),
+        "expected https-to-http-link in {r:?}"
+    );
+}
+
+#[test]
 fn link_scores_rank_the_hub_highest() {
     // home ← linked by a and b; a,b link only to home. Home should top the ranking.
     let mut home = ok_page("https://example.com/");
@@ -216,6 +321,7 @@ fn page_seo_score_drops_with_issues() {
     bad.title = None; // error
     bad.meta_description = None; // warning
     bad.canonical = None; // notice
+    bad.h1 = vec!["A Different Heading".into()]; // identical H1s would trip h1-duplicate
     let pages = vec![clean, bad];
     let issues = crawlie_core::audit::audit(&pages, &HashMap::new(), &[], &seed);
     let scores = crawlie_core::scoring::page_seo_scores(&pages, &issues);
@@ -236,11 +342,12 @@ fn accessibility_has_its_own_score_and_doesnt_touch_health_or_seo() {
     clean.a11y.score = crawlie_core::scoring::a11y_score(&clean); // no failures → 100
     let mut bad = ok_page("https://example.com/bad");
     // Distinct metadata so the only findings on this page are accessibility ones
-    // (identical titles/descriptions would otherwise trip the duplicate rules).
+    // (identical titles/descriptions/H1s would otherwise trip the duplicate rules).
     bad.title = Some("A different, perfectly reasonable page title here".into());
     bad.meta_description = Some(
         "A distinct meta description, comfortably within the recommended snippet length.".into(),
     );
+    bad.h1 = vec!["A Different Heading".into()];
     // Several WCAG failures, but no SEO problems.
     bad.a11y = A11ySignals {
         links_no_text: 5,

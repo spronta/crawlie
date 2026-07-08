@@ -18,6 +18,12 @@ const SLOW_MS: u64 = 2000;
 const LARGE_BYTES: usize = 2_000_000;
 const DEEP: usize = 4;
 const GEO_READY: u8 = 70;
+const H1_MAX: usize = 70;
+/// Long pages without a single H2 read as an unstructured wall of text.
+const H2_MIN_WORDS: usize = 600;
+const URL_MAX: usize = 115;
+/// Total outlinks (internal + external) beyond which link equity is diluted.
+const MAX_OUTLINKS: usize = 200;
 
 fn issue(
     rule: &str,
@@ -47,39 +53,90 @@ fn norm(s: &str) -> String {
     }
 }
 
-/// Cross-page context an [`audit_one`] call needs: the titles and meta
-/// descriptions that appear on more than one 200 page. Owned (not borrowed from
-/// the page slice) so the streaming crawl can build it from a SQL query.
+/// Cross-page context an [`audit_one`] call needs: the titles, meta
+/// descriptions and H1s that appear on more than one 200 page, plus URL
+/// variants (case / trailing slash) crawled as separate pages. Owned (not
+/// borrowed from the page slice) so the streaming crawl can build it from a
+/// SQL query.
 #[derive(Default)]
 pub struct CrossPage {
     pub dup_title: HashSet<String>,
     pub dup_desc: HashSet<String>,
+    /// First-H1 texts that appear on more than one 200 page.
+    pub dup_h1: HashSet<String>,
+    /// ASCII-lowercased URLs crawled under more than one case variant.
+    pub dup_case: HashSet<String>,
+    /// Trailing-slash-stripped URLs crawled both with and without the slash.
+    pub dup_slash: HashSet<String>,
 }
 
-/// Build the duplicate title/description sets across all 200 pages.
+/// Build the duplicate title/description/H1 and duplicate-URL-variant sets
+/// across all crawled pages (titles/descs/H1s from 200 pages only).
 pub fn cross_page(pages: &[Page]) -> CrossPage {
     let mut titles: HashMap<&str, usize> = HashMap::new();
     let mut descs: HashMap<&str, usize> = HashMap::new();
-    for p in pages.iter().filter(|p| p.status == 200) {
+    let mut h1s: HashMap<&str, usize> = HashMap::new();
+    let mut case: HashMap<String, HashSet<&str>> = HashMap::new();
+    let mut slash: HashMap<&str, HashSet<&str>> = HashMap::new();
+    for p in pages {
+        case.entry(p.url.to_ascii_lowercase())
+            .or_default()
+            .insert(p.url.as_str());
+        let key = p.url.trim_end_matches('/');
+        if !key.is_empty() {
+            slash.entry(key).or_default().insert(p.url.as_str());
+        }
+        if p.status != 200 {
+            continue;
+        }
         if let Some(t) = p.title.as_deref().filter(|s| !s.is_empty()) {
             *titles.entry(t).or_insert(0) += 1;
         }
         if let Some(d) = p.meta_description.as_deref().filter(|s| !s.is_empty()) {
             *descs.entry(d).or_insert(0) += 1;
         }
+        if let Some(h) = p.h1.first().map(String::as_str).filter(|s| !s.is_empty()) {
+            *h1s.entry(h).or_insert(0) += 1;
+        }
     }
+    let dups = |m: HashMap<&str, usize>| -> HashSet<String> {
+        m.iter()
+            .filter(|(_, &c)| c > 1)
+            .map(|(&k, _)| k.to_string())
+            .collect()
+    };
     CrossPage {
-        dup_title: titles
-            .iter()
-            .filter(|(_, &c)| c > 1)
-            .map(|(&k, _)| k.to_string())
+        dup_title: dups(titles),
+        dup_desc: dups(descs),
+        dup_h1: dups(h1s),
+        dup_case: case
+            .into_iter()
+            .filter(|(_, v)| v.len() > 1)
+            .map(|(k, _)| k)
             .collect(),
-        dup_desc: descs
-            .iter()
-            .filter(|(_, &c)| c > 1)
-            .map(|(&k, _)| k.to_string())
+        dup_slash: slash
+            .into_iter()
+            .filter(|(_, v)| v.len() > 1)
+            .map(|(k, _)| k.to_string())
             .collect(),
     }
+}
+
+/// Whether an hreflang code is a plausible language(-script)(-region) tag,
+/// e.g. `en`, `en-GB`, `zh-Hant`, `es-419`, or the special `x-default`.
+fn valid_hreflang_code(code: &str) -> bool {
+    if code.eq_ignore_ascii_case("x-default") {
+        return true;
+    }
+    let mut parts = code.split('-');
+    let lang = parts.next().unwrap_or("");
+    if !(lang.len() == 2 || lang.len() == 3) || !lang.chars().all(|c| c.is_ascii_alphabetic()) {
+        return false;
+    }
+    parts.all(|part| {
+        ((part.len() == 2 || part.len() == 4) && part.chars().all(|c| c.is_ascii_alphabetic()))
+            || (part.len() == 3 && part.chars().all(|c| c.is_ascii_digit()))
+    })
 }
 
 /// Run every audit rule over the crawled pages.
@@ -131,14 +188,32 @@ pub fn audit_one(
 
         // --- Response codes ---
         if p.status == 0 {
-            out.push(issue(
-                "connection-error",
-                "Connection Error",
-                Response,
-                Error,
-                u,
-                p.error.clone(),
-            ));
+            // A "too many redirects" client error is a redirect loop, not a
+            // network fault — report it as the more actionable rule.
+            let redirect_err = p
+                .error
+                .as_deref()
+                .map(|e| e.to_ascii_lowercase().contains("redirect"))
+                .unwrap_or(false);
+            if redirect_err {
+                out.push(issue(
+                    "redirect-loop",
+                    "Redirect Loop",
+                    Response,
+                    Error,
+                    u,
+                    p.error.clone(),
+                ));
+            } else {
+                out.push(issue(
+                    "connection-error",
+                    "Connection Error",
+                    Response,
+                    Error,
+                    u,
+                    p.error.clone(),
+                ));
+            }
             return;
         } else if p.status >= 500 {
             out.push(issue(
@@ -178,6 +253,35 @@ pub fn audit_one(
                 Some(format!("{} hops", p.redirect_chain.len())),
             ));
         }
+        // A redirect that revisits a URL already in the chain never resolves.
+        {
+            let froms: HashSet<String> = p.redirect_chain.iter().map(|r| norm(&r.from)).collect();
+            let revisits = froms.len() < p.redirect_chain.len()
+                || p.redirect_chain
+                    .last()
+                    .map(|l| froms.contains(&norm(&l.to)))
+                    .unwrap_or(false);
+            if revisits {
+                out.push(issue(
+                    "redirect-loop",
+                    "Redirect Loop",
+                    Response,
+                    Error,
+                    u,
+                    Some(format!("{} hops", p.redirect_chain.len())),
+                ));
+            }
+        }
+        if p.status == 302 || p.status == 307 {
+            out.push(issue(
+                "redirect-temporary",
+                "Temporary Redirect",
+                Response,
+                Notice,
+                u,
+                Some(p.status.to_string()),
+            ));
+        }
         if p.status == 200 && p.response_time_ms > SLOW_MS {
             out.push(issue(
                 "slow-response",
@@ -215,6 +319,140 @@ pub fn audit_one(
         if p.status != 200 {
             return;
         }
+
+        // --- URL hygiene (applies to every 200 URL, HTML or asset) ---
+        if let Ok(parsed) = url::Url::parse(u) {
+            let path = parsed.path();
+            if path.chars().any(|c| c.is_ascii_uppercase()) {
+                out.push(issue(
+                    "url-uppercase",
+                    "Uppercase Characters in URL",
+                    Category::Url,
+                    Notice,
+                    u,
+                    None,
+                ));
+            }
+            if path.contains('_') {
+                out.push(issue(
+                    "url-underscores",
+                    "Underscores in URL",
+                    Category::Url,
+                    Notice,
+                    u,
+                    None,
+                ));
+            }
+            if path.contains(' ') || path.contains("%20") {
+                out.push(issue(
+                    "url-space",
+                    "Whitespace in URL",
+                    Category::Url,
+                    Warning,
+                    u,
+                    None,
+                ));
+            }
+            if path.contains("//") {
+                out.push(issue(
+                    "url-double-slash",
+                    "Multiple Slashes in URL",
+                    Category::Url,
+                    Warning,
+                    u,
+                    None,
+                ));
+            }
+            if !u.is_ascii() {
+                out.push(issue(
+                    "url-non-ascii",
+                    "Non-ASCII Characters in URL",
+                    Category::Url,
+                    Notice,
+                    u,
+                    None,
+                ));
+            }
+            let len = u.chars().count();
+            if len > URL_MAX {
+                out.push(issue(
+                    "url-too-long",
+                    "URL Over 115 Characters",
+                    Category::Url,
+                    Notice,
+                    u,
+                    Some(format!("{len} chars")),
+                ));
+            }
+            let params = parsed.query_pairs().count();
+            if params > 1 {
+                out.push(issue(
+                    "url-parameters",
+                    "Multiple URL Parameters",
+                    Category::Url,
+                    Notice,
+                    u,
+                    Some(format!("{params} parameters")),
+                ));
+            }
+            if parsed.query_pairs().any(|(k, _)| {
+                let k = k.to_ascii_lowercase();
+                k.starts_with("utm_") || k == "gclid" || k == "fbclid" || k == "msclkid"
+            }) {
+                out.push(issue(
+                    "url-tracking-params",
+                    "Tracking Parameters in URL",
+                    Category::Url,
+                    Notice,
+                    u,
+                    None,
+                ));
+            }
+            // A path segment repeating 3+ times is usually a relative-link
+            // crawl trap (/page/page/page/…).
+            {
+                let mut counts: HashMap<&str, usize> = HashMap::new();
+                for seg in path.split('/').filter(|s| !s.is_empty()) {
+                    *counts.entry(seg).or_insert(0) += 1;
+                }
+                if let Some((seg, &c)) = counts.iter().max_by_key(|(_, &c)| c) {
+                    if c >= 3 {
+                        out.push(issue(
+                            "url-repetitive-path",
+                            "Repetitive Path Segments",
+                            Category::Url,
+                            Warning,
+                            u,
+                            Some(format!("\"{seg}\" appears {c} times")),
+                        ));
+                    }
+                }
+            }
+        }
+        if cp.dup_case.contains(&u.to_ascii_lowercase()) {
+            out.push(issue(
+                "url-case-duplicate",
+                "Duplicate URL (Case Variant)",
+                Category::Url,
+                Warning,
+                u,
+                None,
+            ));
+        }
+        {
+            let key = u.trim_end_matches('/');
+            if !key.is_empty() && cp.dup_slash.contains(key) {
+                out.push(issue(
+                    "url-slash-duplicate",
+                    "Duplicate URL (Trailing Slash)",
+                    Category::Url,
+                    Warning,
+                    u,
+                    None,
+                ));
+            }
+        }
+
         // On-page SEO rules only apply to HTML documents — never to assets
         // (svg/css/js/json/pdf…) that slipped into the link graph.
         if !is_html {
@@ -327,6 +565,39 @@ pub fn audit_one(
                 Some(format!("{} H1s", p.h1.len())),
             ));
         }
+        if let Some(h) = p.h1.first() {
+            let len = h.chars().count();
+            if len > H1_MAX {
+                out.push(issue(
+                    "h1-too-long",
+                    "H1 Too Long",
+                    Headings,
+                    Notice,
+                    u,
+                    Some(format!("{len} chars")),
+                ));
+            }
+            if !h.is_empty() && cp.dup_h1.contains(h) {
+                out.push(issue(
+                    "h1-duplicate",
+                    "Duplicate H1",
+                    Headings,
+                    Notice,
+                    u,
+                    None,
+                ));
+            }
+        }
+        if p.word_count > H2_MIN_WORDS && p.h2_count == 0 {
+            out.push(issue(
+                "h2-missing",
+                "No H2 Headings",
+                Headings,
+                Notice,
+                u,
+                Some(format!("{} words without an H2", p.word_count)),
+            ));
+        }
 
         // --- Indexability ---
         let meta_noindex = p
@@ -379,6 +650,60 @@ pub fn audit_one(
                 u,
                 p.canonical.clone(),
             ));
+        }
+        if let Some(canon) = p.canonical.as_deref() {
+            // The canonical target's health, when we know it (crawled or
+            // HEAD-verified). A canonical pointing at a broken or redirecting
+            // URL sends indexing signals into a dead end.
+            if let Some(&s) = status_map.get(&norm(canon)) {
+                if s == 0 || s == 404 || s == 410 || s >= 500 {
+                    out.push(issue(
+                        "canonical-to-broken",
+                        "Canonical Points to Broken URL",
+                        Canonical,
+                        Error,
+                        u,
+                        Some(format!(
+                            "{} → {}",
+                            if s == 0 { "ERR".into() } else { s.to_string() },
+                            canon
+                        )),
+                    ));
+                } else if (300..400).contains(&s) {
+                    out.push(issue(
+                        "canonical-to-redirect",
+                        "Canonical Points to Redirect",
+                        Canonical,
+                        Warning,
+                        u,
+                        Some(format!("{s} → {canon}")),
+                    ));
+                }
+            }
+            if let (Ok(cu), Ok(pu)) = (url::Url::parse(canon), url::Url::parse(u)) {
+                if let (Some(ch), Some(ph)) = (cu.host_str(), pu.host_str()) {
+                    if !ch.eq_ignore_ascii_case(ph) {
+                        out.push(issue(
+                            "canonical-cross-host",
+                            "Canonical Points to Another Host",
+                            Canonical,
+                            Notice,
+                            u,
+                            Some(canon.to_string()),
+                        ));
+                    }
+                }
+            }
+            if meta_noindex && p.canonicalized {
+                out.push(issue(
+                    "noindex-canonical-conflict",
+                    "Noindex Combined With Canonical",
+                    Indexability,
+                    Warning,
+                    u,
+                    Some(canon.to_string()),
+                ));
+            }
         }
 
         // --- Images ---
@@ -491,6 +816,17 @@ pub fn audit_one(
                 Some(format!("{} clicks from home", p.depth)),
             ));
         }
+        let outlinks = p.internal_links.len() + p.external_links.len();
+        if outlinks > MAX_OUTLINKS {
+            out.push(issue(
+                "too-many-links",
+                "Excessive Outlinks",
+                Links,
+                Notice,
+                u,
+                Some(format!("{outlinks} outgoing links")),
+            ));
+        }
 
         // --- Performance ---
         if is_html && p.content_encoding.is_none() && p.size_bytes > 4096 {
@@ -535,6 +871,24 @@ pub fn audit_one(
                     None,
                 ));
             }
+            // Hyperlinks (not resources — that's mixed-content) pointing at
+            // plain-HTTP URLs from a secure page.
+            let http_links = p
+                .internal_links
+                .iter()
+                .chain(p.external_links.iter())
+                .filter(|l| l.starts_with("http://"))
+                .count();
+            if http_links > 0 {
+                out.push(issue(
+                    "https-to-http-link",
+                    "HTTPS Page Links to HTTP",
+                    Security,
+                    Warning,
+                    u,
+                    Some(format!("{http_links} link(s) to HTTP URLs")),
+                ));
+            }
         }
 
         // --- Mobile ---
@@ -561,6 +915,59 @@ pub fn audit_one(
             ));
         }
         if !p.hreflang.is_empty() {
+            // Invalid language/region codes make the whole annotation set
+            // unusable to search engines.
+            let bad: Vec<&str> = p
+                .hreflang
+                .iter()
+                .filter(|h| !valid_hreflang_code(&h.lang))
+                .map(|h| h.lang.as_str())
+                .collect();
+            if !bad.is_empty() {
+                out.push(issue(
+                    "hreflang-invalid-code",
+                    "Invalid hreflang Code",
+                    International,
+                    Warning,
+                    u,
+                    Some(bad.join(", ")),
+                ));
+            }
+            // hreflang alternates that resolve to an error, when we know the
+            // target's status.
+            for h in &p.hreflang {
+                if let Some(&s) = status_map.get(&norm(&h.href)) {
+                    if s == 0 || s == 404 || s == 410 || s >= 500 {
+                        out.push(issue(
+                            "hreflang-broken",
+                            "hreflang Points to Broken URL",
+                            International,
+                            Warning,
+                            u,
+                            Some(format!(
+                                "{} → {} ({})",
+                                h.lang,
+                                h.href,
+                                if s == 0 { "ERR".into() } else { s.to_string() }
+                            )),
+                        ));
+                    }
+                }
+            }
+            if !p
+                .hreflang
+                .iter()
+                .any(|h| h.lang.eq_ignore_ascii_case("x-default"))
+            {
+                out.push(issue(
+                    "hreflang-no-x-default",
+                    "hreflang Missing x-default",
+                    International,
+                    Notice,
+                    u,
+                    None,
+                ));
+            }
             let has_self = p
                 .lang
                 .as_deref()
@@ -683,6 +1090,16 @@ pub fn audit_one(
             out.push(issue(
                 "twitter-missing",
                 "Missing Twitter Card",
+                Social,
+                Notice,
+                u,
+                None,
+            ));
+        }
+        if p.og_title.is_some() && p.og_image.is_none() {
+            out.push(issue(
+                "og-incomplete",
+                "Open Graph Missing Image",
                 Social,
                 Notice,
                 u,

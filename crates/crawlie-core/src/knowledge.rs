@@ -52,6 +52,14 @@ entries! {
         "Slow server responses (high TTFB) hurt Core Web Vitals, frustrate users, and limit how many pages a crawler will fetch per visit.",
         "Add caching/CDN, optimize database queries, enable keep-alive and compression, and move to faster hosting if needed.",
         "Lower rankings via Core Web Vitals and reduced crawl coverage.";
+    "redirect-loop" => "Redirect Loop", Response, Error,
+        "This URL's redirects revisit a URL already in the chain, so the request never resolves. Browsers give up with an error and search engines drop the URL entirely.",
+        "Trace the redirect rules (server config, CDN, CMS plugins) and break the cycle so the URL resolves to a final 200 destination in one hop.",
+        "The page is completely unreachable for users and search engines.";
+    "redirect-temporary" => "Temporary Redirect", Response, Notice,
+        "A 302/307 tells search engines the move is temporary, so they keep the old URL indexed and don't pass full signals to the destination. Most 'temporary' redirects are actually permanent moves.",
+        "If the move is permanent, switch to a 301 (or 308) so engines transfer indexing and link signals to the destination.",
+        "Link equity and indexing stay split between the old and new URLs.";
 
     // ---- Links ----
     "broken-link" => "Broken Link", Links, Error,
@@ -70,6 +78,56 @@ entries! {
         "This page is many clicks from the homepage. Pages buried deep in the architecture receive less crawl attention and less internal link equity.",
         "Flatten your site architecture so important pages sit within ~3 clicks of the homepage via hub pages and contextual links.",
         "Slower indexing and weaker rankings for deep content.";
+    "too-many-links" => "Excessive Outlinks", Links, Notice,
+        "Hundreds of links on one page split its link equity into tiny fractions and overwhelm both users and crawlers. Mega-menus and unbounded tag clouds are the usual culprits.",
+        "Trim navigation and footer link blocks to what users actually need, and paginate or curate long link lists.",
+        "Diluted link equity and a weaker crawl signal for every linked page.";
+
+    // ---- URLs ----
+    "url-uppercase" => "Uppercase Characters in URL", Category::Url, Notice,
+        "URLs are case-sensitive, so /Page and /page are different URLs to search engines. Mixed case invites duplicate-content splits and broken links from case-typos.",
+        "Standardise on lowercase URLs and 301-redirect uppercase variants to the lowercase form.",
+        "Duplicate URL variants competing against each other.";
+    "url-underscores" => "Underscores in URL", Category::Url, Notice,
+        "Google treats underscores as word joiners, not separators — /blue_widgets reads as 'bluewidgets'. Hyphens are the recognised word separator.",
+        "Use hyphens to separate words in new URLs. Existing URLs are usually not worth redirecting for this alone.",
+        "Slightly weaker keyword recognition in URL paths.";
+    "url-space" => "Whitespace in URL", Category::Url, Warning,
+        "Spaces in URLs must be encoded (%20) and frequently break when copied, shared, or linked — a common source of 404s.",
+        "Replace spaces with hyphens in URL slugs and redirect the old URLs.",
+        "Fragile links that break in emails, chats, and markup.";
+    "url-double-slash" => "Multiple Slashes in URL", Category::Url, Warning,
+        "Doubled slashes (site.com/blog//post) usually come from sloppy link concatenation and create duplicate URL variants of the same page.",
+        "Fix the link-building logic or template producing the doubled slash, and 301 the variants to the clean URL.",
+        "Duplicate URLs and wasted crawl budget.";
+    "url-non-ascii" => "Non-ASCII Characters in URL", Category::Url, Notice,
+        "Non-ASCII characters get percent-encoded inconsistently by different tools, creating multiple byte-level variants of the same URL and unreadable encoded strings when shared.",
+        "Prefer ASCII slugs (transliterate where sensible), and be consistent about encoding if international URLs are a deliberate choice.",
+        "Encoding-variant duplicates and ugly shared links.";
+    "url-too-long" => "URL Over 115 Characters", Category::Url, Notice,
+        "Very long URLs are harder to share, get truncated in SERPs and social shares, and usually signal parameter bloat or over-nested paths.",
+        "Keep slugs short and descriptive; flatten unnecessary path levels and drop redundant parameters.",
+        "Reduced shareability and messier search snippets.";
+    "url-parameters" => "Multiple URL Parameters", Category::Url, Notice,
+        "URLs carrying several query parameters usually mean faceted navigation or session state — the classic source of infinite URL spaces that burn crawl budget.",
+        "Keep indexable content on clean paths, canonicalise parameterised variants, and block crawl-trap parameters in robots.txt.",
+        "Crawl budget wasted on near-duplicate parameter permutations.";
+    "url-tracking-params" => "Tracking Parameters in URL", Category::Url, Notice,
+        "Internal links carrying utm_/gclid-style parameters create duplicate URLs and pollute your analytics (internal clicks masquerade as campaign traffic).",
+        "Never use UTM parameters on internal links. Canonicalise or redirect tracked URLs to the clean version.",
+        "Duplicate indexed URLs and corrupted campaign analytics.";
+    "url-repetitive-path" => "Repetitive Path Segments", Category::Url, Warning,
+        "The same path segment repeats several times (/page/page/page) — the signature of a relative-link bug generating an infinite URL space crawlers can fall into.",
+        "Find the template emitting relative links without a trailing-slash-aware base and switch to absolute or root-relative URLs.",
+        "A crawl trap that can consume your entire crawl budget.";
+    "url-case-duplicate" => "Duplicate URL (Case Variant)", Category::Url, Warning,
+        "This URL was crawled in more than one letter-case variant, and each variant is a separate URL to search engines — the same content competing with itself.",
+        "301-redirect all case variants to one canonical casing (lowercase by convention) at the server level.",
+        "Split ranking signals across identical pages.";
+    "url-slash-duplicate" => "Duplicate URL (Trailing Slash)", Category::Url, Warning,
+        "Both the trailing-slash and non-slash version of this URL respond with content, creating two indexable copies of the same page.",
+        "Pick one form and 301-redirect the other site-wide (most servers have a single setting for this).",
+        "Duplicate content and divided link equity.";
 
     // ---- Titles & Meta ----
     "title-missing" => "Missing Title", TitlesMeta, Error,
@@ -114,6 +172,18 @@ entries! {
         "Several H1s blur the page's primary topic and weaken the heading hierarchy that crawlers and screen readers rely on.",
         "Keep a single H1 and demote the rest to H2/H3 to form a clean outline.",
         "Diluted topical focus and accessibility issues.";
+    "h1-too-long" => "H1 Too Long", Headings, Notice,
+        "An H1 past ~70 characters stops being a headline and starts being a paragraph — harder to scan for users and a muddier topical signal for engines.",
+        "Tighten the H1 to a crisp statement of the page's topic; move the detail into the intro copy.",
+        "Weaker scannability and diluted topical focus.";
+    "h1-duplicate" => "Duplicate H1", Headings, Notice,
+        "Multiple pages share the same H1, so their primary on-page topic signal is identical — engines struggle to tell which page should rank for that topic.",
+        "Give each page a unique H1 describing its specific content, just like titles.",
+        "Keyword cannibalisation between pages with the same heading.";
+    "h2-missing" => "No H2 Headings", Headings, Notice,
+        "A long page with no H2s is a wall of text: harder for users to scan, and harder for search and AI engines to extract sections and answers from.",
+        "Break the content into logical sections with descriptive H2 subheadings.",
+        "Lower engagement and weaker extraction by search/AI engines.";
 
     // ---- Indexability ----
     "noindex" => "Noindex", Indexability, Warning,
@@ -150,6 +220,22 @@ entries! {
         "This page's canonical points to a different URL, so engines treat the other URL as the one to index. Fine when deliberate, harmful when accidental.",
         "Verify the canonical target is correct. If this page should rank on its own, point the canonical at itself.",
         "The page may be dropped from the index in favour of the canonical target.";
+    "canonical-to-broken" => "Canonical Points to Broken URL", Canonical, Error,
+        "The canonical tag points to a URL that returns an error, telling search engines the 'preferred' version of this page doesn't exist. Engines then ignore the canonical or, worse, drop both URLs.",
+        "Update the canonical to a live, 200-status URL — usually the page itself — and fix or remove the broken target.",
+        "Indexing signals are sent into a dead end; the page may fall out of the index.";
+    "canonical-to-redirect" => "Canonical Points to Redirect", Canonical, Warning,
+        "The canonical target itself redirects, forcing engines to chase a chain to find the real preferred URL. Signals get diluted and engines may ignore the annotation.",
+        "Point the canonical directly at the final destination URL (200 status, no hops).",
+        "Weakened canonical signals and wasted crawl budget.";
+    "canonical-cross-host" => "Canonical Points to Another Host", Canonical, Notice,
+        "This page declares a canonical on a different host, handing its indexing rights to another domain or subdomain. Legitimate for syndicated content — costly when accidental (e.g. staging → production mixups, www/apex confusion).",
+        "Confirm the cross-domain canonical is intentional. If not, point the canonical at this page's own host.",
+        "The page cedes its search presence to the other host.";
+    "noindex-canonical-conflict" => "Noindex Combined With Canonical", Indexability, Warning,
+        "The page is noindexed but also canonicals to another URL — two contradictory instructions. Google explicitly advises against combining them: the noindex can bleed through the canonical and de-index the target.",
+        "Pick one signal: use a canonical for consolidation (remove the noindex), or a noindex to exclude the page (remove the canonical).",
+        "Unpredictable indexing — the canonical target may get dropped too.";
 
     // ---- Images ----
     "image-missing-alt" => "Images Missing Alt Text", Images, Warning,
@@ -192,6 +278,10 @@ entries! {
         "Without HTTP Strict Transport Security, the first request can be downgraded to HTTP, exposing users to interception on that initial hop.",
         "Send a Strict-Transport-Security header with a long max-age once you're confident all subdomains are HTTPS.",
         "A small but real man-in-the-middle exposure window.";
+    "https-to-http-link" => "HTTPS Page Links to HTTP", Security, Warning,
+        "This secure page contains hyperlinks to plain-HTTP URLs. Every click sends the visitor (or crawler) through an insecure hop and usually a redirect, and internal HTTP links reintroduce the pre-HTTPS URL space.",
+        "Update the links to their HTTPS equivalents — internal links first, then external where the target supports HTTPS.",
+        "Needless redirects, insecure hops, and mixed signals about your canonical protocol.";
 
     // ---- Performance ----
     "no-compression" => "No Text Compression", Performance, Notice,
@@ -214,6 +304,18 @@ entries! {
         "hreflang annotations help engines serve the right language/region version. Incomplete or non-reciprocal hreflang confuses targeting.",
         "Ensure every language variant lists all others (including itself) with valid language-region codes and a return link.",
         "Wrong-language pages shown to users in search results.";
+    "hreflang-invalid-code" => "Invalid hreflang Code", International, Warning,
+        "An hreflang value isn't a valid language(-script)(-region) tag (e.g. 'en-UK' instead of 'en-GB'). Search engines ignore annotations they can't parse — often silently breaking the whole alternate set.",
+        "Use ISO 639-1 language codes with optional ISO 15924 script / ISO 3166-1 region subtags (en, en-GB, zh-Hant), or x-default.",
+        "The alternate is ignored and the wrong language version gets served.";
+    "hreflang-broken" => "hreflang Points to Broken URL", International, Warning,
+        "An hreflang alternate on this page points to a URL that returns an error, so engines can't establish the language cluster and may distrust the remaining annotations.",
+        "Fix or remove the broken alternate URL and keep hreflang sets in sync with your live URLs.",
+        "Broken language targeting for the whole alternate cluster.";
+    "hreflang-no-x-default" => "hreflang Missing x-default", International, Notice,
+        "Without an x-default annotation, search engines have no instruction for users whose language matches none of your alternates.",
+        "Add an x-default hreflang pointing at your default/global version (often the language-selector or English page).",
+        "Unmatched international users get an arbitrary version.";
 
     // ---- Social ----
     "og-missing" => "Missing Open Graph Tags", Social, Notice,
@@ -224,6 +326,10 @@ entries! {
         "Twitter/X card tags define the rich preview when your page is shared there.",
         "Add twitter:card (and optionally twitter:title/description/image) meta tags.",
         "Plain-text social previews that earn fewer clicks.";
+    "og-incomplete" => "Open Graph Missing Image", Social, Notice,
+        "The page declares Open Graph tags but no og:image, so shares render as text-only cards — dramatically less clickable than image previews.",
+        "Add an og:image (1200×630 recommended) alongside the existing OG tags.",
+        "Text-only share cards that underperform in every feed.";
 
     // ---- Structured Data ----
     "structured-data-missing" => "No Structured Data", StructuredData, Notice,

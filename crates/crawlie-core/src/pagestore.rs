@@ -281,16 +281,12 @@ impl PageStore {
         Ok(map)
     }
 
-    /// Duplicate-title / duplicate-description sets across 200 pages, computed
-    /// with `GROUP BY ... HAVING COUNT(*) > 1` — the streaming equivalent of
+    /// Duplicate-title / description / H1 and duplicate-URL-variant sets,
+    /// computed with `GROUP BY ... HAVING` — the streaming equivalent of
     /// [`crate::audit::cross_page`].
     pub fn cross_page(&self) -> io::Result<CrossPage> {
-        let dup = |col: &str| -> io::Result<HashSet<String>> {
-            let sql = format!(
-                "SELECT {col} FROM page WHERE status = 200 AND {col} IS NOT NULL AND {col} <> '' \
-                 GROUP BY {col} HAVING COUNT(*) > 1"
-            );
-            let mut stmt = self.conn.prepare(&sql).map_err(ioerr)?;
+        let query = |sql: &str| -> io::Result<HashSet<String>> {
+            let mut stmt = self.conn.prepare(sql).map_err(ioerr)?;
             let rows = stmt
                 .query_map([], |r| r.get::<_, String>(0))
                 .map_err(ioerr)?;
@@ -300,9 +296,31 @@ impl PageStore {
             }
             Ok(set)
         };
+        let dup = |col: &str| {
+            query(&format!(
+                "SELECT {col} FROM page WHERE status = 200 AND {col} IS NOT NULL AND {col} <> '' \
+                 GROUP BY {col} HAVING COUNT(*) > 1"
+            ))
+        };
         Ok(CrossPage {
             dup_title: dup("title")?,
             dup_desc: dup("meta_description")?,
+            // First H1 lives in the page blob; SQLite's LOWER/RTRIM are
+            // ASCII-only, matching the in-memory to_ascii_lowercase /
+            // trim_end_matches('/') keys.
+            dup_h1: query(
+                "SELECT h FROM (SELECT json_extract(blob, '$.h1[0]') AS h FROM page \
+                 WHERE status = 200) WHERE h IS NOT NULL AND h <> '' \
+                 GROUP BY h HAVING COUNT(*) > 1",
+            )?,
+            dup_case: query(
+                "SELECT k FROM (SELECT LOWER(url) AS k, url FROM page) \
+                 GROUP BY k HAVING COUNT(DISTINCT url) > 1",
+            )?,
+            dup_slash: query(
+                "SELECT k FROM (SELECT RTRIM(url, '/') AS k, url FROM page) \
+                 WHERE k <> '' GROUP BY k HAVING COUNT(DISTINCT url) > 1",
+            )?,
         })
     }
 

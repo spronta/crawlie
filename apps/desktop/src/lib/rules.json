@@ -4,7 +4,7 @@
     "title": "Connection Error",
     "category": "response",
     "severity": "error",
-    "why": "The server didn't respond at all \u2014 DNS failure, timeout, or a refused connection. Search engines that can't reach a URL can't index it, and users hit a dead end.",
+    "why": "The server didn't respond at all — DNS failure, timeout, or a refused connection. Search engines that can't reach a URL can't index it, and users hit a dead end.",
     "howToFix": "Confirm the URL is correct and the host is reachable. Check DNS, server uptime, firewall rules, and that your server isn't rate-limiting the crawler.",
     "impact": "Completely invisible to search engines and inaccessible to users."
   },
@@ -40,7 +40,7 @@
     "title": "Redirect Chain",
     "category": "response",
     "severity": "warning",
-    "why": "Multiple hops (A\u2192B\u2192C) compound latency and risk a hop breaking. Some crawlers stop following after a few redirects, abandoning the final page.",
+    "why": "Multiple hops (A→B→C) compound latency and risk a hop breaking. Some crawlers stop following after a few redirects, abandoning the final page.",
     "howToFix": "Collapse the chain so the first URL redirects directly to the final destination in a single hop.",
     "impact": "Wasted crawl budget, slower pages, and a risk the destination is never reached."
   },
@@ -52,6 +52,24 @@
     "why": "Slow server responses (high TTFB) hurt Core Web Vitals, frustrate users, and limit how many pages a crawler will fetch per visit.",
     "howToFix": "Add caching/CDN, optimize database queries, enable keep-alive and compression, and move to faster hosting if needed.",
     "impact": "Lower rankings via Core Web Vitals and reduced crawl coverage."
+  },
+  {
+    "rule": "redirect-loop",
+    "title": "Redirect Loop",
+    "category": "response",
+    "severity": "error",
+    "why": "This URL's redirects revisit a URL already in the chain, so the request never resolves. Browsers give up with an error and search engines drop the URL entirely.",
+    "howToFix": "Trace the redirect rules (server config, CDN, CMS plugins) and break the cycle so the URL resolves to a final 200 destination in one hop.",
+    "impact": "The page is completely unreachable for users and search engines."
+  },
+  {
+    "rule": "redirect-temporary",
+    "title": "Temporary Redirect",
+    "category": "response",
+    "severity": "notice",
+    "why": "A 302/307 tells search engines the move is temporary, so they keep the old URL indexed and don't pass full signals to the destination. Most 'temporary' redirects are actually permanent moves.",
+    "howToFix": "If the move is permanent, switch to a 301 (or 308) so engines transfer indexing and link signals to the destination.",
+    "impact": "Link equity and indexing stay split between the old and new URLs."
   },
   {
     "rule": "broken-link",
@@ -72,6 +90,15 @@
     "impact": "Reduced discoverability, crawl frequency, and ranking potential."
   },
   {
+    "rule": "dead-end",
+    "title": "Dead End",
+    "category": "links",
+    "severity": "notice",
+    "why": "This page links out to no other internal pages, so it's a dead end: visitors and crawlers that arrive have nowhere to go next, and the page passes none of its authority (PageRank) on to the rest of the site.",
+    "howToFix": "Add relevant, in-context internal links to related content, hub pages, or logical next steps so authority and visitors flow onward.",
+    "impact": "Trapped crawl paths, wasted link equity, and dead-end user journeys."
+  },
+  {
     "rule": "deep-page",
     "title": "Deep Page",
     "category": "links",
@@ -81,12 +108,120 @@
     "impact": "Slower indexing and weaker rankings for deep content."
   },
   {
+    "rule": "too-many-links",
+    "title": "Excessive Outlinks",
+    "category": "links",
+    "severity": "notice",
+    "why": "Hundreds of links on one page split its link equity into tiny fractions and overwhelm both users and crawlers. Mega-menus and unbounded tag clouds are the usual culprits.",
+    "howToFix": "Trim navigation and footer link blocks to what users actually need, and paginate or curate long link lists.",
+    "impact": "Diluted link equity and a weaker crawl signal for every linked page."
+  },
+  {
+    "rule": "url-uppercase",
+    "title": "Uppercase Characters in URL",
+    "category": "url",
+    "severity": "notice",
+    "why": "URLs are case-sensitive, so /Page and /page are different URLs to search engines. Mixed case invites duplicate-content splits and broken links from case-typos.",
+    "howToFix": "Standardise on lowercase URLs and 301-redirect uppercase variants to the lowercase form.",
+    "impact": "Duplicate URL variants competing against each other."
+  },
+  {
+    "rule": "url-underscores",
+    "title": "Underscores in URL",
+    "category": "url",
+    "severity": "notice",
+    "why": "Google treats underscores as word joiners, not separators — /blue_widgets reads as 'bluewidgets'. Hyphens are the recognised word separator.",
+    "howToFix": "Use hyphens to separate words in new URLs. Existing URLs are usually not worth redirecting for this alone.",
+    "impact": "Slightly weaker keyword recognition in URL paths."
+  },
+  {
+    "rule": "url-space",
+    "title": "Whitespace in URL",
+    "category": "url",
+    "severity": "warning",
+    "why": "Spaces in URLs must be encoded (%20) and frequently break when copied, shared, or linked — a common source of 404s.",
+    "howToFix": "Replace spaces with hyphens in URL slugs and redirect the old URLs.",
+    "impact": "Fragile links that break in emails, chats, and markup."
+  },
+  {
+    "rule": "url-double-slash",
+    "title": "Multiple Slashes in URL",
+    "category": "url",
+    "severity": "warning",
+    "why": "Doubled slashes (site.com/blog//post) usually come from sloppy link concatenation and create duplicate URL variants of the same page.",
+    "howToFix": "Fix the link-building logic or template producing the doubled slash, and 301 the variants to the clean URL.",
+    "impact": "Duplicate URLs and wasted crawl budget."
+  },
+  {
+    "rule": "url-non-ascii",
+    "title": "Non-ASCII Characters in URL",
+    "category": "url",
+    "severity": "notice",
+    "why": "Non-ASCII characters get percent-encoded inconsistently by different tools, creating multiple byte-level variants of the same URL and unreadable encoded strings when shared.",
+    "howToFix": "Prefer ASCII slugs (transliterate where sensible), and be consistent about encoding if international URLs are a deliberate choice.",
+    "impact": "Encoding-variant duplicates and ugly shared links."
+  },
+  {
+    "rule": "url-too-long",
+    "title": "URL Over 115 Characters",
+    "category": "url",
+    "severity": "notice",
+    "why": "Very long URLs are harder to share, get truncated in SERPs and social shares, and usually signal parameter bloat or over-nested paths.",
+    "howToFix": "Keep slugs short and descriptive; flatten unnecessary path levels and drop redundant parameters.",
+    "impact": "Reduced shareability and messier search snippets."
+  },
+  {
+    "rule": "url-parameters",
+    "title": "Multiple URL Parameters",
+    "category": "url",
+    "severity": "notice",
+    "why": "URLs carrying several query parameters usually mean faceted navigation or session state — the classic source of infinite URL spaces that burn crawl budget.",
+    "howToFix": "Keep indexable content on clean paths, canonicalise parameterised variants, and block crawl-trap parameters in robots.txt.",
+    "impact": "Crawl budget wasted on near-duplicate parameter permutations."
+  },
+  {
+    "rule": "url-tracking-params",
+    "title": "Tracking Parameters in URL",
+    "category": "url",
+    "severity": "notice",
+    "why": "Internal links carrying utm_/gclid-style parameters create duplicate URLs and pollute your analytics (internal clicks masquerade as campaign traffic).",
+    "howToFix": "Never use UTM parameters on internal links. Canonicalise or redirect tracked URLs to the clean version.",
+    "impact": "Duplicate indexed URLs and corrupted campaign analytics."
+  },
+  {
+    "rule": "url-repetitive-path",
+    "title": "Repetitive Path Segments",
+    "category": "url",
+    "severity": "warning",
+    "why": "The same path segment repeats several times (/page/page/page) — the signature of a relative-link bug generating an infinite URL space crawlers can fall into.",
+    "howToFix": "Find the template emitting relative links without a trailing-slash-aware base and switch to absolute or root-relative URLs.",
+    "impact": "A crawl trap that can consume your entire crawl budget."
+  },
+  {
+    "rule": "url-case-duplicate",
+    "title": "Duplicate URL (Case Variant)",
+    "category": "url",
+    "severity": "warning",
+    "why": "This URL was crawled in more than one letter-case variant, and each variant is a separate URL to search engines — the same content competing with itself.",
+    "howToFix": "301-redirect all case variants to one canonical casing (lowercase by convention) at the server level.",
+    "impact": "Split ranking signals across identical pages."
+  },
+  {
+    "rule": "url-slash-duplicate",
+    "title": "Duplicate URL (Trailing Slash)",
+    "category": "url",
+    "severity": "warning",
+    "why": "Both the trailing-slash and non-slash version of this URL respond with content, creating two indexable copies of the same page.",
+    "howToFix": "Pick one form and 301-redirect the other site-wide (most servers have a single setting for this).",
+    "impact": "Duplicate content and divided link equity."
+  },
+  {
     "rule": "title-missing",
     "title": "Missing Title",
     "category": "titles-meta",
     "severity": "error",
-    "why": "The title tag is the single most important on-page SEO element and the clickable headline in search results. Without one, engines invent one \u2014 usually badly.",
-    "howToFix": "Add a unique, descriptive <title> of roughly 30\u201360 characters that includes the page's primary keyword near the front.",
+    "why": "The title tag is the single most important on-page SEO element and the clickable headline in search results. Without one, engines invent one — usually badly.",
+    "howToFix": "Add a unique, descriptive <title> of roughly 30–60 characters that includes the page's primary keyword near the front.",
     "impact": "Drastically reduced click-through and ranking for the page."
   },
   {
@@ -104,7 +239,7 @@
     "category": "titles-meta",
     "severity": "notice",
     "why": "Very short titles waste valuable space in the search result and often omit useful keywords searchers use.",
-    "howToFix": "Expand the title to ~30\u201360 characters with descriptive, keyword-relevant wording.",
+    "howToFix": "Expand the title to ~30–60 characters with descriptive, keyword-relevant wording.",
     "impact": "Missed keyword relevance and weaker click-through."
   },
   {
@@ -122,7 +257,7 @@
     "category": "titles-meta",
     "severity": "warning",
     "why": "The meta description is your ad copy in search results. Without one, engines auto-generate a snippet from page text, often unappealing.",
-    "howToFix": "Write a unique, compelling 70\u2013160 character description that summarises the page and invites the click.",
+    "howToFix": "Write a unique, compelling 70–160 character description that summarises the page and invites the click.",
     "impact": "Lower click-through from search results."
   },
   {
@@ -131,7 +266,7 @@
     "category": "titles-meta",
     "severity": "notice",
     "why": "Descriptions beyond ~160 characters are truncated, cutting off your call to action.",
-    "howToFix": "Trim to ~70\u2013160 characters and put the key message first.",
+    "howToFix": "Trim to ~70–160 characters and put the key message first.",
     "impact": "Truncated snippets with weaker messaging."
   },
   {
@@ -140,7 +275,7 @@
     "category": "titles-meta",
     "severity": "notice",
     "why": "Very short descriptions under-use the snippet space and rarely persuade the searcher.",
-    "howToFix": "Expand to ~70\u2013160 characters with a clear summary and benefit.",
+    "howToFix": "Expand to ~70–160 characters with a clear summary and benefit.",
     "impact": "Under-leveraged search real estate."
   },
   {
@@ -171,11 +306,38 @@
     "impact": "Diluted topical focus and accessibility issues."
   },
   {
+    "rule": "h1-too-long",
+    "title": "H1 Too Long",
+    "category": "headings",
+    "severity": "notice",
+    "why": "An H1 past ~70 characters stops being a headline and starts being a paragraph — harder to scan for users and a muddier topical signal for engines.",
+    "howToFix": "Tighten the H1 to a crisp statement of the page's topic; move the detail into the intro copy.",
+    "impact": "Weaker scannability and diluted topical focus."
+  },
+  {
+    "rule": "h1-duplicate",
+    "title": "Duplicate H1",
+    "category": "headings",
+    "severity": "notice",
+    "why": "Multiple pages share the same H1, so their primary on-page topic signal is identical — engines struggle to tell which page should rank for that topic.",
+    "howToFix": "Give each page a unique H1 describing its specific content, just like titles.",
+    "impact": "Keyword cannibalisation between pages with the same heading."
+  },
+  {
+    "rule": "h2-missing",
+    "title": "No H2 Headings",
+    "category": "headings",
+    "severity": "notice",
+    "why": "A long page with no H2s is a wall of text: harder for users to scan, and harder for search and AI engines to extract sections and answers from.",
+    "howToFix": "Break the content into logical sections with descriptive H2 subheadings.",
+    "impact": "Lower engagement and weaker extraction by search/AI engines."
+  },
+  {
     "rule": "noindex",
     "title": "Noindex",
     "category": "indexability",
     "severity": "warning",
-    "why": "A noindex directive tells search engines to keep this page out of their index. Intentional for thank-you/admin pages \u2014 disastrous if applied by mistake.",
+    "why": "A noindex directive tells search engines to keep this page out of their index. Intentional for thank-you/admin pages — disastrous if applied by mistake.",
     "howToFix": "Confirm the noindex is intended. If the page should rank, remove the noindex from the meta robots tag or X-Robots-Tag header.",
     "impact": "The page cannot appear in search results."
   },
@@ -207,6 +369,24 @@
     "impact": "The page's content is invisible to search engines."
   },
   {
+    "rule": "no-robots-txt",
+    "title": "No robots.txt",
+    "category": "indexability",
+    "severity": "notice",
+    "why": "The site has no /robots.txt. Crawling still works without one, but you lose the ability to steer crawlers, exclude private or low-value paths, and — most usefully — to declare your sitemap location. Some servers also return a stray HTML page for the missing file, which can confuse crawlers.",
+    "howToFix": "Add a /robots.txt at the site root. A minimal file allowing everything and pointing at your sitemap is enough: \"User-agent: *\\nAllow: /\\nSitemap: https://example.com/sitemap.xml\".",
+    "impact": "No crawl control and search engines aren't told where your sitemap lives."
+  },
+  {
+    "rule": "no-sitemap",
+    "title": "No XML sitemap",
+    "category": "indexability",
+    "severity": "warning",
+    "why": "No XML sitemap was found — neither declared in robots.txt nor at the conventional /sitemap.xml. Sitemaps give search engines an explicit, complete list of your indexable URLs with last-modified hints, which speeds up discovery of new and deep pages that internal links alone may reach slowly.",
+    "howToFix": "Generate an XML sitemap listing your canonical, indexable URLs, publish it at /sitemap.xml, and reference it from robots.txt with a \"Sitemap:\" line. Most frameworks and CMSs can produce one automatically.",
+    "impact": "Slower and less reliable discovery and indexation, especially for new or deep pages."
+  },
+  {
     "rule": "canonical-missing",
     "title": "Missing Canonical",
     "category": "canonical",
@@ -223,6 +403,42 @@
     "why": "This page's canonical points to a different URL, so engines treat the other URL as the one to index. Fine when deliberate, harmful when accidental.",
     "howToFix": "Verify the canonical target is correct. If this page should rank on its own, point the canonical at itself.",
     "impact": "The page may be dropped from the index in favour of the canonical target."
+  },
+  {
+    "rule": "canonical-to-broken",
+    "title": "Canonical Points to Broken URL",
+    "category": "canonical",
+    "severity": "error",
+    "why": "The canonical tag points to a URL that returns an error, telling search engines the 'preferred' version of this page doesn't exist. Engines then ignore the canonical or, worse, drop both URLs.",
+    "howToFix": "Update the canonical to a live, 200-status URL — usually the page itself — and fix or remove the broken target.",
+    "impact": "Indexing signals are sent into a dead end; the page may fall out of the index."
+  },
+  {
+    "rule": "canonical-to-redirect",
+    "title": "Canonical Points to Redirect",
+    "category": "canonical",
+    "severity": "warning",
+    "why": "The canonical target itself redirects, forcing engines to chase a chain to find the real preferred URL. Signals get diluted and engines may ignore the annotation.",
+    "howToFix": "Point the canonical directly at the final destination URL (200 status, no hops).",
+    "impact": "Weakened canonical signals and wasted crawl budget."
+  },
+  {
+    "rule": "canonical-cross-host",
+    "title": "Canonical Points to Another Host",
+    "category": "canonical",
+    "severity": "notice",
+    "why": "This page declares a canonical on a different host, handing its indexing rights to another domain or subdomain. Legitimate for syndicated content — costly when accidental (e.g. staging → production mixups, www/apex confusion).",
+    "howToFix": "Confirm the cross-domain canonical is intentional. If not, point the canonical at this page's own host.",
+    "impact": "The page cedes its search presence to the other host."
+  },
+  {
+    "rule": "noindex-canonical-conflict",
+    "title": "Noindex Combined With Canonical",
+    "category": "indexability",
+    "severity": "warning",
+    "why": "The page is noindexed but also canonicals to another URL — two contradictory instructions. Google explicitly advises against combining them: the noindex can bleed through the canonical and de-index the target.",
+    "howToFix": "Pick one signal: use a canonical for consolidation (remove the noindex), or a noindex to exclude the page (remove the canonical).",
+    "impact": "Unpredictable indexing — the canonical target may get dropped too."
   },
   {
     "rule": "image-missing-alt",
@@ -270,6 +486,15 @@
     "impact": "Perceived as low-value, reducing ranking and citation."
   },
   {
+    "rule": "content-requires-js",
+    "title": "Content Requires JavaScript",
+    "category": "indexability",
+    "severity": "warning",
+    "why": "Most of this page's content is missing from the raw HTML and only appears after JavaScript runs. Google renders JS but on a delayed, budget-limited second pass — and most AI answer engines and social/link unfurlers don't execute JS at all, so they see an almost-empty page.",
+    "howToFix": "Server-render or pre-render the primary content (SSR/SSG/ISR) so it's present in the initial HTML response. Keep JavaScript for enhancement, not for delivering core content and links.",
+    "impact": "Delayed or skipped indexing, and invisibility to AI engines and crawlers that don't run JavaScript."
+  },
+  {
     "rule": "not-secure",
     "title": "Not Served Over HTTPS",
     "category": "security",
@@ -295,6 +520,15 @@
     "why": "Without HTTP Strict Transport Security, the first request can be downgraded to HTTP, exposing users to interception on that initial hop.",
     "howToFix": "Send a Strict-Transport-Security header with a long max-age once you're confident all subdomains are HTTPS.",
     "impact": "A small but real man-in-the-middle exposure window."
+  },
+  {
+    "rule": "https-to-http-link",
+    "title": "HTTPS Page Links to HTTP",
+    "category": "security",
+    "severity": "warning",
+    "why": "This secure page contains hyperlinks to plain-HTTP URLs. Every click sends the visitor (or crawler) through an insecure hop and usually a redirect, and internal HTTP links reintroduce the pre-HTTPS URL space.",
+    "howToFix": "Update the links to their HTTPS equivalents — internal links first, then external where the target supports HTTPS.",
+    "impact": "Needless redirects, insecure hops, and mixed signals about your canonical protocol."
   },
   {
     "rule": "no-compression",
@@ -333,6 +567,33 @@
     "impact": "Wrong-language pages shown to users in search results."
   },
   {
+    "rule": "hreflang-invalid-code",
+    "title": "Invalid hreflang Code",
+    "category": "international",
+    "severity": "warning",
+    "why": "An hreflang value isn't a valid language(-script)(-region) tag (e.g. 'en-UK' instead of 'en-GB'). Search engines ignore annotations they can't parse — often silently breaking the whole alternate set.",
+    "howToFix": "Use ISO 639-1 language codes with optional ISO 15924 script / ISO 3166-1 region subtags (en, en-GB, zh-Hant), or x-default.",
+    "impact": "The alternate is ignored and the wrong language version gets served."
+  },
+  {
+    "rule": "hreflang-broken",
+    "title": "hreflang Points to Broken URL",
+    "category": "international",
+    "severity": "warning",
+    "why": "An hreflang alternate on this page points to a URL that returns an error, so engines can't establish the language cluster and may distrust the remaining annotations.",
+    "howToFix": "Fix or remove the broken alternate URL and keep hreflang sets in sync with your live URLs.",
+    "impact": "Broken language targeting for the whole alternate cluster."
+  },
+  {
+    "rule": "hreflang-no-x-default",
+    "title": "hreflang Missing x-default",
+    "category": "international",
+    "severity": "notice",
+    "why": "Without an x-default annotation, search engines have no instruction for users whose language matches none of your alternates.",
+    "howToFix": "Add an x-default hreflang pointing at your default/global version (often the language-selector or English page).",
+    "impact": "Unmatched international users get an arbitrary version."
+  },
+  {
     "rule": "og-missing",
     "title": "Missing Open Graph Tags",
     "category": "social",
@@ -351,6 +612,15 @@
     "impact": "Plain-text social previews that earn fewer clicks."
   },
   {
+    "rule": "og-incomplete",
+    "title": "Open Graph Missing Image",
+    "category": "social",
+    "severity": "notice",
+    "why": "The page declares Open Graph tags but no og:image, so shares render as text-only cards — dramatically less clickable than image previews.",
+    "howToFix": "Add an og:image (1200×630 recommended) alongside the existing OG tags.",
+    "impact": "Text-only share cards that underperform in every feed."
+  },
+  {
     "rule": "structured-data-missing",
     "title": "No Structured Data",
     "category": "structured-data",
@@ -358,6 +628,96 @@
     "why": "Schema.org structured data unlocks rich results (stars, FAQs, breadcrumbs) and is increasingly how AI engines understand and cite a page.",
     "howToFix": "Add relevant JSON-LD (Article, Product, FAQPage, BreadcrumbList, Organization) matching the page's content.",
     "impact": "No rich results and reduced machine understanding of the page."
+  },
+  {
+    "rule": "structured-data-invalid",
+    "title": "Invalid Structured Data",
+    "category": "structured-data",
+    "severity": "error",
+    "why": "A JSON-LD block on this page isn't valid JSON, so search engines and AI engines skip it entirely — the markup might as well not exist. Common causes are trailing commas, unescaped quotes, or template variables that didn't render.",
+    "howToFix": "Open the page's JSON-LD and run it through Google's Rich Results Test or a JSON validator. Fix the syntax error (often a stray comma or unquoted key) so every <script type=\"application/ld+json\"> block parses cleanly.",
+    "impact": "All structured data on the page is ignored — no rich results and no machine understanding."
+  },
+  {
+    "rule": "schema-missing-required",
+    "title": "Schema Missing Required Field",
+    "category": "structured-data",
+    "severity": "warning",
+    "why": "This structured-data item is missing a property Google requires for its rich result. Without every required field, the page is ineligible for the enhanced search appearance even though the markup is present.",
+    "howToFix": "Add the missing required properties to the JSON-LD for that type (e.g. price and priceCurrency on an Offer, name and image on a Product). Validate with Google's Rich Results Test until it reports no errors.",
+    "impact": "The rich result won't show, so you lose the enhanced listing and its click-through advantage."
+  },
+  {
+    "rule": "schema-missing-recommended",
+    "title": "Schema Missing Recommended Field",
+    "category": "structured-data",
+    "severity": "notice",
+    "why": "This structured-data item omits properties Google recommends. The rich result can still appear, but recommended fields make it richer and more competitive (ratings, dates, images, authorship).",
+    "howToFix": "Add the recommended properties where they apply (e.g. aggregateRating and brand on a Product, datePublished and author on an Article) to strengthen the listing.",
+    "impact": "A thinner rich result that may lose to more complete competitors."
+  },
+  {
+    "rule": "a11y-link-no-text",
+    "title": "Links Without Discernible Text",
+    "category": "accessibility",
+    "severity": "warning",
+    "why": "A link with no text, aria-label, or alt-bearing image has no accessible name, so screen-reader users hear only \"link\" with no idea where it goes. Icon-only and image links are the usual culprits. Search engines also rely on link text to understand the destination.",
+    "howToFix": "Give every link a discernible name: visible text, an aria-label, or an <img> with descriptive alt text inside it. For icon links, add aria-label=\"...\" describing the destination.",
+    "impact": "Keyboard and screen-reader users can't tell where links lead (WCAG 2.4.4 / 4.1.2)."
+  },
+  {
+    "rule": "a11y-button-no-text",
+    "title": "Buttons Without an Accessible Name",
+    "category": "accessibility",
+    "severity": "warning",
+    "why": "A button with no text content and no aria-label is announced as just \"button\" — assistive-tech users can't tell what it does. Icon-only buttons (hamburger menus, close \"×\", search) are the common offenders.",
+    "howToFix": "Add visible text, an aria-label, or a labelled image to each button. For <input type=\"submit\">, set a meaningful value attribute.",
+    "impact": "Controls become unusable for screen-reader and voice users (WCAG 4.1.2)."
+  },
+  {
+    "rule": "a11y-input-no-label",
+    "title": "Form Controls Without a Label",
+    "category": "accessibility",
+    "severity": "warning",
+    "why": "A form field with no associated label leaves assistive-tech users guessing what to enter. A placeholder is not a label — it vanishes on input and is often skipped by screen readers. Unlabeled fields also break voice control and autofill.",
+    "howToFix": "Associate every input/select/textarea with a <label for=\"id\">, wrap it in a <label>, or add an aria-label/aria-labelledby. Don't rely on placeholder text alone.",
+    "impact": "Forms become hard or impossible to complete with assistive tech (WCAG 1.3.1 / 3.3.2)."
+  },
+  {
+    "rule": "a11y-zoom-disabled",
+    "title": "Viewport Disables Zoom",
+    "category": "accessibility",
+    "severity": "warning",
+    "why": "The viewport meta tag uses user-scalable=no or a maximum-scale below 2, which stops users from pinch-zooming. Low-vision users depend on zoom to read; blocking it is a common, easily-fixed accessibility failure.",
+    "howToFix": "Remove user-scalable=no and any maximum-scale below 2 from the viewport meta. Use content=\"width=device-width, initial-scale=1\" and let users zoom.",
+    "impact": "Low-vision users can't enlarge the page to read it (WCAG 1.4.4)."
+  },
+  {
+    "rule": "a11y-iframe-no-title",
+    "title": "Iframes Missing a Title",
+    "category": "accessibility",
+    "severity": "notice",
+    "why": "An <iframe> with no title attribute has no accessible name, so screen-reader users hear an unlabeled frame and can't tell what it contains (a video, a map, an ad).",
+    "howToFix": "Add a concise title attribute to every iframe describing its content, e.g. title=\"YouTube video: product demo\".",
+    "impact": "Embedded content is unidentifiable to screen-reader users (WCAG 4.1.2)."
+  },
+  {
+    "rule": "a11y-positive-tabindex",
+    "title": "Positive tabindex",
+    "category": "accessibility",
+    "severity": "notice",
+    "why": "A tabindex greater than 0 forces an element to the front of the keyboard tab order, overriding the natural DOM order. This almost always produces a confusing, unpredictable focus sequence that's hard to maintain.",
+    "howToFix": "Remove positive tabindex values. Use tabindex=\"0\" to make a custom element focusable in DOM order, or restructure the markup so the natural order is correct.",
+    "impact": "Keyboard focus jumps around unpredictably, disorienting keyboard users (WCAG 2.4.3)."
+  },
+  {
+    "rule": "a11y-skipped-heading",
+    "title": "Skipped Heading Level",
+    "category": "accessibility",
+    "severity": "notice",
+    "why": "Heading levels jump down by more than one (e.g. an h2 followed by an h4), breaking the document outline screen-reader users navigate by. Headings should describe structure, not be chosen for their visual size.",
+    "howToFix": "Use heading levels in order without skipping (h1 → h2 → h3). Style headings with CSS if you need a different visual size, rather than picking a level for its appearance.",
+    "impact": "The page outline is broken, making heading navigation confusing (WCAG 1.3.1)."
   },
   {
     "rule": "geo-no-structured-data",
@@ -401,7 +761,7 @@
     "category": "geo",
     "severity": "notice",
     "why": "Landmarks like <main>, <article>, and a clean heading outline help machines isolate the main content from navigation and boilerplate.",
-    "howToFix": "Wrap primary content in <main>/<article>, and use a logical H1\u2192H2\u2192H3 outline.",
+    "howToFix": "Wrap primary content in <main>/<article>, and use a logical H1→H2→H3 outline.",
     "impact": "Harder for engines to separate content from chrome, lowering extraction quality."
   },
   {
@@ -409,7 +769,7 @@
     "title": "GEO: No llms.txt",
     "category": "geo",
     "severity": "notice",
-    "why": "An /llms.txt file is an emerging standard that tells AI engines which content matters most and how to use it \u2014 the robots.txt of the generative-search era. Sites that publish one make it easier for assistants to find and cite the right pages.",
+    "why": "An /llms.txt file is an emerging standard that tells AI engines which content matters most and how to use it — the robots.txt of the generative-search era. Sites that publish one make it easier for assistants to find and cite the right pages.",
     "howToFix": "Add an /llms.txt at your site root: a short Markdown file listing your key pages and a one-line description of the site, with links to the most important content (and optionally full-text .md versions).",
     "impact": "AI engines have to guess your most important content instead of being told."
   },
@@ -418,7 +778,7 @@
     "title": "GEO: AI-Ready Page",
     "category": "geo",
     "severity": "good",
-    "why": "This page has the structure, semantics, and signals generative engines prefer \u2014 it's well positioned to be cited in AI answers.",
+    "why": "This page has the structure, semantics, and signals generative engines prefer — it's well positioned to be cited in AI answers.",
     "howToFix": "Maintain this: keep structured data current, answers near the top, and authorship clear.",
     "impact": "Strong candidate for inclusion in AI-generated answers."
   }

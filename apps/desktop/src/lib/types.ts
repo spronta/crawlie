@@ -6,6 +6,7 @@ export type Category =
   | "response"
   | "indexability"
   | "links"
+  | "url"
   | "titles-meta"
   | "headings"
   | "content"
@@ -260,6 +261,7 @@ export const CATEGORY_LABELS: Record<Category, string> = {
   response: "Response Codes",
   indexability: "Indexability",
   links: "Links",
+  url: "URLs",
   "titles-meta": "Titles & Meta",
   headings: "Headings",
   content: "Content",
