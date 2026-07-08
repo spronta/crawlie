@@ -251,6 +251,7 @@ pub fn a11y_score(p: &Page) -> u8 {
     penalty += 25.0 * prop(a.links_no_text, a.links_total);
     penalty += 25.0 * prop(a.inputs_no_label, a.controls_total);
     penalty += 15.0 * prop(a.buttons_no_text, a.buttons_total);
+    penalty += 20.0 * prop(a.contrast_failures, a.contrast_checked);
     penalty += if a.viewport_blocks_zoom { 15.0 } else { 0.0 };
     penalty += if a.iframes_no_title > 0 { 8.0 } else { 0.0 };
     penalty += if a.positive_tabindex > 0 { 6.0 } else { 0.0 };

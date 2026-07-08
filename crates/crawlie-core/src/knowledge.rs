@@ -605,6 +605,10 @@ entries! {
         "Use heading levels in order without skipping (h1 → h2 → h3). Style headings with CSS if you need a different visual size, rather than picking a level for its appearance.",
         "The page outline is broken, making heading navigation confusing (WCAG 1.3.1).";
 
+    "a11y-low-contrast" => "Insufficient Color Contrast", Accessibility, Warning,
+        "Text on this page fails the WCAG AA contrast ratio (4.5:1, or 3:1 for large text) against its background, measured from the live rendered styles. Low-vision users can't read it.",
+        "Darken the text or lighten the background until the ratio passes. Check your design tokens for grey-on-grey body text and placeholder-colored labels.",
+        "Unreadable text for low-vision users (WCAG 1.4.3) and a common lawsuit trigger.";
     "a11y-empty-heading" => "Empty Headings", Accessibility, Notice,
         "A heading element with no text gives screen-reader users a blank entry in the page outline and adds noise to the document structure engines parse.",
         "Remove empty heading elements, or fill them with the section's actual heading text.",

@@ -108,6 +108,11 @@ pub struct CrawlConfig {
     /// hydrates late. Only used when `render` is on.
     #[serde(default = "default_render_wait")]
     pub render_wait_ms: u64,
+    /// Custom JavaScript evaluated on every rendered page (render mode only);
+    /// its JSON-encoded result is captured per page alongside extractions —
+    /// the Screaming-Frog-style "custom JavaScript snippet".
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub render_js: Option<String>,
 }
 
 /// A host/path exclusion rule: a substring match by default, or a regular
@@ -173,6 +178,7 @@ impl CrawlConfig {
             extract: Vec::new(),
             render: false,
             render_wait_ms: default_render_wait(),
+            render_js: None,
         }
     }
 }
@@ -396,6 +402,13 @@ pub struct A11ySignals {
     /// Deprecated presentational elements present (marquee, blink, font, center).
     #[serde(default)]
     pub deprecated_tags: usize,
+    /// Text elements failing the WCAG AA contrast ratio (render mode only —
+    /// computed from the live styles like axe does).
+    #[serde(default)]
+    pub contrast_failures: usize,
+    /// Text elements whose contrast was checked (denominator; 0 = not run).
+    #[serde(default)]
+    pub contrast_checked: usize,
     /// 0–100 accessibility score for this page (100 minus weighted penalties for
     /// the failures above). Filled by `scoring::a11y_score`; 0 for non-HTML pages.
     pub score: u8,

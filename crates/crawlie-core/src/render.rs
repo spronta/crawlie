@@ -22,10 +22,15 @@ pub use real::Renderer;
 pub use stub::Renderer;
 
 /// What one page render produced: the post-JavaScript DOM plus lab Web Vitals
-/// when the browser could report them.
+/// and contrast results when the browser could report them, and the output of
+/// the user's custom JS snippet when one was configured.
 pub struct Rendered {
     pub html: String,
     pub vitals: Option<crate::types::WebVitals>,
+    /// (failing text elements, checked text elements) for WCAG AA contrast.
+    pub contrast: Option<(usize, usize)>,
+    /// JSON-encoded return value of the configured custom JS snippet.
+    pub custom: Option<String>,
 }
 
 /// JS evaluated in the page to read buffered performance entries — the same
@@ -53,6 +58,64 @@ const VITALS_JS: &str = r#"
     if (p.length) fcp = p[0].startTime;
   } catch (e) {}
   return { lcp, cls, fcp };
+})()
+"#;
+
+/// WCAG AA contrast walker, evaluated in the rendered page. Computes the
+/// contrast ratio between each visible text element's color and its effective
+/// background (nearest non-transparent ancestor), using the WCAG relative-
+/// luminance formula and the 4.5:1 / 3:1 (large text) thresholds — the same
+/// check axe-core performs. Bounded to 1,500 elements.
+#[cfg(feature = "render")]
+const CONTRAST_JS: &str = r#"
+(() => {
+  const parse = (c) => {
+    const m = c.match(/rgba?\(([\d.]+),\s*([\d.]+),\s*([\d.]+)(?:,\s*([\d.]+))?\)/);
+    return m ? [+m[1], +m[2], +m[3], m[4] === undefined ? 1 : +m[4]] : null;
+  };
+  const lum = ([r, g, b]) => {
+    const f = (v) => { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+    return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+  };
+  const blend = (fg, bg) => {
+    const a = fg[3];
+    return [0, 1, 2].map((i) => fg[i] * a + bg[i] * (1 - a)).concat([1]);
+  };
+  const bgOf = (el) => {
+    let n = el;
+    while (n && n !== document.documentElement) {
+      const c = parse(getComputedStyle(n).backgroundColor);
+      if (c && c[3] > 0.99) return c;
+      n = n.parentElement;
+    }
+    return [255, 255, 255, 1];
+  };
+  let checked = 0, failures = 0;
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  const seen = new Set();
+  let node;
+  while ((node = walker.nextNode()) && checked < 1500) {
+    if (!node.textContent.trim()) continue;
+    const el = node.parentElement;
+    if (!el || seen.has(el)) continue;
+    seen.add(el);
+    const cs = getComputedStyle(el);
+    if (cs.visibility === 'hidden' || cs.display === 'none') continue;
+    const r = el.getBoundingClientRect();
+    if (r.width === 0 || r.height === 0) continue;
+    let fg = parse(cs.color);
+    if (!fg) continue;
+    const bg = bgOf(el);
+    if (fg[3] < 1) fg = blend(fg, bg);
+    const [l1, l2] = [lum(fg), lum(bg)].sort((a, b) => b - a);
+    const ratio = (l1 + 0.05) / (l2 + 0.05);
+    const size = parseFloat(cs.fontSize);
+    const bold = parseInt(cs.fontWeight, 10) >= 700;
+    const large = size >= 24 || (size >= 18.66 && bold);
+    checked++;
+    if (ratio < (large ? 3 : 4.5)) failures++;
+  }
+  return { failures, checked };
 })()
 "#;
 
@@ -144,21 +207,29 @@ mod real {
         }
 
         /// Render `url` and return its post-JavaScript serialized DOM plus lab
-        /// Web Vitals. `wait_ms` is an extra settle delay after navigation for
-        /// late hydration. Always closes the tab, even on error.
+        /// Web Vitals and WCAG contrast results. `wait_ms` is an extra settle
+        /// delay after navigation for late hydration; `custom_js` is an
+        /// optional user snippet whose JSON-encoded result is captured. Always
+        /// closes the tab, even on error.
         pub async fn render_html(
             &self,
             url: &Url,
             wait_ms: u64,
+            custom_js: Option<&str>,
         ) -> Result<super::Rendered, String> {
-            let fut = self.render_inner(url, wait_ms);
+            let fut = self.render_inner(url, wait_ms, custom_js);
             match tokio::time::timeout(self.nav_timeout, fut).await {
                 Ok(res) => res,
                 Err(_) => Err("render timed out".to_string()),
             }
         }
 
-        async fn render_inner(&self, url: &Url, wait_ms: u64) -> Result<super::Rendered, String> {
+        async fn render_inner(
+            &self,
+            url: &Url,
+            wait_ms: u64,
+            custom_js: Option<&str>,
+        ) -> Result<super::Rendered, String> {
             let page = self
                 .browser
                 .new_page(url.as_str())
@@ -192,9 +263,36 @@ mod real {
                 }),
                 Err(_) => None,
             };
+            // WCAG contrast walk over the live computed styles.
+            #[derive(serde::Deserialize)]
+            struct Contrast {
+                failures: usize,
+                checked: usize,
+            }
+            let contrast = match page.evaluate(super::CONTRAST_JS).await {
+                Ok(v) => v
+                    .into_value::<Contrast>()
+                    .ok()
+                    .filter(|c| c.checked > 0)
+                    .map(|c| (c.failures, c.checked)),
+                Err(_) => None,
+            };
+            // User-configured snippet; its JSON result is captured verbatim.
+            let custom = match custom_js {
+                Some(js) => match page.evaluate(js).await {
+                    Ok(v) => v.value().map(|j| j.to_string()),
+                    Err(_) => None,
+                },
+                None => None,
+            };
             let _ = page.close().await;
-            html.map(|html| super::Rendered { html, vitals })
-                .map_err(|e| format!("could not read rendered DOM: {e}"))
+            html.map(|html| super::Rendered {
+                html,
+                vitals,
+                contrast,
+                custom,
+            })
+            .map_err(|e| format!("could not read rendered DOM: {e}"))
         }
     }
 
@@ -230,6 +328,7 @@ mod stub {
             &self,
             _url: &Url,
             _wait_ms: u64,
+            _custom_js: Option<&str>,
         ) -> Result<super::Rendered, String> {
             Err("rendering unavailable".to_string())
         }

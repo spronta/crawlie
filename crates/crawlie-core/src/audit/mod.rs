@@ -1792,6 +1792,19 @@ pub fn audit_one(
                 Some(format!("{} element(s)", a.deprecated_tags)),
             ));
         }
+        if a.contrast_failures > 0 {
+            out.push(issue(
+                "a11y-low-contrast",
+                "Insufficient Color Contrast",
+                Accessibility,
+                Warning,
+                u,
+                Some(format!(
+                    "{} of {} text elements below WCAG AA",
+                    a.contrast_failures, a.contrast_checked
+                )),
+            ));
+        }
 
         // Soft SEO/GEO rules only for indexable pages (no point on noindexed).
         if !p.indexable {

@@ -132,6 +132,11 @@ struct CrawlArgs {
     /// Only used with --render.
     #[arg(long, default_value_t = 0, value_name = "MS")]
     render_wait: u64,
+    /// Custom JavaScript evaluated on every rendered page; the JSON-encoded
+    /// result is captured per page under the `custom-js` extraction. Only used
+    /// with --render, e.g. `--render-js 'document.querySelectorAll("video").length'`.
+    #[arg(long, value_name = "JS")]
+    render_js: Option<String>,
     /// Stream pages to an on-disk SQLite store instead of holding them in
     /// memory — for crawling very large sites without running out of RAM. The
     /// crawl is written to this path and becomes the queryable artifact.
@@ -389,6 +394,7 @@ async fn run_crawl(a: CrawlArgs) -> ExitCode {
         extract,
         render: a.render,
         render_wait_ms: a.render_wait,
+        render_js: a.render_js.clone(),
         ..CrawlConfig::new(&a.url)
     };
     let min = a.severity.map(sev_rank);

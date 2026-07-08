@@ -105,12 +105,15 @@ async fn fetch_one(
     host: &str,
     extractors: &[Extractor],
     render_wait_ms: u64,
+    render_js: Option<&str>,
 ) -> Result<Fetched, reqwest::Error> {
     let o = fetch(client, u, 10).await?;
     let mut rendered = false;
     let mut pre_render_word_count = 0usize;
     let mut raw_parsed: Option<Parsed> = None;
     let mut web_vitals: Option<WebVitals> = None;
+    let mut contrast: Option<(usize, usize)> = None;
+    let mut custom_js_value: Option<String> = None;
     let mut html = o.body.clone();
 
     if o.is_html && o.status == 200 {
@@ -122,20 +125,34 @@ async fn fetch_one(
                 pre_render_word_count = rp.word_count;
                 raw_parsed = Some(rp);
             }
-            if let Ok(res) = r.render_html(&o.final_url, render_wait_ms).await {
+            if let Ok(res) = r.render_html(&o.final_url, render_wait_ms, render_js).await {
                 html = Some(res.html);
                 web_vitals = res.vitals;
+                contrast = res.contrast;
+                custom_js_value = res.custom;
                 rendered = true;
             }
         }
     }
 
-    let parsed = if o.is_html {
+    let mut parsed = if o.is_html {
         html.as_deref()
             .map(|b| parse_html(b, &o.final_url, host, extractors))
     } else {
         None
     };
+    if let Some(p) = parsed.as_mut() {
+        if let Some((failures, checked)) = contrast {
+            p.a11y.contrast_failures = failures;
+            p.a11y.contrast_checked = checked;
+        }
+        if let Some(v) = custom_js_value {
+            p.extractions.push(ExtractValue {
+                name: "custom-js".into(),
+                values: vec![v],
+            });
+        }
+    }
     // With no render, pre == post by definition (keeps the field meaningful).
     if !rendered {
         pre_render_word_count = parsed.as_ref().map(|p| p.word_count).unwrap_or(0);
@@ -611,6 +628,7 @@ where
             let extractors = config.extract.clone();
             let renderer = renderer.clone();
             let render_wait = config.render_wait_ms;
+            let render_js = config.render_js.clone();
             inflight.push(async move {
                 let res = fetch_one(
                     &client,
@@ -619,6 +637,7 @@ where
                     &host,
                     &extractors,
                     render_wait,
+                    render_js.as_deref(),
                 )
                 .await;
                 (u, depth, res)
@@ -964,6 +983,7 @@ where
             let extractors = config.extract.clone();
             let renderer = renderer.clone();
             let render_wait = config.render_wait_ms;
+            let render_js = config.render_js.clone();
             inflight.push(async move {
                 let res = fetch_one(
                     &client,
@@ -972,6 +992,7 @@ where
                     &host,
                     &extractors,
                     render_wait,
+                    render_js.as_deref(),
                 )
                 .await;
                 (u, depth, res)
