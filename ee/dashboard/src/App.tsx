@@ -13,25 +13,15 @@ import { getSession, signOut, type SessionUser } from "./auth";
 import { SignIn } from "./SignIn";
 import { IconShare } from "@ui/components/ui";
 import { ExtractionTable } from "./extraction";
-
-type Phase =
-  | { name: "projects" }
-  | { name: "project"; id: string }
-  | { name: "report"; id: string; back: Phase }
-  | { name: "idle" }
-  | { name: "crawling"; config: CrawlConfig; progress: Progress }
-  | { name: "done"; result: CrawlResult }
-  | { name: "account" }
-  | { name: "error"; message: string };
+import { useRoute, navigate, back, type Route } from "./router";
 
 export function App() {
-  // Public shared report — no auth, no dashboard chrome.
-  const shareMatch = typeof location !== "undefined" && location.pathname.match(/^\/p\/([a-z0-9]+)/i);
-  if (shareMatch) return <PublicReport token={shareMatch[1]} />;
-  return <AuthedApp />;
+  const route = useRoute();
+  if (route.name === "public") return <PublicReport token={route.token} />;
+  return <AuthedApp route={route} />;
 }
 
-function AuthedApp() {
+function AuthedApp({ route }: { route: Route }) {
   const [user, setUser] = useState<SessionUser | null | undefined>(undefined);
   useEffect(() => {
     getSession().then((u) => {
@@ -45,31 +35,10 @@ function AuthedApp() {
   const recheck = () => getSession().then((u) => setUser(u));
   if (user === undefined) return <Splash />;
   if (user === null) return <SignIn onSignedIn={recheck} />;
-  return <Dashboard user={user} />;
+  return <Dashboard user={user} route={route} />;
 }
 
-function Dashboard({ user }: { user: SessionUser }) {
-  const [phase, setPhase] = useState<Phase>({ name: "projects" });
-
-  const start = useCallback(async (config: CrawlConfig) => {
-    setPhase({ name: "crawling", config, progress: { crawled: 0, discovered: 0, queued: 0, current: config.url } });
-    try {
-      const result = await startCrawl(config, (e) => {
-        if (e.type === "progress") {
-          setPhase((p) =>
-            p.name === "crawling"
-              ? { ...p, progress: { crawled: e.crawled, discovered: e.discovered, queued: e.queued, current: e.current } }
-              : p,
-          );
-        }
-      });
-      setPhase({ name: "done", result });
-    } catch (err) {
-      setPhase({ name: "error", message: String(err) });
-    }
-  }, []);
-
-  const toProjects = useCallback(() => setPhase({ name: "projects" }), []);
+function Dashboard({ user, route }: { user: SessionUser; route: Route }) {
   const [collapsed, setCollapsed] = useState<boolean>(
     () => typeof localStorage !== "undefined" && localStorage.getItem("sidebar-collapsed") === "1",
   );
@@ -85,21 +54,21 @@ function Dashboard({ user }: { user: SessionUser }) {
     });
   }, []);
 
-  const onProjects = phase.name === "projects" || phase.name === "project";
-  const onCrawl = phase.name === "idle" || phase.name === "crawling" || phase.name === "done";
-  const flush = phase.name === "done" || phase.name === "project" || phase.name === "report";
+  const onProjects = route.name === "projects" || route.name === "project" || route.name === "report";
+  const onNew = route.name === "new";
+  const flush = route.name === "project" || route.name === "report";
 
   return (
     <div className="app">
       <aside className={`sidebar${collapsed ? " collapsed" : ""}`}>
-        <button className="sidebar-brand" onClick={toProjects} aria-label="Home">
+        <button className="sidebar-brand" onClick={() => navigate("/projects")} aria-label="Home">
           <Logo />
         </button>
         <nav className="sidebar-nav">
-          <button className={`nav-item${onProjects ? " active" : ""}`} onClick={toProjects} title="Projects">
+          <button className={`nav-item${onProjects ? " active" : ""}`} onClick={() => navigate("/projects")} title="Projects">
             <IconGlobe size={16} /> <span className="nav-label">Projects</span>
           </button>
-          <button className={`nav-item${onCrawl ? " active" : ""}`} onClick={() => setPhase({ name: "idle" })} title="New crawl">
+          <button className={`nav-item${onNew ? " active" : ""}`} onClick={() => navigate("/new")} title="New crawl">
             <IconSearch size={16} /> <span className="nav-label">New crawl</span>
           </button>
         </nav>
@@ -110,7 +79,7 @@ function Dashboard({ user }: { user: SessionUser }) {
           <a className="nav-item" href="https://github.com/spronta/crawlie" onClick={(e) => { e.preventDefault(); openExternal("https://github.com/spronta/crawlie"); }} title="GitHub">
             <IconExternal size={15} /> <span className="nav-label">GitHub</span>
           </a>
-          <AccountMenu user={user} onAccount={() => setPhase({ name: "account" })} />
+          <AccountMenu user={user} active={route.name === "account"} />
           <div className="sidebar-foot-row">
             <button className="icon-btn collapse-toggle" onClick={toggleCollapsed} title={collapsed ? "Expand" : "Collapse"} aria-label="Toggle sidebar">
               <IconChevron size={16} />
@@ -121,43 +90,66 @@ function Dashboard({ user }: { user: SessionUser }) {
 
       <div className="content">
         <main className={`main${flush ? " flush" : ""}`}>
-          {phase.name === "projects" && <ProjectsView onOpen={(id) => setPhase({ name: "project", id })} />}
-          {phase.name === "project" && (
+          {route.name === "projects" && <ProjectsView onOpen={(id) => navigate(`/projects/${id}`)} />}
+          {route.name === "project" && (
             <ProjectView
-              id={phase.id}
-              onBack={toProjects}
-              onOpenReport={(reportId) => setPhase({ name: "report", id: reportId, back: phase })}
+              id={route.id}
+              onBack={() => navigate("/projects")}
+              onOpenReport={(reportId) => navigate(`/reports/${encodeURIComponent(reportId)}`)}
             />
           )}
-          {phase.name === "report" && (
-            <ReportView id={phase.id} onBack={() => setPhase(phase.back)} onReports={toProjects} />
-          )}
-          {phase.name === "idle" && <StartView onStart={start} />}
-          {phase.name === "crawling" && <CrawlingView config={phase.config} progress={phase.progress} onCancel={() => cancelCrawl()} />}
-          {phase.name === "done" && <ResultsView result={phase.result} onReset={() => setPhase({ name: "idle" })} onReports={toProjects} />}
-          {phase.name === "account" && <AccountView email={user.email} onBack={toProjects} />}
-          {phase.name === "error" && (
-            <div className="hero">
-              <h1 style={{ fontSize: 28 }}>Crawl failed</h1>
-              <p className="mono" style={{ color: "var(--red-text)" }}>{phase.message}</p>
-              <button className="btn btn-primary" onClick={() => setPhase({ name: "idle" })}>Try again</button>
-            </div>
-          )}
+          {route.name === "report" && <ReportView id={route.id} />}
+          {route.name === "new" && <NewCrawl />}
+          {route.name === "account" && <AccountView email={user.email} onBack={() => navigate("/projects")} />}
         </main>
       </div>
     </div>
   );
 }
 
-function ReportView({ id, onBack, onReports }: { id: string; onBack: () => void; onReports: () => void }) {
+// Ad-hoc crawl — ephemeral idle/crawling/done state lives here, under /new.
+function NewCrawl() {
+  type S =
+    | { name: "idle" }
+    | { name: "crawling"; config: CrawlConfig; progress: Progress }
+    | { name: "done"; result: CrawlResult }
+    | { name: "error"; message: string };
+  const [s, setS] = useState<S>({ name: "idle" });
+
+  const start = useCallback(async (config: CrawlConfig) => {
+    setS({ name: "crawling", config, progress: { crawled: 0, discovered: 0, queued: 0, current: config.url } });
+    try {
+      const result = await startCrawl(config, (e) => {
+        if (e.type === "progress") {
+          setS((p) => (p.name === "crawling" ? { ...p, progress: { crawled: e.crawled, discovered: e.discovered, queued: e.queued, current: e.current } } : p));
+        }
+      });
+      setS({ name: "done", result });
+    } catch (err) {
+      setS({ name: "error", message: String(err) });
+    }
+  }, []);
+
+  if (s.name === "crawling") return <CrawlingView config={s.config} progress={s.progress} onCancel={() => cancelCrawl()} />;
+  if (s.name === "done") return <ResultsView result={s.result} onReset={() => setS({ name: "idle" })} onReports={() => navigate("/projects")} />;
+  if (s.name === "error")
+    return (
+      <div className="hero">
+        <h1 style={{ fontSize: 28 }}>Crawl failed</h1>
+        <p className="mono" style={{ color: "var(--red-text)" }}>{s.message}</p>
+        <button className="btn btn-primary" onClick={() => setS({ name: "idle" })}>Try again</button>
+      </div>
+    );
+  return <StartView onStart={start} />;
+}
+
+function ReportView({ id }: { id: string }) {
   const [result, setResult] = useState<CrawlResult | null | undefined>(undefined);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   useEffect(() => {
     loadReport(id).then((r) => setResult(r));
-    getShare(id)
-      .then((s) => setShareUrl(s.token ? `https://crawlie.app/p/${s.token}` : null))
-      .catch(() => {});
+    getShare(id).then((s) => setShareUrl(s.token ? `https://crawlie.app/p/${s.token}` : null)).catch(() => {});
   }, [id]);
 
   async function share() {
@@ -177,15 +169,16 @@ function ReportView({ id, onBack, onReports }: { id: string; onBack: () => void;
     return (
       <div className="hero">
         <h1 style={{ fontSize: 24 }}>Report not found</h1>
-        <button className="btn btn-primary" onClick={onBack}>Back</button>
+        <button className="btn btn-primary" onClick={() => back()}>Back</button>
       </div>
     );
   return (
     <>
       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 20px", borderBottom: "1px solid var(--border)", background: "var(--panel, var(--bg))", flexWrap: "wrap" }}>
+        <button className="btn btn-sm" onClick={() => back()}>← Back</button>
+        <div style={{ flex: 1 }} />
         {shareUrl ? (
           <>
-            <span style={{ fontSize: 12.5, color: "var(--text-secondary)" }}>Public link:</span>
             <code style={{ fontFamily: "var(--font-mono, monospace)", fontSize: 12, background: "var(--panel-2, transparent)", padding: "3px 7px", borderRadius: 6, border: "1px solid var(--border-soft, var(--border))" }}>{shareUrl}</code>
             <button className="btn btn-sm" onClick={() => { navigator.clipboard?.writeText(shareUrl); setCopied(true); setTimeout(() => setCopied(false), 1500); }}>{copied ? "Copied!" : "Copy"}</button>
             <button className="btn btn-sm" onClick={unshare}>Make private</button>
@@ -195,7 +188,7 @@ function ReportView({ id, onBack, onReports }: { id: string; onBack: () => void;
         )}
       </div>
       <ExtractionTable pages={(result.pages ?? []) as Parameters<typeof ExtractionTable>[0]["pages"]} />
-      <ResultsView result={result} onReset={onBack} onReports={onReports} />
+      <ResultsView result={result} onReset={() => back()} onReports={() => navigate("/projects")} />
     </>
   );
 }
@@ -227,12 +220,12 @@ function PublicReport({ token }: { token: string }) {
   );
 }
 
-function AccountMenu({ user, onAccount }: { user: SessionUser; onAccount: () => void }) {
+function AccountMenu({ user, active }: { user: SessionUser; active: boolean }) {
   const [open, setOpen] = useState(false);
   const item: React.CSSProperties = { marginTop: 10, width: "100%", padding: "8px 10px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg-subtle, transparent)", color: "var(--text)", fontSize: 13, cursor: "pointer" };
   return (
     <div className="account" style={{ position: "relative" }}>
-      <button className="nav-item" onClick={() => setOpen((o) => !o)} title={user.email}>
+      <button className={`nav-item${active ? " active" : ""}`} onClick={() => setOpen((o) => !o)} title={user.email}>
         <IconUser size={16} />{" "}
         <span className="nav-label" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user.email}</span>
       </button>
@@ -240,7 +233,7 @@ function AccountMenu({ user, onAccount }: { user: SessionUser; onAccount: () => 
         <div role="dialog" style={{ position: "absolute", bottom: "calc(100% + 8px)", left: 0, width: 232, background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "var(--shadow-pop, 0 8px 30px rgba(0,0,0,.18))", padding: 14, zIndex: 40 }}>
           <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 6 }}>Signed in as</div>
           <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text)", wordBreak: "break-all" }}>{user.email}</div>
-          <button onClick={() => { setOpen(false); onAccount(); }} style={item}>Account &amp; API keys</button>
+          <button onClick={() => { setOpen(false); navigate("/account"); }} style={item}>Account &amp; API keys</button>
           <button onClick={() => signOut()} style={item}>Sign out</button>
         </div>
       )}
