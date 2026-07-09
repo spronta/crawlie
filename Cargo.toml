@@ -5,7 +5,6 @@ members = [
     "crates/crawlie-rules",
     "crates/crawlie-cli",
     "crates/crawlie-mcp",
-    "ee/crawler",
 ]
 
 [workspace.package]

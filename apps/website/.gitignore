@@ -1,6 +1,0 @@
-# build output
-dist/
-# astro cache
-.astro/
-# vercel
-.vercel

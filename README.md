@@ -297,11 +297,11 @@ apps/
 
 ## License & author
 
-**MIT** © **[Spronta Ltd](https://crawlie.dev)** — the crawler, CLI, MCP server,
-desktop app and website. The one exception is the [`ee/`](ee/) directory (the
-Crawlie Cloud service), which is licensed under the [Crawlie Enterprise Edition
-License](ee/LICENSE) and requires a subscription for production use. See the
-root [`LICENSE`](LICENSE) for the split.
+**MIT** © **[Spronta Ltd](https://crawlie.dev)** — the crawler engine, CLI, MCP
+server, and desktop app: everything in this repository is MIT. Crawlie Cloud (the
+hosted crawl service and the marketing site) is a separate, closed-source product
+and is not part of this repository. Pull requests to the open engine, CLI, and
+desktop app are very welcome.
 
 Built by Sean Ryan — Lead Marketing Engineer at Pendo.io, building AI for marketers on the side. **[Connect on LinkedIn →](https://linkedin.com/in/sean-exe)**
 
