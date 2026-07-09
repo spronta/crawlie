@@ -58,6 +58,42 @@ pub fn group_issues(issues: &[Issue], sample_limit: usize) -> Vec<IssueGroup> {
     out
 }
 
+/// Collapse issues into per-rule rollups carrying the **true count** plus up
+/// to `sample_limit` full sample findings per rule. This is what lean
+/// (out-of-core) reports ship instead of the complete issue list, so a crawl
+/// with millions of findings still renders exact per-rule numbers.
+pub fn rollup_issues(issues: &[Issue], sample_limit: usize) -> Vec<crate::types::IssueRollup> {
+    let mut order: Vec<String> = Vec::new();
+    let mut map: HashMap<String, crate::types::IssueRollup> = HashMap::new();
+    for i in issues {
+        let r = map.entry(i.rule.clone()).or_insert_with(|| {
+            order.push(i.rule.clone());
+            crate::types::IssueRollup {
+                rule: i.rule.clone(),
+                title: i.title.clone(),
+                category: i.category,
+                severity: i.severity,
+                count: 0,
+                sample: Vec::new(),
+            }
+        });
+        r.count += 1;
+        if r.sample.len() < sample_limit {
+            r.sample.push(i.clone());
+        }
+    }
+    let mut out: Vec<crate::types::IssueRollup> = order
+        .into_iter()
+        .filter_map(|rule| map.remove(&rule))
+        .collect();
+    out.sort_by(|a, b| {
+        rank(b.severity)
+            .cmp(&rank(a.severity))
+            .then(b.count.cmp(&a.count))
+    });
+    out
+}
+
 /// `top_fixes`, optionally scoped to a single category (e.g. just GEO fixes).
 pub fn top_fixes_filtered(issues: &[Issue], category: Option<Category>, limit: usize) -> Vec<Fix> {
     match category {

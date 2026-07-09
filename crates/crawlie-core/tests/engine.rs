@@ -162,6 +162,7 @@ fn ok_page(url: &str) -> Page {
         seo_score: 100,
         og_title: Some("OG".into()),
         og_image: Some("https://example.com/og.png".into()),
+        og_description: None,
         twitter_card: Some("summary".into()),
         schema_types: vec!["Article".into()],
         schema_validations: vec![],
@@ -282,6 +283,7 @@ fn custom_issues_merge_into_summary_and_scores() {
         config: CrawlConfig::new("https://example.com"),
         pages,
         issues,
+        broken_links: Vec::new(),
         summary,
         robots_found: true,
         sitemap_urls: 0,
@@ -833,6 +835,7 @@ fn recompute_heals_stale_scores_from_signals() {
         custom_rules: vec![],
         pages: vec![page],
         issues: vec![],
+        broken_links: Vec::new(),
         summary: Summary {
             total_pages: 1,
             errors: 0,

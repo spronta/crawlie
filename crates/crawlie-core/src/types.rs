@@ -17,6 +17,9 @@ fn default_concurrency() -> usize {
 fn default_timeout() -> u64 {
     15
 }
+fn default_max_body_bytes() -> usize {
+    crate::fetch::DEFAULT_MAX_BODY_BYTES
+}
 fn default_user_agent() -> String {
     "crawlie (+https://crawlie.dev)".to_string()
 }
@@ -64,6 +67,11 @@ pub struct CrawlConfig {
     /// Per-request timeout in seconds.
     #[serde(default = "default_timeout")]
     pub timeout_secs: u64,
+    /// Maximum bytes buffered per response body (larger bodies are truncated).
+    /// Bounds peak memory to ~`concurrency × max_body_bytes` so big crawls can
+    /// run at high concurrency on fixed-size hosts.
+    #[serde(default = "default_max_body_bytes")]
+    pub max_body_bytes: usize,
     /// User-Agent header sent with every request.
     #[serde(default = "default_user_agent")]
     pub user_agent: String,
@@ -166,6 +174,7 @@ impl CrawlConfig {
             max_depth: default_max_depth(),
             concurrency: default_concurrency(),
             timeout_secs: default_timeout(),
+            max_body_bytes: default_max_body_bytes(),
             user_agent: default_user_agent(),
             check_external: true,
             respect_robots: true,
@@ -283,6 +292,9 @@ pub struct Page {
     // --- social / structured data ---
     pub og_title: Option<String>,
     pub og_image: Option<String>,
+    /// Open Graph description (`og:description`); older reports omit it.
+    #[serde(default)]
+    pub og_description: Option<String>,
     pub twitter_card: Option<String>,
     pub schema_types: Vec<String>,
     /// Per-schema-item validation: required/recommended properties Google needs
@@ -685,6 +697,25 @@ pub struct Summary {
     pub duration_ms: u64,
 }
 
+/// One dead link target aggregated across every page that links to it —
+/// powers the target-centric broken-links table in the report UI. Exact
+/// counts survive lean reports, where raw `issues` are a capped sample.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BrokenLink {
+    /// The link target that is broken.
+    pub url: String,
+    /// HTTP status of the target (0 = connection error).
+    pub status: u16,
+    /// Total occurrences across the crawl.
+    pub count: usize,
+    /// Pages containing the link (deduped, capped) — fix these.
+    pub sources: Vec<String>,
+    /// More linking pages exist than are listed in `sources`.
+    #[serde(default)]
+    pub sources_truncated: bool,
+}
+
 /// The complete output of a crawl: every page, every issue, and a summary.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -692,6 +723,10 @@ pub struct CrawlResult {
     pub config: CrawlConfig,
     pub pages: Vec<Page>,
     pub issues: Vec<Issue>,
+    /// Broken link targets rolled up by URL (count + linking pages), derived
+    /// from `broken-link` issues before any lean-report capping.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub broken_links: Vec<BrokenLink>,
     pub summary: Summary,
     /// robots.txt was found and parsed.
     pub robots_found: bool,
@@ -720,6 +755,55 @@ pub struct CrawlResult {
     /// carried in the report so the UI can explain why/how-to-fix.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub custom_rules: Vec<RuleInfo>,
+}
+
+/// One row of the compact page index emitted for out-of-core crawls: the
+/// fields list/table views need, small enough that hundreds of thousands of
+/// them fit in a browser tab, plus the chunk number holding the full [`Page`].
+/// The full page record is fetched on demand from its chunk.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PageIndexEntry {
+    pub url: String,
+    /// Terminal URL after redirects (== `url` when none).
+    pub final_url: String,
+    pub status: u16,
+    pub depth: usize,
+    pub title: Option<String>,
+    pub indexable: bool,
+    pub word_count: usize,
+    pub inlinks: usize,
+    /// Internal-link authority (PageRank). Missing on indexes written before
+    /// it was added, so consumers treat it as optional.
+    #[serde(default)]
+    pub link_score: f32,
+    pub seo_score: u8,
+    pub geo_score: u8,
+    pub a11y_score: u8,
+    pub response_time_ms: u64,
+    pub size_bytes: usize,
+    /// Length of the redirect chain (0 = fetched directly).
+    pub redirects: usize,
+    /// The page carries custom-extraction values.
+    pub has_extractions: bool,
+    /// 0-based page-chunk number containing the full page record.
+    pub chunk: usize,
+}
+
+/// Per-rule aggregate of the audit findings, carried in lean (out-of-core)
+/// reports so UIs can show exact counts without shipping every issue row:
+/// `count` is the true total; `sample` holds only the first N findings.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IssueRollup {
+    pub rule: String,
+    pub title: String,
+    pub category: Category,
+    pub severity: Severity,
+    /// True total number of findings for this rule across the whole crawl.
+    pub count: usize,
+    /// The first findings for this rule (capped), for drill-down previews.
+    pub sample: Vec<Issue>,
 }
 
 /// The internal-link graph for a crawl: every crawled page as a node, every

@@ -470,6 +470,7 @@ mod tests {
                     seo_score: 0,
                     og_title: None,
                     og_image: None,
+                    og_description: None,
                     twitter_card: None,
                     schema_types: vec![],
                     schema_validations: vec![],
@@ -497,6 +498,7 @@ mod tests {
             custom_rules: vec![],
             pages,
             issues,
+            broken_links: Vec::new(),
             summary: Summary {
                 total_pages: page_urls.len(),
                 errors: 0,

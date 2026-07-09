@@ -39,11 +39,12 @@ pub mod types;
 pub use crawler::{crawl, crawl_to_store, CancelToken};
 pub use knowledge::{all_rules, rule_info};
 pub use pagestore::PageStore;
-pub use priority::{group_issues, top_fixes, top_fixes_filtered};
+pub use priority::{group_issues, rollup_issues, top_fixes, top_fixes_filtered};
 pub use report::ReportStore;
 pub use scoring::geo_gaps;
 pub use types::{
     Category, CrawlConfig, CrawlDiff, CrawlError, CrawlEvent, CrawlMode, CrawlResult, ExtractValue,
-    Extractor, Fix, GeoGaps, GeoSignals, Hreflang, Issue, IssueDelta, IssueGroup, Page, Redirect,
-    ReportMeta, RuleInfo, SchemaValidation, Severity, Summary, UrlFilter,
+    Extractor, Fix, GeoGaps, GeoSignals, Hreflang, Issue, IssueDelta, IssueGroup, IssueRollup,
+    Page, PageIndexEntry, Redirect, ReportMeta, RuleInfo, SchemaValidation, Severity, Summary,
+    UrlFilter,
 };

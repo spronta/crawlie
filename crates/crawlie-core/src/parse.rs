@@ -33,6 +33,7 @@ pub struct Parsed {
     pub external_links: Vec<String>,
     pub og_title: Option<String>,
     pub og_image: Option<String>,
+    pub og_description: Option<String>,
     pub twitter_card: Option<String>,
     pub schema_types: Vec<String>,
     pub schema_validations: Vec<SchemaValidation>,
@@ -328,6 +329,7 @@ pub fn parse_html(body: &str, final_url: &Url, host: &str, extractors: &[Extract
     let mut viewport_content: Option<String> = None;
     let mut og_title = None;
     let mut og_image = None;
+    let mut og_description = None;
     let mut twitter_card = None;
     let mut meta_author = false;
     let mut meta_date = false;
@@ -369,6 +371,7 @@ pub fn parse_html(body: &str, final_url: &Url, host: &str, extractors: &[Extract
         match property.as_str() {
             "og:title" => og_title = Some(content.to_string()),
             "og:image" => og_image = Some(content.to_string()),
+            "og:description" => og_description = Some(collapse(content)),
             "article:published_time" | "article:modified_time" => meta_date = true,
             _ => {}
         }
@@ -798,6 +801,7 @@ pub fn parse_html(body: &str, final_url: &Url, host: &str, extractors: &[Extract
         external_links,
         og_title,
         og_image,
+        og_description,
         twitter_card,
         schema_types,
         schema_validations,

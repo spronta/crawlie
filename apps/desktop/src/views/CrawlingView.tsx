@@ -45,21 +45,36 @@ export function CrawlingView({
   config,
   progress,
   onCancel,
+  onBackground,
 }: {
   config: CrawlConfig;
   progress: Progress;
   onCancel: () => void;
+  /** When set, shows a "Run in background" action — the crawl keeps going while the user browses elsewhere. */
+  onBackground?: () => void;
 }) {
   const verifying = progress.current.startsWith("Verifying");
+  // Verify progress rides in the status line as "Verifying links… checked/total".
+  const vm = verifying ? /(\d+)\s*\/\s*(\d+)/.exec(progress.current) : null;
+  const vChecked = vm ? Number(vm[1]) : 0;
+  const vTotal = vm ? Number(vm[2]) : 0;
 
-  // --- Live speed + ETA from a rolling sample of (time, crawled) --------
+  // --- Live speed + ETA from a rolling sample of (time, n) --------------
+  // n is pages while crawling, links checked while verifying; the sample
+  // window resets on the phase flip so the rate isn't a mix of both units.
+  const metric = verifying ? vChecked : progress.crawled;
   const samples = useRef<Array<{ t: number; n: number }>>([]);
+  const phase = useRef(verifying);
   const [, tick] = useState(0);
   useEffect(() => {
+    if (phase.current !== verifying) {
+      samples.current = [];
+      phase.current = verifying;
+    }
     const now = Date.now();
-    samples.current.push({ t: now, n: progress.crawled });
+    samples.current.push({ t: now, n: metric });
     while (samples.current.length > 2 && now - samples.current[0].t > 10_000) samples.current.shift();
-  }, [progress.crawled]);
+  }, [metric, verifying]);
   // A slow clock so speed/ETA keep updating between progress events.
   useEffect(() => {
     const id = setInterval(() => tick((x) => x + 1), 500);
@@ -69,13 +84,23 @@ export function CrawlingView({
   const { rate, eta, pct, estTotal } = useMemo(() => {
     const s = samples.current;
     const first = s[0];
-    const last = s[s.length - 1] ?? { t: Date.now(), n: progress.crawled };
+    const last = s[s.length - 1] ?? { t: Date.now(), n: metric };
     const dt = first ? (last.t - first.t) / 1000 : 0;
     const dn = first ? last.n - first.n : 0;
     const rate = dt > 0.5 ? dn / dt : 0;
+    // Verify phase: real progress over the known link-check total.
+    if (verifying && vTotal > 0) {
+      const remaining = Math.max(0, vTotal - vChecked);
+      const eta = rate > 0 ? remaining / rate : Infinity;
+      const pct = Math.min(100, Math.round((vChecked / vTotal) * 100));
+      return { rate, eta, pct, estTotal: vTotal };
+    }
+    // maxPages can be absent until the server's meta event lands — treat it as
+    // uncapped rather than letting NaN poison pct/ETA.
+    const cap = Number.isFinite(config.maxPages) && config.maxPages > 0 ? config.maxPages : Infinity;
     const estTotal = Math.max(
       1,
-      Math.min(config.maxPages, Math.max(progress.crawled + progress.queued, progress.discovered)),
+      Math.min(cap, Math.max(progress.crawled + progress.queued, progress.discovered)),
     );
     const remaining = Math.max(0, estTotal - progress.crawled);
     const eta = rate > 0 ? remaining / rate : Infinity;
@@ -83,7 +108,7 @@ export function CrawlingView({
     return { rate, eta, pct, estTotal };
     // tick drives the between-event refresh.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [progress.crawled, progress.queued, progress.discovered, config.maxPages, tick]);
+  }, [progress.crawled, progress.queued, progress.discovered, config.maxPages, verifying, vChecked, vTotal, metric, tick]);
 
   const [joke, setJoke] = useState(0);
   useEffect(() => {
@@ -91,11 +116,12 @@ export function CrawlingView({
     return () => clearInterval(id);
   }, []);
 
-  const capped = progress.discovered > config.maxPages;
+  const capped = Number.isFinite(config.maxPages) && progress.discovered > config.maxPages;
 
   return (
     <div className="crawl-wrap">
-      <PixelField active={!verifying} />
+      {/* Keep the field alive through link verification — a frozen background reads as a hang. */}
+      <PixelField active />
       <div className="crawl-inner">
         <div className="crawl-head">
           <span className="pixel-crawler" aria-hidden="true" />
@@ -107,22 +133,37 @@ export function CrawlingView({
 
         <div className="crawl-card">
           <div className="crawl-bar-row">
-            <span className="crawl-pct mono">{verifying ? "···" : `${pct}%`}</span>
-            <PixelBar pct={pct} indeterminate={verifying} />
+            <span className="crawl-pct mono">{verifying && !vTotal ? "···" : `${pct}%`}</span>
+            <PixelBar pct={pct} indeterminate={verifying && !vTotal} />
           </div>
 
           <div className="crawl-stats">
-            <Stat label="Crawled" value={String(progress.crawled)} />
-            <Stat label="Discovered" value={String(progress.discovered)} />
-            <Stat label="Queued" value={String(progress.queued)} />
-            <Stat label="Speed" value={fmtSpeed(rate)} />
-            <Stat label="ETA" value={verifying ? "almost" : fmtEta(eta)} />
+            {verifying && vTotal > 0 ? (
+              <>
+                <Stat label="Checked" value={String(vChecked)} />
+                <Stat label="Links" value={String(vTotal)} />
+                <Stat label="Queued" value={String(progress.queued)} />
+                <Stat label="Speed" value={fmtSpeed(rate)} />
+                <Stat label="ETA" value={fmtEta(eta)} />
+              </>
+            ) : (
+              <>
+                <Stat label="Crawled" value={String(progress.crawled)} />
+                <Stat label="Discovered" value={String(progress.discovered)} />
+                <Stat label="Queued" value={String(progress.queued)} />
+                <Stat label="Speed" value={fmtSpeed(rate)} />
+                <Stat label="ETA" value={verifying ? "almost" : fmtEta(eta)} />
+              </>
+            )}
           </div>
 
           <div className="crawl-foot">
             <span className="mono tertiary crawl-current">
               {verifying ? progress.current : shortUrl(progress.current || config.url)}
             </span>
+            {onBackground && (
+              <button className="btn btn-secondary btn-sm" onClick={onBackground}>Run in background</button>
+            )}
             <button className="btn btn-secondary btn-sm" onClick={onCancel}>Cancel</button>
           </div>
         </div>

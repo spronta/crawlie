@@ -43,6 +43,59 @@ fn issue(
     }
 }
 
+/// Whether a verified link *target* status counts as genuinely broken. Only
+/// connection failures, 404/410, and real 5xx server errors qualify. Excludes
+/// bot-block / rate-limit codes (401/403/405/429) and non-standard vendor codes
+/// like LinkedIn's 999 — a HEAD probe hits those, but a real visitor would not,
+/// so flagging them as broken links is a false positive.
+fn is_dead_link(status: u16) -> bool {
+    status == 0 || status == 404 || status == 410 || (500..=599).contains(&status)
+}
+
+/// Linking pages kept per broken target — enough to hunt down the culprits
+/// (a template/nav link shows up everywhere; the exact `count` still tells
+/// that story) without bloating lean report metadata.
+const BROKEN_LINK_SOURCES_CAP: usize = 25;
+
+/// Roll `broken-link` issues up by target: one row per dead URL with its
+/// status, total occurrence count, and the pages that link to it. Parses the
+/// `"{status} → {target}"` detail this module emits for the rule.
+pub fn aggregate_broken_links(issues: &[Issue]) -> Vec<BrokenLink> {
+    let mut map: HashMap<String, BrokenLink> = HashMap::new();
+    for i in issues {
+        if i.rule != "broken-link" {
+            continue;
+        }
+        let Some(detail) = &i.detail else { continue };
+        let Some((status, target)) = detail.split_once(" → ") else {
+            continue;
+        };
+        let status: u16 = if status == "ERR" {
+            0
+        } else {
+            status.parse().unwrap_or(0)
+        };
+        let e = map.entry(target.to_string()).or_insert_with(|| BrokenLink {
+            url: target.to_string(),
+            status,
+            count: 0,
+            sources: Vec::new(),
+            sources_truncated: false,
+        });
+        e.count += 1;
+        if !e.sources.iter().any(|s| s == &i.url) {
+            if e.sources.len() < BROKEN_LINK_SOURCES_CAP {
+                e.sources.push(i.url.clone());
+            } else {
+                e.sources_truncated = true;
+            }
+        }
+    }
+    let mut out: Vec<BrokenLink> = map.into_values().collect();
+    out.sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.url.cmp(&b.url)));
+    out
+}
+
 fn norm(s: &str) -> String {
     match Url::parse(s) {
         Ok(mut u) => {
@@ -422,7 +475,7 @@ pub fn audit_one(
         // probe, not a dead link, so we don't flag those as broken.
         for link in p.internal_links.iter().chain(p.external_links.iter()) {
             if let Some(&s) = status_map.get(&norm(link)) {
-                if s == 0 || s == 404 || s == 410 || s >= 500 {
+                if is_dead_link(s) {
                     out.push(issue(
                         "broken-link",
                         "Broken Link",
@@ -852,7 +905,7 @@ pub fn audit_one(
         // AMP alternate that resolves to an error.
         if let Some(amp) = &m.amp_url {
             if let Some(&s) = status_map.get(&norm(amp)) {
-                if s == 0 || s >= 400 {
+                if s == 0 || (400..=599).contains(&s) {
                     out.push(issue(
                         "amp-broken",
                         "Broken AMP URL",
@@ -880,7 +933,7 @@ pub fn audit_one(
         for (rel, target) in [("prev", &m.rel_prev), ("next", &m.rel_next)] {
             if let Some(t) = target {
                 if let Some(&s) = status_map.get(&norm(t)) {
-                    if s == 0 || s == 404 || s == 410 || s >= 500 {
+                    if is_dead_link(s) {
                         out.push(issue(
                             "pagination-broken",
                             "Broken Pagination URL",
@@ -1149,7 +1202,7 @@ pub fn audit_one(
             // HEAD-verified). A canonical pointing at a broken or redirecting
             // URL sends indexing signals into a dead end.
             if let Some(&s) = status_map.get(&norm(canon)) {
-                if s == 0 || s == 404 || s == 410 || s >= 500 {
+                if is_dead_link(s) {
                     out.push(issue(
                         "canonical-to-broken",
                         "Canonical Points to Broken URL",
@@ -1619,7 +1672,7 @@ pub fn audit_one(
             // target's status.
             for h in &p.hreflang {
                 if let Some(&s) = status_map.get(&norm(&h.href)) {
-                    if s == 0 || s == 404 || s == 410 || s >= 500 {
+                    if is_dead_link(s) {
                         out.push(issue(
                             "hreflang-broken",
                             "hreflang Points to Broken URL",
@@ -1974,5 +2027,64 @@ pub fn audit_one(
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod broken_link_tests {
+    use super::*;
+
+    fn bl(source: &str, detail: &str) -> Issue {
+        issue("broken-link", "Broken Link", Category::Links, Severity::Error, source, Some(detail.into()))
+    }
+
+    #[test]
+    fn aggregates_by_target_with_counts_and_sources() {
+        let issues = vec![
+            bl("https://a.com/x", "404 → https://a.com/dead"),
+            bl("https://a.com/y", "404 → https://a.com/dead"),
+            bl("https://a.com/y", "404 → https://a.com/dead"), // same page twice
+            bl("https://a.com/x", "ERR → https://ext.com/gone"),
+            issue("title-missing", "Missing Title", Category::TitlesMeta, Severity::Error, "https://a.com/x", None),
+        ];
+        let agg = aggregate_broken_links(&issues);
+        assert_eq!(agg.len(), 2);
+        assert_eq!(agg[0].url, "https://a.com/dead");
+        assert_eq!(agg[0].count, 3);
+        assert_eq!(agg[0].status, 404);
+        assert_eq!(agg[0].sources, vec!["https://a.com/x", "https://a.com/y"]);
+        assert!(!agg[0].sources_truncated);
+        assert_eq!(agg[1].status, 0); // ERR → 0
+        assert_eq!(agg[1].count, 1);
+    }
+
+    #[test]
+    fn caps_sources_but_keeps_exact_count() {
+        let issues: Vec<Issue> = (0..40)
+            .map(|i| bl(&format!("https://a.com/p{i}"), "410 → https://a.com/dead"))
+            .collect();
+        let agg = aggregate_broken_links(&issues);
+        assert_eq!(agg[0].count, 40);
+        assert_eq!(agg[0].sources.len(), BROKEN_LINK_SOURCES_CAP);
+        assert!(agg[0].sources_truncated);
+    }
+
+    #[test]
+    fn dead_link_excludes_botblock_and_nonstandard_codes() {
+        // Genuine breakage.
+        assert!(is_dead_link(0)); // connection error
+        assert!(is_dead_link(404));
+        assert!(is_dead_link(410));
+        assert!(is_dead_link(500));
+        assert!(is_dead_link(503));
+        assert!(is_dead_link(599));
+        // NOT broken: bot-block / rate-limit + non-standard vendor codes.
+        assert!(!is_dead_link(999)); // LinkedIn bot-block — the false positive
+        assert!(!is_dead_link(401));
+        assert!(!is_dead_link(403));
+        assert!(!is_dead_link(429));
+        assert!(!is_dead_link(200));
+        assert!(!is_dead_link(301));
+        assert!(!is_dead_link(600)); // any non-standard >= 600
     }
 }

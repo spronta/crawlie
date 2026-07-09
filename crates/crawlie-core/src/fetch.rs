@@ -8,6 +8,18 @@ use std::io::Read;
 use std::time::{Duration, Instant};
 use url::Url;
 
+/// Default per-response body cap. Bounds peak memory to roughly
+/// `concurrency × cap` however hostile the site, which is what lets hosted
+/// crawls run at high concurrency on a fixed-size container. Real HTML pages
+/// are well under this; anything larger is truncated (the parse still works on
+/// the prefix) rather than buffered without limit.
+pub const DEFAULT_MAX_BODY_BYTES: usize = 5 * 1024 * 1024;
+
+/// Decompressed output is allowed to expand a few times past the raw cap
+/// before we stop — enough for legitimately compressible HTML, small enough
+/// that a decompression bomb can't take the process down.
+const DECODE_EXPANSION: usize = 4;
+
 /// Result of fetching one URL to its terminal response.
 pub struct FetchOutcome {
     pub final_url: Url,
@@ -51,28 +63,37 @@ pub fn build_client(user_agent: &str, timeout_secs: u64) -> reqwest::Result<Clie
         .build()
 }
 
-/// Decode a response body according to its `Content-Encoding`. Returns the
-/// bytes unchanged when the encoding is absent, unrecognised, or decompression
+/// Decode a response body according to its `Content-Encoding`, reading at most
+/// `max_out` decompressed bytes (decompression-bomb guard). Returns the bytes
+/// unchanged when the encoding is absent, unrecognised, or decompression
 /// fails — a malformed stream should never lose the page.
-fn decode_body(bytes: &[u8], encoding: Option<&str>) -> Vec<u8> {
+fn decode_body(bytes: &[u8], encoding: Option<&str>, max_out: usize) -> Vec<u8> {
     let enc = match encoding {
         Some(e) => e.trim().to_ascii_lowercase(),
         None => return bytes.to_vec(),
     };
+    let cap = max_out as u64;
     let mut out = Vec::new();
     let ok = if enc.contains("br") {
         brotli::Decompressor::new(bytes, 4096)
+            .take(cap)
             .read_to_end(&mut out)
             .is_ok()
     } else if enc.contains("gzip") {
-        MultiGzDecoder::new(bytes).read_to_end(&mut out).is_ok()
+        MultiGzDecoder::new(bytes)
+            .take(cap)
+            .read_to_end(&mut out)
+            .is_ok()
     } else if enc.contains("deflate") {
         // Most servers send zlib-wrapped deflate; fall back to raw deflate.
-        if ZlibDecoder::new(bytes).read_to_end(&mut out).is_ok() {
+        if ZlibDecoder::new(bytes).take(cap).read_to_end(&mut out).is_ok() {
             true
         } else {
             out.clear();
-            DeflateDecoder::new(bytes).read_to_end(&mut out).is_ok()
+            DeflateDecoder::new(bytes)
+                .take(cap)
+                .read_to_end(&mut out)
+                .is_ok()
         }
     } else {
         // identity or an encoding we don't handle — leave it alone.
@@ -83,6 +104,29 @@ fn decode_body(bytes: &[u8], encoding: Option<&str>) -> Vec<u8> {
     } else {
         bytes.to_vec()
     }
+}
+
+/// Read a response body incrementally, stopping at `cap` bytes. Bodies at or
+/// under the cap arrive intact; anything larger is truncated and the
+/// connection dropped, so one huge (or hostile) resource can't balloon memory.
+async fn read_body_capped(
+    mut resp: reqwest::Response,
+    cap: usize,
+) -> Result<Vec<u8>, reqwest::Error> {
+    let mut buf: Vec<u8> = Vec::with_capacity(
+        resp.content_length()
+            .map(|l| (l as usize).min(cap))
+            .unwrap_or(64 * 1024),
+    );
+    while let Some(chunk) = resp.chunk().await? {
+        let room = cap - buf.len();
+        if chunk.len() >= room {
+            buf.extend_from_slice(&chunk[..room]);
+            break;
+        }
+        buf.extend_from_slice(&chunk);
+    }
+    Ok(buf)
 }
 
 fn content_type(resp: &reqwest::Response) -> Option<String> {
@@ -131,10 +175,21 @@ fn extract_headers(resp: &reqwest::Response) -> Headers {
 
 /// Fetch `start_url`, following up to `max_redirects` hops, returning the
 /// terminal response. The body is only read (as text) for HTML content types.
+/// At most [`DEFAULT_MAX_BODY_BYTES`] of body are buffered per response.
 pub async fn fetch(
     client: &Client,
     start_url: &Url,
     max_redirects: usize,
+) -> Result<FetchOutcome, reqwest::Error> {
+    fetch_capped(client, start_url, max_redirects, DEFAULT_MAX_BODY_BYTES).await
+}
+
+/// [`fetch`] with an explicit per-response body cap (bytes).
+pub async fn fetch_capped(
+    client: &Client,
+    start_url: &Url,
+    max_redirects: usize,
+    max_body: usize,
 ) -> Result<FetchOutcome, reqwest::Error> {
     let start = Instant::now();
     let mut current = start_url.clone();
@@ -189,11 +244,15 @@ pub async fn fetch(
             .unwrap_or(false);
         let status_u16 = status.as_u16();
         let h = extract_headers(&resp);
-        let raw = resp.bytes().await?;
+        let raw = read_body_capped(resp, max_body).await?;
         // Decompress by hand (reqwest's transparent decoding is disabled) so the
         // negotiated `Content-Encoding` is preserved for the audit rules while
         // `size_bytes` still reflects the uncompressed payload.
-        let decoded = decode_body(&raw, h.content_encoding.as_deref());
+        let decoded = decode_body(
+            &raw,
+            h.content_encoding.as_deref(),
+            max_body.saturating_mul(DECODE_EXPANSION),
+        );
         let size_bytes = decoded.len();
         let body = if is_html {
             Some(String::from_utf8_lossy(&decoded).into_owned())

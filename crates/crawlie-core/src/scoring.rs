@@ -279,15 +279,26 @@ pub fn health_score(pages: &[Page], issues: &[Issue]) -> u8 {
 
 /// Health score from a page *count* rather than the page slice — so the
 /// streaming crawl can score a crawl it never holds fully in memory.
+///
+/// Scores severity-weighted *page coverage*, not raw instance counts: a rule
+/// contributes once per page it affects, matching the "% of URLs" coverage the
+/// Issues UI shows. Occurrence-style rules (broken-link fires once per dead
+/// link × page) would otherwise dominate — one dead footer URL linked sitewide,
+/// or a heavily cross-linked blog with a few hundred dead posts, used to pin
+/// the score at 0 with no gradient left for improvement.
 pub fn health_score_n(page_count: usize, issues: &[Issue]) -> u8 {
     let n = page_count.max(1) as f32;
     let mut weight = 0f32;
+    let mut seen: HashSet<(&str, &str)> = HashSet::new();
     // GEO and Accessibility each have their own dedicated score; don't let them
     // drag down technical health.
     for i in issues
         .iter()
         .filter(|i| !matches!(i.category, Category::Geo | Category::Accessibility))
     {
+        if !seen.insert((i.rule.as_str(), i.url.as_str())) {
+            continue; // same rule on the same page: count once
+        }
         weight += match i.severity {
             Severity::Error => 3.0,
             Severity::Warning => 1.0,
@@ -296,7 +307,14 @@ pub fn health_score_n(page_count: usize, issues: &[Issue]) -> u8 {
         };
     }
     let per_page = weight / n;
-    let penalty = (per_page * 12.0).min(100.0);
+    // Linear up to a penalty of 80, then asymptotic toward 100 — a wrecked site
+    // still sees the number move as it fixes things instead of sitting at 0.
+    let raw = per_page * 12.0;
+    let penalty = if raw <= 80.0 {
+        raw
+    } else {
+        80.0 + 20.0 * (1.0 - (-(raw - 80.0) / 20.0).exp())
+    };
     (100.0 - penalty).round().clamp(0.0, 100.0) as u8
 }
 
@@ -347,7 +365,10 @@ pub fn apply_custom_issues(
     }
     result.issues.extend(issues);
     result.custom_rules.extend(infos);
-    result.summary.health_score = health_score(&result.pages, &result.issues);
+    // Out-of-core crawls carry an empty `pages` (the corpus lives in the
+    // store); score against the true page count from the summary.
+    let n = result.pages.len().max(result.summary.total_pages);
+    result.summary.health_score = health_score_n(n, &result.issues);
     // Per-page SEO scores account for the new findings too.
     let seo = page_seo_scores(&result.pages, &result.issues);
     for (i, p) in result.pages.iter_mut().enumerate() {
@@ -400,4 +421,61 @@ pub fn site_geo_score(pages: &[Page]) -> u8 {
         return 0;
     }
     (scored.iter().map(|&s| s as u32).sum::<u32>() / scored.len() as u32) as u8
+}
+
+#[cfg(test)]
+mod health_tests {
+    use super::*;
+
+    fn err(rule: &str, url: &str, detail: Option<&str>) -> Issue {
+        Issue {
+            rule: rule.into(),
+            title: rule.into(),
+            category: Category::Links,
+            severity: Severity::Error,
+            url: url.into(),
+            detail: detail.map(Into::into),
+        }
+    }
+
+    /// A page with 30 broken links weighs the same as a page with 1 — the rule
+    /// counts once per affected page.
+    #[test]
+    fn dedupes_rule_per_page() {
+        let one: Vec<Issue> = vec![err("broken-link", "https://a.com/p0", Some("404 → https://a.com/x0"))];
+        let thirty: Vec<Issue> = (0..30)
+            .map(|i| err("broken-link", "https://a.com/p0", Some(&format!("404 → https://a.com/x{i}"))))
+            .collect();
+        assert_eq!(health_score_n(100, &one), health_score_n(100, &thirty));
+    }
+
+    /// One dead footer URL linked from every page must not zero the site.
+    #[test]
+    fn sitewide_dead_link_keeps_headroom() {
+        let issues: Vec<Issue> = (0..1000)
+            .map(|i| err("broken-link", &format!("https://a.com/p{i}"), Some("404 → https://a.com/dead")))
+            .collect();
+        let s = health_score_n(1000, &issues);
+        // Every page affected by one error rule: per-page weight 3 → penalty 36.
+        assert_eq!(s, 64);
+    }
+
+    /// Densely broken sites keep a gradient: more affected pages → lower score,
+    /// but never a hard-pinned 0 while there is anything left to distinguish.
+    #[test]
+    fn heavy_breakage_stays_monotonic_not_zero() {
+        let mk = |rules: usize| -> Vec<Issue> {
+            (0..1000)
+                .flat_map(|p| {
+                    (0..rules).map(move |r| {
+                        err(&format!("rule-{r}"), &format!("https://a.com/p{p}"), None)
+                    })
+                })
+                .collect()
+        };
+        let bad = health_score_n(1000, &mk(3)); // 9 weight/page → penalty > 80 knee
+        let worse = health_score_n(1000, &mk(4));
+        assert!(bad > worse, "score keeps ordering past the knee: {bad} vs {worse}");
+        assert!(bad > 0 && worse > 0, "no hard 0 while distinguishable: {bad}, {worse}");
+    }
 }

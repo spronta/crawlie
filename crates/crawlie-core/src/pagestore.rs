@@ -450,6 +450,84 @@ impl PageStore {
         Ok(())
     }
 
+    /// Raw stored page blobs for one contiguous id-order slice. Each blob is
+    /// already the page's final JSON (the derived-field write-back rewrites
+    /// them), so a caller can emit a JSON array by joining with commas —
+    /// serving a chunk costs zero serde work.
+    pub fn blobs_slice(&self, offset: usize, limit: usize) -> io::Result<Vec<String>> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT blob FROM page ORDER BY id LIMIT ?1 OFFSET ?2")
+            .map_err(ioerr)?;
+        let rows = stmt
+            .query_map(params![limit as i64, offset as i64], |r| {
+                r.get::<_, String>(0)
+            })
+            .map_err(ioerr)?;
+        let mut blobs = Vec::new();
+        for row in rows {
+            blobs.push(row.map_err(ioerr)?);
+        }
+        Ok(blobs)
+    }
+
+    /// Load one contiguous slice of pages in id order (`offset`, `limit`) —
+    /// the unit a hosted crawl streams out as a "page chunk". Ids are assigned
+    /// contiguously from 0, so slice `[k·size, (k+1)·size)` is exactly chunk
+    /// `k` of the page index.
+    pub fn pages_slice(&self, offset: usize, limit: usize) -> io::Result<Vec<Page>> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT blob FROM page ORDER BY id LIMIT ?1 OFFSET ?2")
+            .map_err(ioerr)?;
+        let rows = stmt
+            .query_map(params![limit as i64, offset as i64], |r| {
+                r.get::<_, String>(0)
+            })
+            .map_err(ioerr)?;
+        let mut pages = Vec::new();
+        for row in rows {
+            if let Ok(page) = serde_json::from_str::<Page>(&row.map_err(ioerr)?) {
+                pages.push(page);
+            }
+        }
+        Ok(pages)
+    }
+
+    /// Build the compact page index for the whole store (one
+    /// [`PageIndexEntry`](crate::types::PageIndexEntry) per page, in id order),
+    /// tagging each entry with its `chunk_size`-page chunk number. Streams the
+    /// blobs one at a time; only the compact entries accumulate.
+    pub fn page_index(
+        &self,
+        chunk_size: usize,
+    ) -> io::Result<Vec<crate::types::PageIndexEntry>> {
+        let chunk_size = chunk_size.max(1);
+        let mut out: Vec<crate::types::PageIndexEntry> = Vec::new();
+        self.for_each_page(|id, p| {
+            out.push(crate::types::PageIndexEntry {
+                url: p.url,
+                final_url: p.final_url,
+                status: p.status,
+                depth: p.depth,
+                title: p.title,
+                indexable: p.indexable,
+                word_count: p.word_count,
+                inlinks: p.inlinks,
+                link_score: p.link_score,
+                seo_score: p.seo_score,
+                geo_score: p.geo.score,
+                a11y_score: p.a11y.score,
+                response_time_ms: p.response_time_ms,
+                size_bytes: p.size_bytes,
+                redirects: p.redirect_chain.len(),
+                has_extractions: p.extractions.iter().any(|e| !e.values.is_empty()),
+                chunk: id / chunk_size,
+            });
+        })?;
+        Ok(out)
+    }
+
     /// Overwrite a page's blob (used to write derived fields — inlinks, link
     /// score, duplicate-of, SEO score — back into the stored page).
     pub fn put_blob(&self, id: usize, page: &Page) -> io::Result<()> {

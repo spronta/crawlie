@@ -4,7 +4,7 @@
 //! and the audit pass.
 
 use crate::audit::audit_one;
-use crate::fetch::{build_client, check_status, fetch, FetchOutcome};
+use crate::fetch::{build_client, check_status, FetchOutcome};
 use crate::pagestore::PageStore;
 use crate::parse::{parse_html, Parsed};
 use crate::render::Renderer;
@@ -98,6 +98,7 @@ fn diff_render(raw: &Parsed, rend: &Parsed) -> Option<RenderDiff> {
 /// downstream audit rule sees client-rendered content. The raw server HTML's
 /// word count is captured first so the gap between raw and rendered can flag
 /// JS-dependent content. A render failure is non-fatal: the raw HTML is used.
+#[allow(clippy::too_many_arguments)]
 async fn fetch_one(
     client: &reqwest::Client,
     renderer: Option<&Renderer>,
@@ -106,8 +107,9 @@ async fn fetch_one(
     extractors: &[Extractor],
     render_wait_ms: u64,
     render_js: Option<&str>,
+    max_body: usize,
 ) -> Result<Fetched, reqwest::Error> {
-    let o = fetch(client, u, 10).await?;
+    let o = crate::fetch::fetch_capped(client, u, 10, max_body).await?;
     let mut rendered = false;
     let mut pre_render_word_count = 0usize;
     let mut raw_parsed: Option<Parsed> = None;
@@ -611,6 +613,13 @@ where
     } = prepare(&config, &mut on_event).await?;
 
     let mut pages: Vec<Page> = Vec::new();
+    // Normalized final URLs already recorded as a page. A redirect that lands on
+    // an already-crawled URL (e.g. `/foo` → `/foo/`) resolves to a full 200 body
+    // identical to the canonical page; without this guard it would be stored as a
+    // second page carrying the same outlinks — double-counting inlinks and
+    // surfacing both variants as separate "linked from" sources on any dead link
+    // they share. First recorder wins; the duplicate is dropped.
+    let mut recorded_finals: HashSet<String> = HashSet::new();
     let mut inflight = FuturesUnordered::new();
     let mut started = 0usize;
 
@@ -629,6 +638,7 @@ where
             let renderer = renderer.clone();
             let render_wait = config.render_wait_ms;
             let render_js = config.render_js.clone();
+            let max_body = config.max_body_bytes.max(64 * 1024);
             inflight.push(async move {
                 let res = fetch_one(
                     &client,
@@ -638,6 +648,7 @@ where
                     &extractors,
                     render_wait,
                     render_js.as_deref(),
+                    max_body,
                 )
                 .await;
                 (u, depth, res)
@@ -696,7 +707,11 @@ where
                             }
                         }
                     }
-                    pages.push(page);
+                    // Link discovery (above) already ran, so dropping a redirect
+                    // duplicate here never costs crawl coverage.
+                    if recorded_finals.insert(normalize_str(&page.final_url)) {
+                        pages.push(page);
+                    }
                 }
                 Err(e) => pages.push(error_page(&u, depth, e.to_string())),
             }
@@ -768,6 +783,9 @@ where
             }
         }
         targets.truncate(LINK_CHECK_CAP);
+        // checked/total lets the UI draw a real progress bar + ETA for this phase.
+        let total = targets.len();
+        let mut checked = 0usize;
         let mut iter = targets.into_iter();
         let mut checks = FuturesUnordered::new();
         for _ in 0..concurrency {
@@ -777,6 +795,7 @@ where
         }
         while let Some((key, status)) = checks.next().await {
             status_map.insert(key, status);
+            checked += 1;
             if cancel.is_cancelled() {
                 break;
             }
@@ -787,7 +806,7 @@ where
                 crawled: pages.len(),
                 discovered: visited.len(),
                 queued: checks.len(),
-                current: format!("Verifying links… {} checked", status_map.len()),
+                current: format!("Verifying links… {checked}/{total} checked"),
             });
         }
     }
@@ -902,10 +921,12 @@ where
         summary: summary.clone(),
     });
 
+    let broken_links = crate::audit::aggregate_broken_links(&issues);
     Ok(CrawlResult {
         config,
         pages,
         issues,
+        broken_links,
         summary,
         robots_found,
         sitemap_urls,
@@ -967,6 +988,9 @@ where
     let mut inflight = FuturesUnordered::new();
     let mut started = 0usize;
     let mut crawled = 0usize;
+    // See the in-memory loop: drop redirect duplicates whose final URL was
+    // already stored, so `/foo` → `/foo/` isn't recorded twice.
+    let mut recorded_finals: HashSet<String> = HashSet::new();
     store
         .begin()
         .map_err(|e| CrawlError::Client(e.to_string()))?;
@@ -985,6 +1009,7 @@ where
             let renderer = renderer.clone();
             let render_wait = config.render_wait_ms;
             let render_js = config.render_js.clone();
+            let max_body = config.max_body_bytes.max(64 * 1024);
             inflight.push(async move {
                 let res = fetch_one(
                     &client,
@@ -994,6 +1019,7 @@ where
                     &extractors,
                     render_wait,
                     render_js.as_deref(),
+                    max_body,
                 )
                 .await;
                 (u, depth, res)
@@ -1056,10 +1082,12 @@ where
                 }
                 Err(e) => error_page(&u, depth, e.to_string()),
             };
-            store
-                .insert(&page)
-                .map_err(|e| CrawlError::Client(e.to_string()))?;
-            crawled += 1;
+            if recorded_finals.insert(normalize_str(&page.final_url)) {
+                store
+                    .insert(&page)
+                    .map_err(|e| CrawlError::Client(e.to_string()))?;
+                crawled += 1;
+            }
             on_event(CrawlEvent::Progress {
                 crawled,
                 discovered: visited.len(),
@@ -1152,6 +1180,9 @@ where
             })
             .map_err(ioerr)?;
         targets.truncate(LINK_CHECK_CAP);
+        // checked/total lets the UI draw a real progress bar + ETA for this phase.
+        let total = targets.len();
+        let mut checked = 0usize;
         let mut iter = targets.into_iter();
         let mut checks = FuturesUnordered::new();
         for _ in 0..concurrency {
@@ -1161,6 +1192,7 @@ where
         }
         while let Some((key, status)) = checks.next().await {
             status_map.insert(key, status);
+            checked += 1;
             if cancel.is_cancelled() {
                 break;
             }
@@ -1171,7 +1203,7 @@ where
                 crawled,
                 discovered: visited.len(),
                 queued: checks.len(),
-                current: format!("Verifying links… {} checked", status_map.len()),
+                current: format!("Verifying links… {checked}/{total} checked"),
             });
         }
     }
@@ -1287,10 +1319,12 @@ where
     if seed_redirected_from.is_some() {
         config.url = seed.to_string();
     }
+    let broken_links = crate::audit::aggregate_broken_links(&issues);
     let result = CrawlResult {
         config,
         pages: Vec::new(),
         issues,
+        broken_links,
         summary,
         robots_found,
         sitemap_urls,
@@ -1524,6 +1558,7 @@ fn build_page(
         seo_score: 0,
         og_title: parsed.as_ref().and_then(|p| p.og_title.clone()),
         og_image: parsed.as_ref().and_then(|p| p.og_image.clone()),
+        og_description: parsed.as_ref().and_then(|p| p.og_description.clone()),
         twitter_card: parsed.as_ref().and_then(|p| p.twitter_card.clone()),
         schema_types: parsed
             .as_ref()
@@ -1610,6 +1645,7 @@ fn error_page(url: &Url, depth: usize, error: String) -> Page {
         seo_score: 0,
         og_title: None,
         og_image: None,
+        og_description: None,
         twitter_card: None,
         schema_types: Vec::new(),
         schema_validations: Vec::new(),

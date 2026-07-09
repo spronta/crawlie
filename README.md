@@ -127,6 +127,35 @@ claude mcp add crawlie crawlie-mcp
 
 (Any MCP-compatible client works — Cursor, Cline, your own agent. It speaks JSON-RPC over stdio.)
 
+### Hosted: the Crawlie Cloud MCP (no install)
+
+Prefer not to install anything, or want crawls to run on our infrastructure? Point any MCP client at the hosted endpoint and authenticate with a Crawlie API key (create one in the dashboard under Settings, API keys). It speaks MCP Streamable HTTP.
+
+**Endpoint:** `https://crawlie.app/mcp`
+
+For **Claude Code**:
+
+```bash
+claude mcp add --transport http crawlie-cloud https://crawlie.app/mcp \
+  --header "Authorization: Bearer crw_your_key"
+```
+
+For **Claude Desktop** (or any client that takes a JSON config):
+
+```jsonc
+{
+  "mcpServers": {
+    "crawlie-cloud": {
+      "type": "http",
+      "url": "https://crawlie.app/mcp",
+      "headers": { "Authorization": "Bearer crw_your_key" }
+    }
+  }
+}
+```
+
+Hosted crawls run on the same engine as the dashboard, are scoped to your team, and are metered against your plan. The tools mirror the local server (`crawl_site`, `audit_url`, `top_fixes`, `geo_gaps`, `affected_urls`, `diff_reports`, plus `crawl_status` to poll a long crawl and `get_report` / `list_reports` over your saved cloud reports). Every crawl returns a `reportId` you can re-slice later without re-crawling.
+
 ### One-step install: the Claude Code plugin
 
 The fastest path. The [`crawlie` plugin](.claude-plugin/plugin.json) bundles the MCP server **and** a set of skills (audit playbooks) in a single install — the MCP server auto-runs via `npx`, so you don't even pre-install the binary:

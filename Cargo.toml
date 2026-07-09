@@ -20,7 +20,9 @@ crawlie-core = { path = "crates/crawlie-core" }
 crawlie-rules = { path = "crates/crawlie-rules" }
 regex = "1"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time", "io-std", "io-util"] }
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "gzip", "brotli"] }
+# http2: multiplexes many in-flight requests over one connection per host —
+# big-crawl throughput and far fewer sockets at high concurrency.
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "gzip", "brotli", "http2"] }
 flate2 = "1"
 brotli = "8"
 scraper = "0.21"

@@ -193,3 +193,130 @@ async fn streaming_finds_the_broken_link() {
     );
     let _ = std::fs::remove_file(&db);
 }
+
+/// A site whose home page links to a page under both its no-slash and
+/// trailing-slash URL, where the no-slash form 301s to the slash form. The
+/// canonical page carries a dead link. A correct crawl records the canonical
+/// page once and lists it once as the source of the dead link — the redirect
+/// must not spawn a duplicate page.
+async fn spawn_redirect_site() -> u16 {
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = listener.local_addr().unwrap().port();
+    tokio::spawn(async move {
+        loop {
+            let Ok((mut sock, _)) = listener.accept().await else {
+                break;
+            };
+            tokio::spawn(async move {
+                let mut buf = [0u8; 2048];
+                let n = sock.read(&mut buf).await.unwrap_or(0);
+                let req = String::from_utf8_lossy(&buf[..n]);
+                let path = req
+                    .lines()
+                    .next()
+                    .and_then(|l| l.split_whitespace().nth(1))
+                    .unwrap_or("/")
+                    .to_string();
+                // The no-slash variant permanently redirects to the slash form.
+                if path == "/dup" {
+                    let resp = "HTTP/1.1 301 Moved Permanently\r\nLocation: /dup/\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+                    let _ = sock.write_all(resp.as_bytes()).await;
+                    let _ = sock.flush().await;
+                    return;
+                }
+                let (status, body): (u16, String) = match path.as_str() {
+                    "/" => (
+                        200,
+                        "<!doctype html><html lang=\"en\"><head>\
+                         <meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\
+                         <title>Home Page Of The Redirect Duplicate Fixture Site Here</title>\
+                         <meta name=\"description\" content=\"The home page links to the duplicate page under both its slash and no-slash URLs to exercise redirect de-duplication.\">\
+                         </head><body><main><h1>Home</h1>\
+                         <p>This home page has plenty of words so it is not flagged as thin content, and it links to the duplicate page under both URL forms below.</p>\
+                         <a href=\"/dup\">no slash</a><a href=\"/dup/\">with slash</a>\
+                         </main></body></html>"
+                            .into(),
+                    ),
+                    "/dup/" => (
+                        200,
+                        "<!doctype html><html lang=\"en\"><head>\
+                         <meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\
+                         <title>The Canonical Duplicate Page With Its Own Distinct Title</title>\
+                         <meta name=\"description\" content=\"The canonical duplicate page carries its own body content and one dead internal link for the broken-link check.\">\
+                         </head><body><main><h1>Dup</h1>\
+                         <p>The canonical duplicate page has a unique block of body content with more than enough words to clear the thin-content threshold for the audit.</p>\
+                         <a href=\"/\">Home</a><a href=\"/missing\">dead</a></main></body></html>"
+                            .into(),
+                    ),
+                    _ => (404, "not found".into()),
+                };
+                let reason = if status == 200 { "OK" } else { "Not Found" };
+                let resp = format!(
+                    "HTTP/1.1 {status} {reason}\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                    body.len()
+                );
+                let _ = sock.write_all(resp.as_bytes()).await;
+                let _ = sock.flush().await;
+            });
+        }
+    });
+    port
+}
+
+#[tokio::test]
+async fn redirect_to_crawled_url_is_not_a_duplicate_page() {
+    let port = spawn_redirect_site().await;
+
+    // In-memory crawl: the canonical page is recorded exactly once, and the dead
+    // link lists exactly one source (not the slash + no-slash pair).
+    let mem = crawl(cfg(port), |_| {}, CancelToken::new())
+        .await
+        .expect("in-memory crawl");
+
+    let dup_pages = mem
+        .pages
+        .iter()
+        .filter(|p| p.final_url.trim_end_matches('/').ends_with("/dup") && p.status == 200)
+        .count();
+    assert_eq!(
+        dup_pages, 1,
+        "the redirect target must be stored once, not once per URL variant"
+    );
+
+    let missing = mem
+        .broken_links
+        .iter()
+        .find(|b| b.url.ends_with("/missing"))
+        .expect("the /missing link should be flagged broken");
+    assert_eq!(
+        missing.sources.len(),
+        1,
+        "the dead link has one real source page, not a slash/no-slash pair: {:?}",
+        missing.sources
+    );
+
+    // The redirect also must not trip the trailing-slash duplicate rule.
+    assert!(
+        !mem.issues.iter().any(|i| i.rule == "url-slash-duplicate"),
+        "a properly redirecting /dup → /dup/ pair is not a trailing-slash duplicate"
+    );
+
+    // Streaming crawl reaches the same shape: one stored /dup page.
+    let db = std::env::temp_dir().join(format!("crawlie-redirect-{port}.db"));
+    let _ = std::fs::remove_file(&db);
+    let (stream, store) = crawl_to_store(cfg(port), &db, |_| {}, CancelToken::new())
+        .await
+        .expect("streaming crawl");
+    assert_eq!(
+        store.count().unwrap(),
+        mem.pages.len(),
+        "streaming stores the same de-duplicated page set as in-memory"
+    );
+    let missing = stream
+        .broken_links
+        .iter()
+        .find(|b| b.url.ends_with("/missing"))
+        .expect("streaming should flag /missing broken");
+    assert_eq!(missing.sources.len(), 1, "streaming: one source for the dead link");
+    let _ = std::fs::remove_file(&db);
+}

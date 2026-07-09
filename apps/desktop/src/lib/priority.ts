@@ -1,7 +1,7 @@
 // Prioritized "Top Fixes" — mirrors crawlie-core's priority::top_fixes so the
 // app and the CLI/MCP rank fixes identically.
 
-import type { Fix, Issue, Severity } from "./types";
+import type { Fix, Issue, IssueRollup, Severity } from "./types";
 import { ruleInfo } from "./rules";
 
 const WEIGHT: Record<Severity, number> = { error: 5, warning: 2, notice: 0.6, good: 0 };
@@ -27,6 +27,27 @@ export function topFixes(issues: Issue[], limit = 5): Fix[] {
       howToFix: info?.howToFix ?? "",
     };
   });
+  fixes.sort((a, b) => b.impact - a.impact || b.count - a.count);
+  return fixes.slice(0, limit);
+}
+
+/** `topFixes` over a lean report's rollup — exact counts without the full issue list. */
+export function topFixesFromRollup(rollup: IssueRollup[], limit = 5): Fix[] {
+  const fixes: Fix[] = rollup
+    .filter((g) => g.severity !== "good")
+    .map((g) => {
+      const info = ruleInfo(g.rule);
+      return {
+        rule: g.rule,
+        title: g.title,
+        category: g.category,
+        severity: g.severity,
+        count: g.count,
+        impact: WEIGHT[g.severity] * Math.sqrt(g.count),
+        why: info?.why ?? "",
+        howToFix: info?.howToFix ?? "",
+      };
+    });
   fixes.sort((a, b) => b.impact - a.impact || b.count - a.count);
   return fixes.slice(0, limit);
 }

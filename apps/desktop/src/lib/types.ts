@@ -116,6 +116,8 @@ export interface Page {
   seoScore: number;
   ogTitle: string | null;
   ogImage: string | null;
+  /** Open Graph description (`og:description`); older reports omit it. */
+  ogDescription?: string | null;
   twitterCard: string | null;
   schemaTypes: string[];
   hreflang: Hreflang[];
@@ -250,10 +252,27 @@ export interface LinkGraph {
   topHubs: number[];
 }
 
+/** One dead link target rolled up across the crawl: exact occurrence count
+ *  plus the linking pages (capped) — survives lean-report issue capping. */
+export interface BrokenLink {
+  /** The link target that is broken. */
+  url: string;
+  /** HTTP status of the target (0 = connection error). */
+  status: number;
+  /** Total occurrences across the crawl. */
+  count: number;
+  /** Pages containing the link (deduped, capped) — fix these. */
+  sources: string[];
+  /** More linking pages exist than are listed in `sources`. */
+  sourcesTruncated?: boolean;
+}
+
 export interface CrawlResult {
   config: CrawlConfig;
   pages: Page[];
   issues: Issue[];
+  /** Broken link targets by URL with counts + linking pages (exact even when `issues` is capped). */
+  brokenLinks?: BrokenLink[];
   summary: Summary;
   robotsFound: boolean;
   sitemapUrls: number;
@@ -263,6 +282,75 @@ export interface CrawlResult {
   startedAt: number;
   /** Guidance for user-defined check rules present in `issues` (Pro packs). */
   customRules?: RuleInfo[];
+  // --- Lean (out-of-core) report extras — present on big hosted crawls ---
+  /** Per-rule aggregates with exact counts; `issues` holds only samples when truncated. */
+  issueRollup?: IssueRollup[];
+  /** `issues` is a capped sample; use `issueRollup`/`summary` for true counts. */
+  issuesTruncated?: boolean;
+  /** Total crawled pages in the stored report (pages are fetched in chunks). */
+  pageCount?: number;
+  /** Pages per stored chunk (reports/{id}/pages/{n}.json). */
+  pageChunkSize?: number;
+  /** Client-set: `pages` holds only the first hydrated chunk window. */
+  pagesTruncated?: boolean;
+  /** Client-set: the full compact page index (every crawled page) fetched
+   *  from the report bundle — lets tables browse the whole crawl while full
+   *  Page records load per-chunk on demand. */
+  pageIndex?: PageIndexEntry[];
+}
+
+/** One compact page-index row from a lean (out-of-core) report — every field
+ *  the Pages table shows, for every crawled page, plus the chunk holding the
+ *  full Page record. */
+export interface PageIndexEntry {
+  url: string;
+  finalUrl: string;
+  status: number;
+  depth: number;
+  title: string | null;
+  indexable: boolean;
+  wordCount: number;
+  inlinks: number;
+  /** Missing on indexes written before it was added. */
+  linkScore?: number;
+  seoScore: number;
+  geoScore: number;
+  a11yScore: number;
+  responseTimeMs: number;
+  sizeBytes: number;
+  redirects: number;
+  hasExtractions: boolean;
+  /** 0-based page-chunk number containing the full page record. */
+  chunk: number;
+}
+
+/** A row of the Pages table: an index entry, or a view over an in-memory
+ *  [`Page`] (in which case `page` is set and detail opens instantly). */
+export interface PageRow {
+  url: string;
+  finalUrl: string;
+  status: number;
+  depth: number;
+  title: string | null;
+  indexable: boolean;
+  indexability?: string | null;
+  wordCount: number;
+  inlinks: number;
+  linkScore?: number;
+  seoScore: number;
+  geoScore: number;
+  chunk?: number;
+  page?: Page;
+}
+
+/** Per-rule aggregate carried by lean reports: the exact total plus samples. */
+export interface IssueRollup {
+  rule: string;
+  title: string;
+  category: Category;
+  severity: Severity;
+  count: number;
+  sample: Issue[];
 }
 
 export interface Fix {
