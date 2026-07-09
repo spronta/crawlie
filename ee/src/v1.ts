@@ -6,7 +6,7 @@ import { Hono } from "hono";
 import type { Context } from "hono";
 import type { Env } from "./env";
 import { createAuth } from "./auth";
-import { runCrawl, cancelCrawl, previewPack } from "./crawler";
+import { startJob, pollJob, finalizeJob, cancelCrawl, previewPack } from "./crawler";
 import {
   listReports,
   loadReport,
@@ -83,61 +83,62 @@ v1.use("*", async (c, next) => {
   await next();
 });
 
-// Stream a crawl as SSE; meter usage; persist against the team (+ project).
-function crawlStream(c: Ctx, config: unknown, projectId: string | null) {
+// Start a crawl as a background job in the container (decoupled from this
+// request), returning a jobId the client polls. Bounds pages to the plan cap.
+async function startCrawlJob(c: Ctx, config: Record<string, unknown>, projectId: string | null) {
   const team = c.get("team");
-  const userId = c.get("userId");
-  // Bound the crawl to the plan's page cap so a huge site can't run the
-  // streaming worker long enough to be evicted mid-crawl — which the client
-  // saw as "crawl stream ended without a result".
   const cap = PLANS[team.plan].maxPages;
-  const cfg = config as { maxPages?: number };
-  const requested = typeof cfg.maxPages === "number" && cfg.maxPages > 0 ? cfg.maxPages : cap;
+  const requested = typeof config.maxPages === "number" && config.maxPages > 0 ? config.maxPages : cap;
   const maxPages = Math.min(requested, cap);
-  const boundedConfig = { ...cfg, maxPages };
-
-  const { readable, writable } = new TransformStream();
-  const writer = writable.getWriter();
-  const enc = new TextEncoder();
-  let closed = false;
-  const send = (obj: unknown) => (closed ? Promise.resolve() : writer.write(enc.encode(`data: ${JSON.stringify(obj)}\n\n`)));
-  // Keep the connection warm through quiet phases (the final report save, slow
-  // pages) so no proxy hop drops it. SSE comment lines are ignored by clients.
-  const beat = setInterval(() => { if (!closed) writer.write(enc.encode(`: ping\n\n`)).catch(() => {}); }, 12_000);
-
-  c.executionCtx.waitUntil(
-    (async () => {
-      try {
-        // Announce the effective cap so the UI's ETA is honest.
-        await send({ type: "meta", maxPages, capped: requested > maxPages });
-        const packs = await enabledPackSources(c.env, team.id);
-        const result = await runCrawl(c.env, boundedConfig, (ev) => send(ev), packs);
-        const health = (result as { summary?: { healthScore?: number } }).summary?.healthScore ?? 0;
-        const reportId = await saveReport(c.env, team.id, userId, result as Parameters<typeof saveReport>[3], projectId);
-        await incrementCrawls(c.env, team.id);
-        if (projectId) await recordCrawl(c.env, team.id, projectId, reportId, health, Date.now());
-        await send({ type: "result", result });
-      } catch (err) {
-        await send({ type: "error", message: String(err) });
-      } finally {
-        clearInterval(beat);
-        closed = true;
-        await writer.close();
-      }
-    })(),
-  );
-  return new Response(readable, {
-    headers: { "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive" },
-  });
+  const jobId = crypto.randomUUID();
+  const packs = await enabledPackSources(c.env, team.id);
+  await startJob(c.env, jobId, { ...config, maxPages }, packs);
+  return c.json({ jobId, maxPages, capped: requested > maxPages, projectId });
 }
 
 // --- Crawls (metered) --------------------------------------------------
 v1.post("/crawls", async (c) => {
   const blocked = await crawlBlockedReason(c.env, c.get("team"));
   if (blocked) return c.json({ error: blocked, code: "plan_limit" }, 402);
-  const body = await c.req.json<{ config: unknown }>().catch(() => null);
+  const body = await c.req.json<{ config: Record<string, unknown> }>().catch(() => null);
   if (!body?.config) return c.json({ error: "missing config" }, 400);
-  return crawlStream(c, body.config, null);
+  return startCrawlJob(c, body.config, null);
+});
+
+// Poll a running crawl job. On completion the Worker saves the report (once)
+// and returns its id; the client then loads the report and stops polling.
+v1.get("/crawls/:jobId", async (c) => {
+  const team = c.get("team");
+  const jobId = c.req.param("jobId");
+  const projectId = c.req.query("project") || null;
+
+  let st;
+  try {
+    st = await pollJob(c.env, jobId);
+  } catch {
+    return c.json({ status: "error", message: "Lost contact with the crawler. Please try again." });
+  }
+  if (st.status === "running" || st.status === "error") return c.json(st);
+  if (st.status === "saved") return c.json({ status: "done", reportId: st.reportId });
+  if (st.status === "done" && st.result) {
+    const result = st.result as Parameters<typeof saveReport>[3];
+    const reportId = await saveReport(c.env, team.id, c.get("userId"), result, projectId);
+    const fin = await finalizeJob(c.env, jobId, reportId);
+    if (fin.first) {
+      await incrementCrawls(c.env, team.id);
+      if (projectId) {
+        const p = await getProject(c.env, team.id, projectId); // team-scoped guard
+        if (p) {
+          const health = (st.result as { summary?: { healthScore?: number } }).summary?.healthScore ?? 0;
+          await recordCrawl(c.env, team.id, projectId, reportId, health, Date.now());
+        }
+      }
+    }
+    return c.json({ status: "done", reportId });
+  }
+  // Unknown job (container recycled) — treat as a soft failure so the client
+  // can offer a retry rather than spin forever.
+  return c.json({ status: st.status === "unknown" ? "error" : st.status, message: st.status === "unknown" ? "The crawl is no longer available. Please run it again." : undefined });
 });
 
 v1.post("/crawls/:id/cancel", async (c) => {
@@ -185,7 +186,7 @@ v1.post("/projects/:id/crawls", async (c) => {
   if (blocked) return c.json({ error: blocked, code: "plan_limit" }, 402);
   const p = await getProject(c.env, c.get("team").id, c.req.param("id"));
   if (!p) return c.json({ error: "not found" }, 404);
-  return crawlStream(c, { url: p.url, ...(p.config ?? {}) }, p.id);
+  return startCrawlJob(c, { url: p.url, ...(p.config ?? {}) }, p.id);
 });
 
 v1.get("/projects/:id/reports", async (c) => {

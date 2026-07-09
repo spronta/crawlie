@@ -51,8 +51,77 @@ export async function runCrawl(
   return result;
 }
 
-// One container per crawl, so cancellation just lets the instance idle out.
-export async function cancelCrawl(_env: Env, _id: string): Promise<void> {}
+// --- Job-based crawl (decoupled from the request lifetime) --------------
+// The container runs the crawl as a background task keyed by jobId; the Worker
+// starts it and then polls status. This is what lets big sites finish: no
+// single request is held open long enough to be evicted.
+
+const jobContainer = (env: Env, jobId: string) => getContainer(env.CRAWLER, jobId);
+
+/** Kick off a crawl job in its own container instance; returns immediately. */
+export async function startJob(
+  env: Env,
+  jobId: string,
+  config: unknown,
+  packs: Array<{ name: string; source: string }>,
+): Promise<void> {
+  const res = await jobContainer(env, jobId).fetch(
+    new Request("http://crawler/start", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ jobId, ...(config as Record<string, unknown>), packs }),
+    }),
+  );
+  if (!res.ok) throw new Error(`Crawler start returned ${res.status}`);
+}
+
+export interface JobStatus {
+  status: "running" | "done" | "saved" | "error" | "unknown";
+  crawled?: number;
+  discovered?: number;
+  queued?: number;
+  current?: string;
+  result?: unknown;
+  reportId?: string;
+  message?: string;
+}
+
+/** Poll a crawl job. When `done`, `result` holds the report JSON (once). */
+export async function pollJob(env: Env, jobId: string): Promise<JobStatus> {
+  const res = await jobContainer(env, jobId).fetch(
+    new Request(`http://crawler/status?job=${encodeURIComponent(jobId)}`),
+  );
+  if (!res.ok) throw new Error(`Crawler status returned ${res.status}`);
+  return res.json<JobStatus>();
+}
+
+/** Record that the report was persisted; exactly-once (`first`) across polls. */
+export async function finalizeJob(env: Env, jobId: string, reportId: string): Promise<{ first: boolean }> {
+  const res = await jobContainer(env, jobId).fetch(
+    new Request("http://crawler/finalize", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ job: jobId, reportId }),
+    }),
+  );
+  if (!res.ok) return { first: false };
+  return res.json<{ first: boolean }>();
+}
+
+// Cancel a running job (best-effort — the container stops the crawl).
+export async function cancelCrawl(env: Env, id: string): Promise<void> {
+  try {
+    await jobContainer(env, id).fetch(
+      new Request("http://crawler/cancel", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ job: id }),
+      }),
+    );
+  } catch {
+    /* the instance will idle out on its own */
+  }
+}
 
 /** Validate a pack + dry-run its custom checks against report pages (rule
  *  builder preview). One-shot request; the container replies with JSON. */

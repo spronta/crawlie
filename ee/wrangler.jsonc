@@ -67,7 +67,7 @@
       "image": "../Dockerfile",
       // 'basic' (≈1 GiB / 0.25 vCPU) — headroom for headless Chromium (JS
       // rendering) and ~4x faster crawls than 'lite'.
-      "instance_type": "basic",
+      "instance_type": "standard",
       "max_instances": 5,
       "name": "crawlie-crawler"
     }

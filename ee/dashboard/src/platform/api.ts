@@ -67,55 +67,79 @@ export async function streamCrawl(
   path: string,
   body: unknown,
   onEvent: (e: CrawlEvent) => void,
+  projectId?: string,
 ): Promise<CrawlResult> {
-  activeCrawl?.abort();
-  const controller = new AbortController();
-  activeCrawl = controller;
-  const res = await fetch(`${API}${path}`, {
+  // Start the job (short request) — the crawl runs in the container regardless
+  // of how long this browser session lasts.
+  const start = await fetch(`${API}${path}`, {
     method: "POST",
     credentials: "include",
     headers: { "content-type": "application/json", ...teamHeaders() },
     body: body === undefined ? undefined : JSON.stringify(body),
-    signal: controller.signal,
   });
-  if (res.status === 402) {
-    const b = (await res.json().catch(() => ({}))) as { error?: string };
+  if (start.status === 402) {
+    const b = (await start.json().catch(() => ({}))) as { error?: string };
     throw new Error(b.error ?? "Plan limit reached — upgrade to run more crawls.");
   }
-  if (!res.ok || !res.body) throw new Error(`Crawl failed (${res.status})`);
-
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  let sawProgress = false;
-  for (;;) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    let sep: number;
-    while ((sep = buffer.indexOf("\n\n")) >= 0) {
-      const frame = buffer.slice(0, sep);
-      buffer = buffer.slice(sep + 2);
-      const dataLine = frame.split("\n").find((l) => l.startsWith("data:"));
-      if (!dataLine) continue;
-      const e = JSON.parse(dataLine.slice(5).trim()) as
-        | CrawlEvent
-        | { type: "result"; result: CrawlResult }
-        | { type: "error"; message: string };
-      if (e.type === "result") return (e as { result: CrawlResult }).result;
-      if (e.type === "error") throw new Error((e as { message: string }).message);
-      if (e.type === "progress") sawProgress = true;
-      onEvent(e as CrawlEvent);
-    }
+  if (!start.ok) throw new Error(`Crawl failed (${start.status})`);
+  const info = (await start.json()) as { jobId: string; maxPages?: number; capped?: boolean };
+  const job = { jobId: info.jobId, cancelled: false };
+  activeJob = job;
+  if (typeof info.maxPages === "number") {
+    onEvent({ type: "meta", maxPages: info.maxPages, capped: !!info.capped });
   }
-  // The stream closed without a final result. If the crawl was clearly under
-  // way, it was interrupted (very large site, network hiccup) rather than
-  // never-started — give an actionable, non-scary message.
-  throw new Error(
-    sawProgress
-      ? "The crawl was interrupted before it finished — the site may be very large. Try again, or lower Max pages."
-      : "Couldn't reach the crawler. Please try again.",
-  );
+
+  const q = projectId ? `?project=${encodeURIComponent(projectId)}` : "";
+  let misses = 0;
+  for (;;) {
+    if (job.cancelled) throw new Error("Crawl cancelled.");
+    await new Promise((r) => setTimeout(r, 1200));
+    if (job.cancelled) throw new Error("Crawl cancelled.");
+    let st: {
+      status: string;
+      crawled?: number;
+      discovered?: number;
+      queued?: number;
+      current?: string;
+      reportId?: string;
+      message?: string;
+    };
+    try {
+      const r = await fetch(`${API}/v1/crawls/${encodeURIComponent(job.jobId)}${q}`, {
+        credentials: "include",
+        headers: teamHeaders(),
+      });
+      if (!r.ok) {
+        if (++misses > 6) throw new Error(`Crawl status failed (${r.status})`);
+        continue;
+      }
+      st = await r.json();
+      misses = 0;
+    } catch (e) {
+      if (job.cancelled) throw new Error("Crawl cancelled.");
+      if (++misses > 8) throw e;
+      continue;
+    }
+    if (st.status === "running") {
+      onEvent({
+        type: "progress",
+        crawled: st.crawled ?? 0,
+        discovered: st.discovered ?? 0,
+        queued: st.queued ?? 0,
+        current: st.current ?? "",
+      });
+      continue;
+    }
+    if (st.status === "error") {
+      throw new Error(st.message ?? "The crawl was interrupted. Please try again.");
+    }
+    if (st.status === "done" && st.reportId) {
+      const report = await loadReport(st.reportId);
+      if (!report) throw new Error("The report couldn't be loaded. Please try again.");
+      return report;
+    }
+    if (++misses > 8) throw new Error("The crawl didn't finish. Please try again.");
+  }
 }
 
 /** Start an ad-hoc hosted crawl. */
@@ -127,10 +151,21 @@ export async function startCrawl(
   return streamCrawl("/v1/crawls", { config }, onEvent);
 }
 
-let activeCrawl: AbortController | null = null;
+let activeJob: { jobId: string; cancelled: boolean } | null = null;
 export async function cancelCrawl(): Promise<void> {
-  activeCrawl?.abort();
-  activeCrawl = null;
+  const j = activeJob;
+  activeJob = null;
+  if (!j) return;
+  j.cancelled = true;
+  try {
+    await fetch(`${API}/v1/crawls/${encodeURIComponent(j.jobId)}/cancel`, {
+      method: "POST",
+      credentials: "include",
+      headers: teamHeaders(),
+    });
+  } catch {
+    /* the container idles out on its own */
+  }
 }
 
 export async function listReports(): Promise<ReportMeta[]> {

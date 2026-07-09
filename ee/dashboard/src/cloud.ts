@@ -107,7 +107,7 @@ export const projectTrend = (id: string) => j<TrendPoint[]>(`/v1/projects/${id}/
 
 /** Run a crawl for a project, streaming progress; server records the history. */
 export const crawlProject = (id: string, onEvent: (e: CrawlEvent) => void) =>
-  streamCrawl(`/v1/projects/${id}/crawls`, undefined, onEvent);
+  streamCrawl(`/v1/projects/${id}/crawls`, undefined, onEvent, id);
 
 export interface ApiKeyMeta {
   id: string;
