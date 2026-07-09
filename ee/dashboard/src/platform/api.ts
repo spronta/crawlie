@@ -11,6 +11,7 @@ import type {
   CrawlDiff,
   CrawlEvent,
   CrawlResult,
+  Page,
   ReportMeta,
 } from "@ui/lib/types";
 import { DEMO_RESULT } from "@ui/lib/demo";
@@ -68,6 +69,7 @@ export async function streamCrawl(
   body: unknown,
   onEvent: (e: CrawlEvent) => void,
   projectId?: string,
+  onJob?: (job: { jobId: string; cancel: () => Promise<void> }) => void,
 ): Promise<CrawlResult> {
   // Start the job (short request) — the crawl runs in the container regardless
   // of how long this browser session lasts.
@@ -85,15 +87,45 @@ export async function streamCrawl(
   const info = (await start.json()) as { jobId: string; maxPages?: number; capped?: boolean };
   const job = { jobId: info.jobId, cancelled: false };
   activeJob = job;
+  onJob?.({ jobId: job.jobId, cancel: () => cancelJob(job) });
   if (typeof info.maxPages === "number") {
     onEvent({ type: "meta", maxPages: info.maxPages, capped: !!info.capped });
   }
+  return pollCrawlJob(job, info.maxPages ?? 0, onEvent, projectId);
+}
+
+/** Re-attach to an already running job (page reload, another device) and poll
+ *  it to completion, exactly like a job this session started. */
+export async function resumeCrawl(
+  jobId: string,
+  maxPages: number,
+  onEvent: (e: CrawlEvent) => void,
+  projectId?: string,
+  onJob?: (job: { jobId: string; cancel: () => Promise<void> }) => void,
+): Promise<CrawlResult> {
+  const job = { jobId, cancelled: false };
+  onJob?.({ jobId, cancel: () => cancelJob(job) });
+  return pollCrawlJob(job, maxPages, onEvent, projectId);
+}
+
+/** The shared status-poll loop: progress/saving events out, report on done. */
+async function pollCrawlJob(
+  job: { jobId: string; cancelled: boolean },
+  maxPages: number,
+  onEvent: (e: CrawlEvent) => void,
+  projectId?: string,
+): Promise<CrawlResult> {
+  // Poll cadence scales with crawl size: a 500-page crawl finishes in under a
+  // minute and deserves snappy updates; a six-figure crawl runs for many
+  // minutes, where 1.2s polling is just auth + DO load for identical numbers.
+  const pollMs = maxPages >= 20_000 ? 5_000 : maxPages >= 2_000 ? 2_500 : 1_200;
 
   const q = projectId ? `?project=${encodeURIComponent(projectId)}` : "";
   let misses = 0;
+  let lastProgress = { crawled: 0, discovered: 0 };
   for (;;) {
     if (job.cancelled) throw new Error("Crawl cancelled.");
-    await new Promise((r) => setTimeout(r, 1200));
+    await new Promise((r) => setTimeout(r, pollMs));
     if (job.cancelled) throw new Error("Crawl cancelled.");
     let st: {
       status: string;
@@ -101,6 +133,8 @@ export async function streamCrawl(
       discovered?: number;
       queued?: number;
       current?: string;
+      savedChunks?: number;
+      chunkCount?: number;
       reportId?: string;
       message?: string;
     };
@@ -128,6 +162,19 @@ export async function streamCrawl(
         queued: st.queued ?? 0,
         current: st.current ?? "",
       });
+      lastProgress = { crawled: st.crawled ?? 0, discovered: st.discovered ?? 0 };
+      continue;
+    }
+    if (st.status === "saving") {
+      // Crawl finished; the Durable Object is persisting the report to R2.
+      const parts = st.chunkCount ? ` (${st.savedChunks ?? 0}/${st.chunkCount})` : "…";
+      onEvent({
+        type: "progress",
+        crawled: lastProgress.crawled,
+        discovered: lastProgress.discovered,
+        queued: 0,
+        current: `Saving report${parts}`,
+      });
       continue;
     }
     if (st.status === "error") {
@@ -146,17 +193,19 @@ export async function streamCrawl(
 export async function startCrawl(
   config: CrawlConfig,
   onEvent: (e: CrawlEvent) => void,
+  onJob?: (job: { jobId: string; cancel: () => Promise<void> }) => void,
 ): Promise<CrawlResult> {
   if (!HOSTED) return runDemo(config, onEvent);
-  return streamCrawl("/v1/crawls", { config }, onEvent);
+  return streamCrawl("/v1/crawls", { config }, onEvent, undefined, onJob);
 }
 
 let activeJob: { jobId: string; cancelled: boolean } | null = null;
-export async function cancelCrawl(): Promise<void> {
-  const j = activeJob;
-  activeJob = null;
-  if (!j) return;
+
+/** Cancel a specific job (crawls can run concurrently across projects). */
+async function cancelJob(j: { jobId: string; cancelled: boolean }): Promise<void> {
+  if (j.cancelled) return;
   j.cancelled = true;
+  if (activeJob?.jobId === j.jobId) activeJob = null;
   try {
     await fetch(`${API}/v1/crawls/${encodeURIComponent(j.jobId)}/cancel`, {
       method: "POST",
@@ -168,15 +217,91 @@ export async function cancelCrawl(): Promise<void> {
   }
 }
 
+/** Legacy single-job cancel — kept for seam parity with the desktop API. */
+export async function cancelCrawl(): Promise<void> {
+  const j = activeJob;
+  activeJob = null;
+  if (j) await cancelJob(j);
+}
+
 export async function listReports(): Promise<ReportMeta[]> {
   if (!HOSTED) return DEMO_REPORTS;
   return req<ReportMeta[]>("/v1/reports");
 }
 
+// Big crawls are stored lean (no pages inline); the browser hydrates page
+// chunks up to this cap so the interactive explorer stays snappy while scores,
+// issues and charts always reflect the full crawl.
+const HYDRATE_PAGE_CAP = 5_000;
+const CHUNK_FETCH_PARALLELISM = 4;
+
+/** Fill a lean report's `pages` from its stored chunks (bounded + parallel)
+ *  and attach the full compact page index, so tables can browse every crawled
+ *  page while full records load per-chunk on demand.
+ *  `partBase` is the URL prefix serving `/pages/{n}` + `/index` (auth'd or public). */
+export async function hydrateLeanReport(r: CrawlResult, partBase: string): Promise<CrawlResult> {
+  const total = r.pageCount ?? r.summary?.totalPages ?? 0;
+  if ((r.pages?.length ?? 0) > 0 || total === 0) return r; // legacy full report
+  const chunkSize = r.pageChunkSize && r.pageChunkSize > 0 ? r.pageChunkSize : 200;
+  const wanted = Math.min(total, HYDRATE_PAGE_CAP);
+  const chunks = Math.ceil(wanted / chunkSize);
+  const results: CrawlResult["pages"][] = new Array(chunks);
+  let next = 0;
+  async function worker() {
+    for (;;) {
+      const n = next++;
+      if (n >= chunks) return;
+      const res = await fetch(`${partBase}/pages/${n}`, { credentials: "include", headers: teamHeaders() });
+      results[n] = res.ok ? await res.json() : [];
+    }
+  }
+  const indexFetch = fetch(`${partBase}/index`, { credentials: "include", headers: teamHeaders() })
+    .then((res) => (res.ok ? (res.json() as Promise<CrawlResult["pageIndex"]>) : undefined))
+    .catch(() => undefined);
+  await Promise.all(Array.from({ length: Math.min(CHUNK_FETCH_PARALLELISM, chunks) }, worker));
+  r.pages = results.flat().slice(0, wanted);
+  r.pagesTruncated = total > r.pages.length;
+  const index = await indexFetch;
+  if (index?.length) r.pageIndex = index;
+  return r;
+}
+
+/** Resolve a table row to its full Page by fetching the row's stored chunk.
+ *  Chunks are cached (small LRU) so browsing nearby rows is instant. */
+export function chunkPageResolver(
+  r: CrawlResult,
+  partBase: string,
+): (row: { url: string; finalUrl: string; chunk?: number }) => Promise<Page | null> {
+  const chunkSize = r.pageChunkSize && r.pageChunkSize > 0 ? r.pageChunkSize : 200;
+  const cache = new Map<number, Promise<Page[]>>();
+  const CACHE_CAP = 8;
+  return async (row) => {
+    let n = row.chunk;
+    if (n === undefined && r.pageIndex?.length) {
+      const i = r.pageIndex.findIndex((e) => e.url === row.url);
+      n = i >= 0 ? Math.floor(i / chunkSize) : undefined;
+    }
+    if (n === undefined) return null;
+    let chunk = cache.get(n);
+    if (!chunk) {
+      chunk = fetch(`${partBase}/pages/${n}`, { credentials: "include", headers: teamHeaders() })
+        .then((res) => (res.ok ? (res.json() as Promise<Page[]>) : []));
+      cache.set(n, chunk);
+      if (cache.size > CACHE_CAP) {
+        const oldest = cache.keys().next().value;
+        if (oldest !== undefined) cache.delete(oldest);
+      }
+    }
+    const pages = await chunk;
+    return pages.find((p) => p.url === row.url || p.finalUrl === row.finalUrl) ?? null;
+  };
+}
+
 export async function loadReport(id: string): Promise<CrawlResult | null> {
   if (!HOSTED) return id === DEMO_REPORTS[0].id ? DEMO_RESULT : null;
   try {
-    return await req<CrawlResult>(`/v1/reports/${encodeURIComponent(id)}`);
+    const r = await req<CrawlResult>(`/v1/reports/${encodeURIComponent(id)}`);
+    return await hydrateLeanReport(r, `${API}/v1/reports/${encodeURIComponent(id)}`);
   } catch {
     return null;
   }

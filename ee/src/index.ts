@@ -17,6 +17,7 @@ import { trustedOrigins } from "./env";
 import { createAuth } from "./auth";
 import { devicePage, errorPage } from "./pages";
 import { v1 } from "./v1";
+import { mcp } from "./mcp";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -47,11 +48,33 @@ app.on(["GET", "POST"], "/api/auth/*", (c) =>
 // Hosted crawler API (auth-gated inside).
 app.route("/v1", v1);
 
+// Hosted MCP endpoint (Streamable HTTP) — agents connect here with an API key.
+app.route("/mcp", mcp);
+
 // Public, unauthenticated: a shared report by token (powers crawlie.app/p/…).
 app.get("/pub/reports/:token", async (c) => {
   const { loadPublicReport } = await import("./reports");
   const report = await loadPublicReport(c.env, c.req.param("token"));
   return report ? c.json(report) : c.json({ error: "not found" }, 404);
+});
+
+// Shared big reports are lean — their page index and page chunks are public
+// under the same token.
+app.get("/pub/reports/:token/index", async (c) => {
+  const { resolveShareToken, reportPart } = await import("./reports");
+  const ref = await resolveShareToken(c.env, c.req.param("token"));
+  if (!ref) return c.json({ error: "not found" }, 404);
+  const res = await reportPart(c.env, ref.teamId, ref.id, "index.json");
+  return res ?? c.json({ error: "not found" }, 404);
+});
+app.get("/pub/reports/:token/pages/:n", async (c) => {
+  const n = Number.parseInt(c.req.param("n"), 10);
+  if (!Number.isInteger(n) || n < 0) return c.json({ error: "bad chunk" }, 400);
+  const { resolveShareToken, reportPart } = await import("./reports");
+  const ref = await resolveShareToken(c.env, c.req.param("token"));
+  if (!ref) return c.json({ error: "not found" }, 404);
+  const res = await reportPart(c.env, ref.teamId, ref.id, `pages/${n}.json`);
+  return res ?? c.json({ error: "not found" }, 404);
 });
 
 // Stripe webhook: sync plan changes onto the team. Signature-verified.

@@ -1,18 +1,15 @@
-// Cron trigger — the monitoring engine. Runs each due scheduled project's
-// crawl in the container, stores the report, and emails the owner if it
-// regressed versus the last crawl. Sitebulb Cloud charges for this; here it's
-// the core of a useful account.
+// Cron trigger — the monitoring engine. Kicks off each due scheduled
+// project's crawl as a container job and arms the Durable Object watcher with
+// the project's alert context. The DO then owns the whole lifecycle — crawl,
+// save, metering, regression detection, notifications — so scheduled crawls
+// of any size finish reliably long after this cron invocation has returned.
 
 import type { Env } from "./env";
-import { dueProjects, recordCrawl, type Project } from "./projects";
-import { runCrawl } from "./crawler";
-import { saveReport, diffReports } from "./reports";
-import { sendRegressionAlert, sendWebhookAlert, userEmail } from "./alerts";
-import { incrementCrawls } from "./teams";
+import { dueProjects, nextRun, type Project } from "./projects";
+import { startJob, armWatch, registerActiveCrawl } from "./crawler";
 import { enabledPackSources } from "./packs";
+import { PLANS, getUsage, type Plan } from "./teams";
 
-// Health drop (points) that counts as a regression on its own.
-const HEALTH_DROP = 3;
 // Cap crawls per cron tick so a burst of due projects stays within limits.
 const BATCH = 8;
 
@@ -24,66 +21,61 @@ export async function scheduled(
   const now = Date.now();
   const due = await dueProjects(env, now, BATCH);
   for (const { teamId, project } of due) {
-    ctx.waitUntil(runScheduled(env, teamId, project, now));
+    ctx.waitUntil(runScheduled(env, teamId, project));
   }
 }
 
-async function runScheduled(env: Env, teamId: string, project: Project, now: number): Promise<void> {
+async function runScheduled(env: Env, teamId: string, project: Project): Promise<void> {
   try {
-    const config = { url: project.url, ...(project.config ?? {}) };
+    // Plan limits still apply to scheduled crawls (pages + monthly quota).
+    const team = await env.DB.prepare(`SELECT plan, owner_id FROM teams WHERE id = ?`)
+      .bind(teamId)
+      .first<{ plan?: string; owner_id?: string }>();
+    const plan = PLANS[(team?.plan as Plan) ?? "free"] ?? PLANS.free;
+    const usage = await getUsage(env, teamId);
+    if (usage.crawls >= plan.crawlsPerMonth) return;
+
+    // Claim the slot now: big crawls can outlive several cron ticks, and
+    // next_run_at is otherwise only advanced when the report lands
+    // (recordCrawl). Without this an hourly tick would double-start them.
+    await env.DB.prepare(`UPDATE projects SET next_run_at=? WHERE team_id=? AND id=?`)
+      .bind(nextRun(project.schedule, Date.now()), teamId, project.id)
+      .run();
+
+    const config: Record<string, unknown> = { url: project.url, ...(project.config ?? {}) };
+    const requested = typeof config.maxPages === "number" && config.maxPages > 0 ? config.maxPages : plan.maxPages;
+    config.maxPages = Math.min(requested, plan.maxPages);
+
     const packs = await enabledPackSources(env, teamId);
-    const result = (await runCrawl(env, config, () => {}, packs)) as {
-      summary?: { healthScore: number; errors: number; warnings: number };
-      packs?: { totalScore?: number };
-    };
-    const health = result.summary?.healthScore ?? 0;
-
-    const before = project.lastHealth;
-    const prevReport = project.lastReport;
-    // Team owner is the report creator for scheduled crawls.
-    const owner = await env.DB.prepare(`SELECT owner_id FROM teams WHERE id = ?`).bind(teamId).first<{ owner_id: string }>();
-    const reportId = await saveReport(env, teamId, owner?.owner_id ?? teamId, result as Parameters<typeof saveReport>[3], project.id);
-    await incrementCrawls(env, teamId);
-    await recordCrawl(env, teamId, project.id, reportId, health, now);
-
-    if (!project.notify) return;
-
-    // Regression = health dropped meaningfully OR new error-level issues appeared.
-    let regressed = before != null && health <= before - HEALTH_DROP;
-    let newErrors = 0;
-    let newWarnings = 0;
-    if (prevReport) {
-      const diff = await diffReports(env, teamId, prevReport, reportId);
-      if (diff) {
-        for (const i of diff.newIssues) {
-          if (i.severity === "error") newErrors += i.count;
-          else if (i.severity === "warning") newWarnings += i.count;
-        }
-        if (newErrors > 0) regressed = true;
-      }
+    const jobId = crypto.randomUUID();
+    await startJob(env, jobId, config, packs);
+    await armWatch(env, {
+      jobId,
+      teamId,
+      // Team owner is the report creator for scheduled crawls.
+      userId: team?.owner_id ?? teamId,
+      projectId: project.id,
+      scheduled: {
+        projectName: project.name,
+        notify: !!project.notify,
+        notifyWebhook: project.notifyWebhook ?? null,
+        lastHealth: project.lastHealth ?? null,
+        lastReport: project.lastReport ?? null,
+      },
+    });
+    // Registry row so the dashboard's "Running" section sees scheduled crawls too.
+    try {
+      await registerActiveCrawl(env, {
+        jobId,
+        teamId,
+        projectId: project.id,
+        url: project.url,
+        maxPages: Number(config.maxPages),
+        startedAt: Date.now(),
+      });
+    } catch (e) {
+      console.error("active-crawl register failed:", e);
     }
-
-    // Content regression: rule-pack violations increased vs the previous crawl.
-    const newPackScore = result.packs?.totalScore ?? null;
-    if (newPackScore != null && prevReport) {
-      const prev = await env.DB.prepare(`SELECT pack_score FROM reports WHERE team_id = ? AND id = ?`).bind(teamId, prevReport).first<{ pack_score: number | null }>();
-      if (prev?.pack_score != null && newPackScore > prev.pack_score + 0.5) regressed = true;
-    }
-
-    if (!regressed) return;
-
-    const alert = {
-      projectName: project.name,
-      url: project.url,
-      healthBefore: before ?? health,
-      healthAfter: health,
-      newErrors,
-      newWarnings,
-      reportUrl: `https://crawlie.app/projects/${project.id}`,
-    };
-    const email = owner?.owner_id ? await userEmail(env, owner.owner_id) : null;
-    if (email) await sendRegressionAlert(env, email, alert);
-    if (project.notifyWebhook) await sendWebhookAlert(project.notifyWebhook, alert);
   } catch (err) {
     console.error(`scheduled crawl failed for project ${project.id}:`, err);
   }

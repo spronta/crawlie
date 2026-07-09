@@ -354,3 +354,98 @@
   border: 1px dashed var(--border);
   border-radius: var(--radius-md);
 }
+
+/* ===== Running crawls (sidebar) ===== */
+.cw-running {
+  margin-top: var(--sp-3);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--border-soft, var(--border));
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.cw-running-head {
+  font: var(--label-11, 600 11px/1 var(--font-sans, sans-serif));
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  padding: 0 10px 4px;
+}
+.cw-running-item { align-items: center; }
+.cw-running-dot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--blue);
+  animation: cw-running-pulse 1.2s steps(2, jump-none) infinite;
+}
+@keyframes cw-running-pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.35; }
+  100% { opacity: 1; }
+}
+.cw-running-label {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+.cw-running-host {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.cw-running-count {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ===== Backgrounded-crawl progress strip (project view) ===== */
+.cw-crawlbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 20px;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--blue, #0055ee) 6%, var(--panel, var(--bg)));
+  flex: 0 0 auto;
+}
+.cw-crawlbar-dot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--blue);
+  animation: cw-running-pulse 1.2s steps(2, jump-none) infinite;
+}
+.cw-crawlbar-track {
+  flex: 1;
+  min-width: 60px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--panel-2, rgba(128, 128, 128, 0.15));
+  overflow: hidden;
+}
+.cw-crawlbar-fill {
+  height: 100%;
+  background: var(--blue);
+  border-radius: inherit;
+  transition: width 0.6s ease;
+}
+.cw-crawlbar-track.indeterminate .cw-crawlbar-fill {
+  background: repeating-linear-gradient(90deg, var(--blue) 0 10px, color-mix(in srgb, var(--blue) 40%, transparent) 10px 20px);
+  background-size: 200% 100%;
+  animation: cw-crawlbar-scan 1.1s linear infinite;
+}
+@keyframes cw-crawlbar-scan {
+  from { background-position: 120% 0; }
+  to { background-position: -120% 0; }
+}
+@media (max-width: 640px) {
+  .cw-crawlbar { flex-wrap: wrap; padding: 8px 14px; }
+}

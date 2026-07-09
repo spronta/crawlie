@@ -29,7 +29,9 @@ export function parse(path: string): Route {
 const listeners = new Set<() => void>();
 
 export function navigate(path: string): void {
-  if (path !== location.pathname) history.pushState({}, "", path);
+  // Compare including the query string — deep-linked state (e.g. ?page=… on
+  // reports) must push/clear correctly, not just the pathname.
+  if (path !== location.pathname + location.search) history.pushState({}, "", path);
   listeners.forEach((l) => l());
 }
 

@@ -3,7 +3,7 @@
 // loader from the platform seam.
 
 import type { CrawlDiff, CrawlEvent, CrawlResult, ReportMeta } from "@ui/lib/types";
-import { streamCrawl, loadReport } from "@platform/api";
+import { streamCrawl, loadReport, hydrateLeanReport } from "@platform/api";
 
 const API = import.meta.env.VITE_CRAWLIE_API ?? "";
 
@@ -106,8 +106,21 @@ export const projectReports = (id: string) => j<ReportMeta[]>(`/v1/projects/${id
 export const projectTrend = (id: string) => j<TrendPoint[]>(`/v1/projects/${id}/trend`);
 
 /** Run a crawl for a project, streaming progress; server records the history. */
-export const crawlProject = (id: string, onEvent: (e: CrawlEvent) => void) =>
-  streamCrawl(`/v1/projects/${id}/crawls`, undefined, onEvent, id);
+export const crawlProject = (
+  id: string,
+  onEvent: (e: CrawlEvent) => void,
+  onJob?: (job: { jobId: string; cancel: () => Promise<void> }) => void,
+) => streamCrawl(`/v1/projects/${id}/crawls`, undefined, onEvent, id, onJob);
+
+/** A crawl job the server says is still running (reattach after reload). */
+export interface RunningCrawl {
+  jobId: string;
+  projectId: string | null;
+  url: string;
+  maxPages: number;
+  startedAt: number;
+}
+export const listRunningCrawls = () => j<RunningCrawl[]>("/v1/crawls");
 
 export interface ApiKeyMeta {
   id: string;
@@ -134,7 +147,10 @@ export async function diffReports(oldId: string, newId: string): Promise<CrawlDi
 
 export async function loadPublicReport(token: string): Promise<CrawlResult | null> {
   const res = await fetch(`${API}/pub/reports/${encodeURIComponent(token)}`);
-  return res.ok ? ((await res.json()) as CrawlResult) : null;
+  if (!res.ok) return null;
+  const r = (await res.json()) as CrawlResult;
+  // Big shared reports are lean — hydrate their page chunks like own reports.
+  return hydrateLeanReport(r, `${API}/pub/reports/${encodeURIComponent(token)}`);
 }
 
 // --- Teams + billing ---

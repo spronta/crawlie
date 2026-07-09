@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import type { CrawlConfig, CrawlResult } from "@ui/lib/types";
-import { cancelCrawl, openExternal, startCrawl } from "@platform/api";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { CrawlResult } from "@ui/lib/types";
+import { chunkPageResolver, openExternal } from "@platform/api";
 import { Logo, IconBook, IconGlobe, IconSearch, IconChevron, IconSettings, IconSpark, Spinner } from "@ui/components/ui";
 import { StartView } from "@ui/views/StartView";
-import { CrawlingView, type Progress } from "@ui/views/CrawlingView";
-import { ResultsView, type ExtraTab } from "@ui/views/ResultsView";
+import { CrawlingView } from "@ui/views/CrawlingView";
+import { ResultsView, type ExtraTab, type ReportViewState } from "@ui/views/ResultsView";
+import { shortUrl } from "@ui/lib/format";
+import { startAdhocCrawl, useAdhocCrawl, useCrawls, clearAdhocResult, resumeRunningCrawls } from "./crawls";
 import { ProjectsView } from "./views/ProjectsView";
 import { ProjectView } from "./views/ProjectView";
 import { AccountView } from "./views/AccountView";
@@ -13,13 +15,41 @@ import { PackViolations } from "./packs-ui";
 import { loadReport, loadPublicReport, shareReport, unshareReport, getShare } from "./cloud";
 import { getSession, signOut, type SessionUser } from "./auth";
 import { SignIn } from "./SignIn";
-import { IconShare, ThemeToggle } from "@ui/components/ui";
+import { ThemeToggle } from "@ui/components/ui";
 import { ExtractionTable } from "./extraction";
 import { Insights } from "./insights";
 import { Redirects } from "./redirects";
 import { useRoute, navigate, back, type Route } from "./router";
 import { Toaster, ConfirmHost, ErrorBoundary, Avatar, toast } from "./ui-kit";
 import { pendingInvites, acceptInvite, setActiveTeam } from "./cloud";
+
+// Report view state ↔ query string, so any tab/page/filter/rule is a shareable
+// URL. Only non-default params are written, keeping links clean.
+function parseView(search: string): ReportViewState {
+  const q = new URLSearchParams(search);
+  const n = (k: string) => { const v = q.get(k); return v == null || v === "" ? null : Number(v); };
+  return {
+    tab: q.get("tab") ?? "overview",
+    page: q.get("page"),
+    sev: (q.get("sev") as ReportViewState["sev"]) ?? "all",
+    cat: (q.get("cat") as ReportViewState["cat"]) ?? null,
+    status: n("status"),
+    depth: n("depth"),
+    rule: q.get("rule"),
+  };
+}
+function viewToQuery(v: ReportViewState): string {
+  const q = new URLSearchParams();
+  if (v.tab && v.tab !== "overview") q.set("tab", v.tab);
+  if (v.page) q.set("page", v.page);
+  if (v.sev && v.sev !== "all") q.set("sev", v.sev);
+  if (v.cat) q.set("cat", v.cat);
+  if (v.status != null) q.set("status", String(v.status));
+  if (v.depth != null) q.set("depth", String(v.depth));
+  if (v.rule) q.set("rule", v.rule);
+  const s = q.toString();
+  return s ? `?${s}` : "";
+}
 
 export function App() {
   const route = useRoute();
@@ -51,6 +81,8 @@ function AuthedApp({ route }: { route: Route }) {
 }
 
 function Dashboard({ user, route }: { user: SessionUser; route: Route }) {
+  // Pick running crawls back up after a reload (the container jobs outlive us).
+  useEffect(() => { resumeRunningCrawls(); }, []);
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     try {
       const stored = localStorage.getItem("sidebar-collapsed");
@@ -105,6 +137,7 @@ function Dashboard({ user, route }: { user: SessionUser; route: Route }) {
           <button className={`nav-item${route.name === "rules" ? " active" : ""}`} onClick={() => navigate("/rules")} title="Rules">
             <IconSpark size={16} /> <span className="nav-label">Rules</span>
           </button>
+          <RunningCrawls />
         </nav>
         <div className="sidebar-foot">
           <a className="nav-item" href="https://crawlie.dev/docs" onClick={(e) => { e.preventDefault(); openExternal("https://crawlie.dev/docs"); }} title="Docs">
@@ -142,67 +175,96 @@ function Dashboard({ user, route }: { user: SessionUser; route: Route }) {
   );
 }
 
-// Ad-hoc crawl — ephemeral idle/crawling/done state lives here, under /new.
+// Sidebar strip: one row per running crawl, pulsing while it works. Click to
+// jump back to the live view (project page, or /new for ad-hoc crawls).
+function RunningCrawls() {
+  const crawls = useCrawls();
+  if (!crawls.length) return null;
+  return (
+    <div className="cw-running">
+      <div className="cw-running-head nav-label">Running</div>
+      {crawls.map((c) => (
+        <button
+          key={c.key}
+          className="nav-item cw-running-item"
+          onClick={() => navigate(c.projectId ? `/projects/${c.projectId}` : "/new")}
+          title={`Crawling ${shortUrl(c.config.url)} — ${c.progress.crawled} pages`}
+        >
+          <span className="cw-running-dot" aria-hidden="true" />
+          <span className="nav-label cw-running-label">
+            <span className="cw-running-host">{shortUrl(c.config.url)}</span>
+            <span className="mono cw-running-count">{c.progress.crawled}</span>
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// Ad-hoc crawl under /new. The crawl itself lives in the global store, so
+// navigating away doesn't lose it — come back mid-crawl (or after) and the
+// live view / result is still here.
 function NewCrawl() {
-  type S =
-    | { name: "idle" }
-    | { name: "crawling"; config: CrawlConfig; progress: Progress }
-    | { name: "done"; result: CrawlResult }
-    | { name: "error"; message: string };
-  const [s, setS] = useState<S>({ name: "idle" });
+  const { running, finished } = useAdhocCrawl();
 
-  const start = useCallback(async (config: CrawlConfig) => {
-    setS({ name: "crawling", config, progress: { crawled: 0, discovered: 0, queued: 0, current: config.url } });
-    try {
-      const result = await startCrawl(config, (e) => {
-        if (e.type === "progress") {
-          setS((p) => (p.name === "crawling" ? { ...p, progress: { crawled: e.crawled, discovered: e.discovered, queued: e.queued, current: e.current } } : p));
-        } else if (e.type === "meta") {
-          // The server may cap maxPages to the plan limit — reflect it so the
-          // crawling view's ETA and progress bar stay honest.
-          setS((p) => (p.name === "crawling" ? { ...p, config: { ...p.config, maxPages: e.maxPages } } : p));
-        }
-      });
-      setS({ name: "done", result });
-    } catch (err) {
-      setS({ name: "error", message: err instanceof Error ? err.message : String(err) });
-    }
-  }, []);
-
-  if (s.name === "crawling") return <CrawlingView config={s.config} progress={s.progress} onCancel={() => cancelCrawl()} />;
-  if (s.name === "done") return <ResultsView result={s.result} onReset={() => setS({ name: "idle" })} onReports={() => navigate("/projects")} />;
-  if (s.name === "error")
+  if (running)
+    return (
+      <CrawlingView
+        config={running.config}
+        progress={running.progress}
+        onCancel={running.cancel}
+        onBackground={() => navigate("/projects")}
+      />
+    );
+  if (finished?.status === "done")
+    return <ResultsView result={finished.result} onReset={clearAdhocResult} onReports={() => navigate("/projects")} />;
+  if (finished?.status === "error")
     return (
       <div className="crawl-msg">
         <div className="crawl-msg-glyph" aria-hidden="true">×_×</div>
         <h1 className="h2">Crawl interrupted</h1>
-        <p className="muted" style={{ maxWidth: "46ch", font: "var(--copy-14)" }}>{s.message}</p>
-        <button className="btn btn-primary" onClick={() => setS({ name: "idle" })}>Try again</button>
+        <p className="muted" style={{ maxWidth: "46ch", font: "var(--copy-14)" }}>{finished.message}</p>
+        <button className="btn btn-primary" onClick={clearAdhocResult}>Try again</button>
       </div>
     );
-  return <StartView onStart={start} />;
+  return <StartView onStart={startAdhocCrawl} />;
 }
 
 // Build the cloud-only report tabs (Insights, Rules, Extraction) injected into
 // the shared ResultsView tab bar — so everything lives in one set of tabs.
+/** Note shown atop tabs that analyze the hydrated page subset of a big lean
+ *  report (the Pages tab itself browses the full crawl via the index). */
+function SubsetNote({ result, children }: { result: CrawlResult; children: React.ReactNode }) {
+  if (!result.pagesTruncated) return <>{children}</>;
+  return (
+    <div className="col" style={{ gap: "var(--sp-3)" }}>
+      <div className="card card-pad" style={{ padding: "10px 14px", font: "var(--copy-13)", color: "var(--text-secondary)" }}>
+        This view analyzes the first {result.pages.length.toLocaleString()} of{" "}
+        {(result.summary?.totalPages ?? 0).toLocaleString()} crawled pages. The Pages tab, scores and issues
+        cover the <b>full crawl</b>.
+      </div>
+      {children}
+    </div>
+  );
+}
+
 function reportExtraTabs(result: CrawlResult): ExtraTab[] {
   const packs = (result as { packs?: { pagesFlagged?: number } | null }).packs;
   const pages = (result.pages ?? []) as Array<{ extractions?: unknown[]; redirectChain?: unknown[] }>;
   const hasExtraction = pages.some((p) => (p.extractions ?? []).length > 0);
   const redirectCount = pages.filter((p) => (p.redirectChain ?? []).length > 0).length;
   const tabs: ExtraTab[] = [
-    { id: "insights", label: "Insights", wide: true, content: <Insights pages={result.pages} /> },
+    { id: "insights", label: "Insights", wide: true, content: <SubsetNote result={result}><Insights pages={result.pages} /></SubsetNote> },
   ];
-  if (redirectCount > 0) tabs.push({ id: "redirects", label: "Redirects", count: redirectCount, wide: true, content: <Redirects pages={result.pages} /> });
+  if (redirectCount > 0) tabs.push({ id: "redirects", label: "Redirects", count: redirectCount, wide: true, content: <SubsetNote result={result}><Redirects pages={result.pages} /></SubsetNote> });
   if (packs) tabs.push({ id: "rules", label: "Rules", count: packs.pagesFlagged, wide: true, content: <PackViolations packs={packs} /> });
-  if (hasExtraction) tabs.push({ id: "extraction", label: "Extraction", wide: true, content: <ExtractionTable pages={result.pages as Parameters<typeof ExtractionTable>[0]["pages"]} /> });
+  if (hasExtraction) tabs.push({ id: "extraction", label: "Extraction", wide: true, content: <SubsetNote result={result}><ExtractionTable pages={result.pages as Parameters<typeof ExtractionTable>[0]["pages"]} /></SubsetNote> });
   return tabs;
 }
 
 function ReportView({ id }: { id: string }) {
   const [result, setResult] = useState<CrawlResult | null | undefined>(undefined);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
   useEffect(() => {
     loadReport(id).then(async (r) => {
       if (r) return setResult(r);
@@ -211,18 +273,8 @@ function ReportView({ id }: { id: string }) {
     });
     getShare(id).then((s) => setShareUrl(s.token ? `https://crawlie.app/p/${s.token}` : null)).catch(() => {});
   }, [id]);
-
-  async function share() {
-    const s = await shareReport(id);
-    setShareUrl(s.url);
-    navigator.clipboard?.writeText(s.url);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  }
-  async function unshare() {
-    await unshareReport(id);
-    setShareUrl(null);
-  }
+  // Re-parsed whenever the query changes (navigate() re-renders via useRoute).
+  const view = useMemo(() => parseView(location.search), [location.search]);
 
   if (result === undefined) return <div style={{ display: "flex", justifyContent: "center", padding: 80 }}><Spinner /></div>;
   if (result === null)
@@ -240,18 +292,28 @@ function ReportView({ id }: { id: string }) {
           <span className="crumb-sep">/</span>
           <span className="crumb-current">Report</span>
         </div>
-        <div style={{ flex: 1 }} />
-        {shareUrl ? (
-          <>
-            <code style={{ fontFamily: "var(--font-mono, monospace)", fontSize: 12, background: "var(--panel-2, transparent)", padding: "3px 7px", borderRadius: 6, border: "1px solid var(--border-soft, var(--border))" }}>{shareUrl}</code>
-            <button className="btn btn-sm" onClick={() => { navigator.clipboard?.writeText(shareUrl); setCopied(true); setTimeout(() => setCopied(false), 1500); }}>{copied ? "Copied!" : "Copy"}</button>
-            <button className="btn btn-sm" onClick={unshare}>Make private</button>
-          </>
-        ) : (
-          <button className="btn btn-sm" onClick={share}><IconShare size={14} /> Share public link</button>
-        )}
       </div>
-      <ResultsView result={result} onReset={() => back()} onReports={() => navigate("/projects")} extraTabs={reportExtraTabs(result)} />
+      <ResultsView
+        result={result}
+        resolvePage={chunkPageResolver(result, `/v1/reports/${encodeURIComponent(id)}`)}
+        onReset={() => back()}
+        onReports={() => navigate("/projects")}
+        extraTabs={reportExtraTabs(result)}
+        view={view}
+        onView={(v) => navigate(`/reports/${encodeURIComponent(id)}${viewToQuery(v)}`)}
+        sharing={{
+          url: shareUrl,
+          onShare: async () => {
+            const s = await shareReport(id);
+            setShareUrl(s.url);
+            return s.url;
+          },
+          onUnshare: async () => {
+            await unshareReport(id);
+            setShareUrl(null);
+          },
+        }}
+      />
     </>
   );
 }
@@ -261,6 +323,7 @@ function PublicReport({ token }: { token: string }) {
   useEffect(() => {
     loadPublicReport(token).then((r) => setResult(r));
   }, [token]);
+  const view = useMemo(() => parseView(location.search), [location.search]);
   const home = () => { window.location.href = "https://crawlie.app/"; };
   return (
     <div className="app">
@@ -275,7 +338,15 @@ function PublicReport({ token }: { token: string }) {
           ) : result === null ? (
             <div className="hero"><h1 style={{ fontSize: 24 }}>This report isn't available</h1><a className="btn btn-primary" href="https://crawlie.app/">Go to Crawlie</a></div>
           ) : (
-            <ResultsView result={result} onReset={home} onReports={home} extraTabs={reportExtraTabs(result)} />
+            <ResultsView
+              result={result}
+              resolvePage={chunkPageResolver(result, `/pub/reports/${encodeURIComponent(token)}`)}
+              onReset={home}
+              onReports={home}
+              extraTabs={reportExtraTabs(result)}
+              view={view}
+              onView={(v) => navigate(`/p/${token}${viewToQuery(v)}`)}
+            />
           )}
         </main>
       </div>

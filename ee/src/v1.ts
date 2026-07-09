@@ -6,12 +6,13 @@ import { Hono } from "hono";
 import type { Context } from "hono";
 import type { Env } from "./env";
 import { createAuth } from "./auth";
-import { startJob, pollJob, finalizeJob, cancelCrawl, previewPack } from "./crawler";
+import { startJob, armWatch, watchState, cancelCrawl, previewPack, registerActiveCrawl, listActiveCrawls } from "./crawler";
 import {
   listReports,
   loadReport,
+  reportPart,
+  readPartJson,
   deleteReport,
-  saveReport,
   diffReports,
   shareReport,
   unshareReport,
@@ -24,7 +25,6 @@ import {
   createProject,
   updateProject,
   deleteProject,
-  recordCrawl,
   projectTrend,
   type Schedule,
 } from "./projects";
@@ -43,7 +43,6 @@ import {
   acceptInvite,
   removeMember,
   getUsage,
-  incrementCrawls,
   crawlBlockedReason,
   projectBlockedReason,
   deleteAccount,
@@ -83,16 +82,43 @@ v1.use("*", async (c, next) => {
   await next();
 });
 
+/** Fetch concurrency scaled to crawl size (unless the user pinned one): big
+ *  crawls get more in-flight requests; small ones stay polite by default. */
+function concurrencyFor(maxPages: number): number {
+  if (maxPages >= 50_000) return 48;
+  if (maxPages >= 5_000) return 32;
+  return 16;
+}
+
 // Start a crawl as a background job in the container (decoupled from this
 // request), returning a jobId the client polls. Bounds pages to the plan cap.
-async function startCrawlJob(c: Ctx, config: Record<string, unknown>, projectId: string | null) {
+// The Durable Object watcher — armed here — owns the crawl from this moment:
+// it keeps the container awake, saves the report to R2/D1 when the crawl
+// finishes, and meters usage exactly once, whether or not any browser polls.
+async function startCrawlJob(
+  c: Ctx,
+  config: Record<string, unknown>,
+  projectId: string | null,
+  scheduled?: import("./containers").WatchInfo["scheduled"],
+) {
   const team = c.get("team");
   const cap = PLANS[team.plan].maxPages;
   const requested = typeof config.maxPages === "number" && config.maxPages > 0 ? config.maxPages : cap;
   const maxPages = Math.min(requested, cap);
+  const concurrency =
+    typeof config.concurrency === "number" && config.concurrency > 0
+      ? Math.min(config.concurrency, 64)
+      : concurrencyFor(maxPages);
   const jobId = crypto.randomUUID();
   const packs = await enabledPackSources(c.env, team.id);
-  await startJob(c.env, jobId, { ...config, maxPages }, packs);
+  await startJob(c.env, jobId, { ...config, maxPages, concurrency }, packs);
+  await armWatch(c.env, { jobId, teamId: team.id, userId: c.get("userId"), projectId, scheduled });
+  // Best-effort: the reattach registry must never block a crawl from starting.
+  try {
+    await registerActiveCrawl(c.env, { jobId, teamId: team.id, projectId, url: String(config.url ?? ""), maxPages, startedAt: Date.now() });
+  } catch (err) {
+    console.error("active-crawl register failed:", err);
+  }
   return c.json({ jobId, maxPages, capped: requested > maxPages, projectId });
 }
 
@@ -105,40 +131,29 @@ v1.post("/crawls", async (c) => {
   return startCrawlJob(c, body.config, null);
 });
 
-// Poll a running crawl job. On completion the Worker saves the report (once)
-// and returns its id; the client then loads the report and stops polling.
-v1.get("/crawls/:jobId", async (c) => {
-  const team = c.get("team");
-  const jobId = c.req.param("jobId");
-  const projectId = c.req.query("project") || null;
+// The team's currently running crawls — lets a freshly loaded dashboard
+// reattach to jobs it lost track of (reload, other device).
+v1.get("/crawls", async (c) => {
+  const rows = await listActiveCrawls(c.env, c.get("team").id);
+  return c.json(rows.map((r) => ({ jobId: r.jobId, projectId: r.projectId, url: r.url, maxPages: r.maxPages, startedAt: r.startedAt })));
+});
 
+// Poll a running crawl job. The DO watcher owns saving/metering; this route
+// just reflects its state (running progress → saving → done + reportId).
+v1.get("/crawls/:jobId", async (c) => {
+  const jobId = c.req.param("jobId");
   let st;
   try {
-    st = await pollJob(c.env, jobId);
+    st = await watchState(c.env, jobId);
   } catch {
     return c.json({ status: "error", message: "Lost contact with the crawler. Please try again." });
   }
-  if (st.status === "running" || st.status === "error") return c.json(st);
-  if (st.status === "saved") return c.json({ status: "done", reportId: st.reportId });
-  if (st.status === "done" && st.result) {
-    const result = st.result as Parameters<typeof saveReport>[3];
-    const reportId = await saveReport(c.env, team.id, c.get("userId"), result, projectId);
-    const fin = await finalizeJob(c.env, jobId, reportId);
-    if (fin.first) {
-      await incrementCrawls(c.env, team.id);
-      if (projectId) {
-        const p = await getProject(c.env, team.id, projectId); // team-scoped guard
-        if (p) {
-          const health = (st.result as { summary?: { healthScore?: number } }).summary?.healthScore ?? 0;
-          await recordCrawl(c.env, team.id, projectId, reportId, health, Date.now());
-        }
-      }
-    }
-    return c.json({ status: "done", reportId });
+  // Unknown job (container recycled before the watcher was armed) — treat as
+  // a soft failure so the client can offer a retry rather than spin forever.
+  if (st.status === "unknown") {
+    return c.json({ status: "error", message: "The crawl is no longer available. Please run it again." });
   }
-  // Unknown job (container recycled) — treat as a soft failure so the client
-  // can offer a retry rather than spin forever.
-  return c.json({ status: st.status === "unknown" ? "error" : st.status, message: st.status === "unknown" ? "The crawl is no longer available. Please run it again." : undefined });
+  return c.json(st);
 });
 
 v1.post("/crawls/:id/cancel", async (c) => {
@@ -205,6 +220,18 @@ v1.get("/reports/:id", async (c) => {
 v1.delete("/reports/:id", async (c) => {
   await deleteReport(c.env, c.get("team").id, c.req.param("id"));
   return c.json({ ok: true });
+});
+// Report bundle parts for big (lean) reports: the compact page index and the
+// full-page chunks, streamed straight from R2.
+v1.get("/reports/:id/index", async (c) => {
+  const res = await reportPart(c.env, c.get("team").id, c.req.param("id"), "index.json");
+  return res ?? c.json({ error: "not found" }, 404);
+});
+v1.get("/reports/:id/pages/:n", async (c) => {
+  const n = Number.parseInt(c.req.param("n"), 10);
+  if (!Number.isInteger(n) || n < 0) return c.json({ error: "bad chunk" }, 400);
+  const res = await reportPart(c.env, c.get("team").id, c.req.param("id"), `pages/${n}.json`);
+  return res ?? c.json({ error: "not found" }, 404);
 });
 v1.get("/reports/:id/share", async (c) => c.json({ token: await reportShareToken(c.env, c.get("team").id, c.req.param("id")) }));
 v1.post("/reports/:id/share", async (c) => {
@@ -288,6 +315,15 @@ v1.post("/packs/preview", async (c) => {
   if (body.reportId) {
     const report = await loadReport(c.env, c.get("team").id, body.reportId);
     pages = ((report as { pages?: unknown[] } | null)?.pages ?? []).slice(0, 300);
+    // Lean (big) reports store pages as chunks — sample the first two.
+    if (pages.length === 0) {
+      for (const n of [0, 1]) {
+        const chunk = await readPartJson<unknown[]>(c.env, c.get("team").id, body.reportId, `pages/${n}.json`);
+        if (!chunk) break;
+        pages = pages.concat(chunk);
+      }
+      pages = pages.slice(0, 300);
+    }
   }
   try {
     return c.json(await previewPack(c.env, body.source, pages));

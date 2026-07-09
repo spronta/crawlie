@@ -30,7 +30,7 @@
     "directory": "./dashboard/dist",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*", "/v1/*", "/pub/*", "/device", "/health"]
+    "run_worker_first": ["/api/*", "/v1/*", "/mcp", "/mcp/*", "/pub/*", "/device", "/health"]
   },
   "vars": {
     // Auth is first-party on the apex so the session cookie is same-origin with
@@ -65,10 +65,13 @@
     {
       "class_name": "CrawlerContainer",
       "image": "../Dockerfile",
-      // 'basic' (≈1 GiB / 0.25 vCPU) — headroom for headless Chromium (JS
-      // rendering) and ~4x faster crawls than 'lite'.
-      "instance_type": "standard-1",
-      "max_instances": 5,
+      // 'standard-2' (1 vCPU / 8 GiB / 12 GB disk): HTML parsing is the CPU
+      // bottleneck at high fetch concurrency, so the full vCPU roughly doubles
+      // big-crawl throughput vs standard-1's ½ vCPU; the disk comfortably
+      // holds a 200k-page out-of-core crawl store. Billing is per active
+      // second and instances scale to zero, so idle cost is unchanged.
+      "instance_type": "standard-2",
+      "max_instances": 10,
       "name": "crawlie-crawler"
     }
   ],

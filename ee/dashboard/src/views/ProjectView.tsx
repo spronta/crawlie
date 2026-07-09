@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
-import type { CrawlConfig } from "@ui/lib/types";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ScoreRing, SeverityBadge, Toggle, Spinner, IconRefresh, IconTrash, IconExternal } from "@ui/components/ui";
-import { CrawlingView, type Progress } from "@ui/views/CrawlingView";
+import { CrawlingView } from "@ui/views/CrawlingView";
 import { openExternal } from "@platform/api";
+import { startProjectCrawl, useProjectCrawl, type ActiveCrawl } from "../crawls";
 import {
-  getProject, updateProject, deleteProject, crawlProject, projectReports, projectTrend,
+  getProject, updateProject, deleteProject, projectReports, projectTrend,
   SCHEDULE_LABEL, type Project, type Schedule, type TrendPoint, type Extractor,
 } from "../cloud";
 import type { ReportMeta } from "@ui/lib/types";
@@ -18,8 +18,11 @@ export function ProjectView({ id, onBack, onOpenReport }: { id: string; onBack: 
   const [project, setProject] = useState<Project | null>(null);
   const [reports, setReports] = useState<ReportMeta[]>([]);
   const [trend, setTrend] = useState<TrendPoint[]>([]);
-  const [crawling, setCrawling] = useState<Progress | null>(null);
   const [tab, setTab] = useState("overview");
+  // Crawl state lives in the global store so it survives navigation; `watching`
+  // is just whether this view shows it full-screen or as the inline bar.
+  const crawl = useProjectCrawl(id);
+  const [watching, setWatching] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -33,21 +36,18 @@ export function ProjectView({ id, onBack, onOpenReport }: { id: string; onBack: 
   }, [id]);
   useEffect(() => { refresh(); }, [refresh]);
 
-  const crawlNow = useCallback(async () => {
+  // When the running crawl for this project finishes, pull in the new report.
+  const hadCrawl = useRef(false);
+  useEffect(() => {
+    if (hadCrawl.current && !crawl) refresh();
+    hadCrawl.current = !!crawl;
+  }, [crawl, refresh]);
+
+  const crawlNow = useCallback(() => {
     if (!project) return;
-    setCrawling({ crawled: 0, discovered: 0, queued: 0, current: project.url });
-    try {
-      await crawlProject(id, (e) => {
-        if (e.type === "progress") setCrawling({ crawled: e.crawled, discovered: e.discovered, queued: e.queued, current: e.current });
-      });
-      toast("Crawl complete", "success");
-      await refresh();
-    } catch (e) {
-      toast((e as Error).message, "error");
-    } finally {
-      setCrawling(null);
-    }
-  }, [id, project, refresh]);
+    startProjectCrawl(project);
+    setWatching(true);
+  }, [project]);
 
   const patch = async (p: Parameters<typeof updateProject>[1]) => setProject(await updateProject(id, p));
   async function remove() {
@@ -57,8 +57,15 @@ export function ProjectView({ id, onBack, onOpenReport }: { id: string; onBack: 
     onBack();
   }
 
-  if (crawling && project) {
-    return <CrawlingView config={{ url: project.url } as CrawlConfig} progress={crawling} onCancel={() => setCrawling(null)} />;
+  if (crawl && watching && project) {
+    return (
+      <CrawlingView
+        config={crawl.config}
+        progress={crawl.progress}
+        onCancel={() => { crawl.cancel(); setWatching(false); }}
+        onBackground={() => setWatching(false)}
+      />
+    );
   }
   if (!project) {
     return <div style={{ display: "flex", justifyContent: "center", padding: 80 }}><Spinner /></div>;
@@ -78,9 +85,16 @@ export function ProjectView({ id, onBack, onOpenReport }: { id: string; onBack: 
           </div>
           <button className="linklike" onClick={() => openExternal(project.url)} style={urlLink}>{project.url} <IconExternal size={11} /></button>
         </div>
-        <button className="btn btn-primary" onClick={crawlNow} style={{ flex: "0 0 auto" }}><IconRefresh size={15} /> Crawl now</button>
+        {crawl ? (
+          <button className="btn" onClick={() => setWatching(true)} style={{ flex: "0 0 auto" }}><IconRefresh size={15} /> Watch crawl</button>
+        ) : (
+          <button className="btn btn-primary" onClick={crawlNow} style={{ flex: "0 0 auto" }}><IconRefresh size={15} /> Crawl now</button>
+        )}
         <button className="btn" onClick={remove} title="Delete project" style={{ flex: "0 0 auto" }}><IconTrash size={15} /></button>
       </div>
+
+      {/* Live progress of a backgrounded crawl — visible on every tab. */}
+      {crawl && <CrawlBar crawl={crawl} onWatch={() => setWatching(true)} />}
 
       {/* Tabs */}
       <Tabs
@@ -188,6 +202,34 @@ export function ProjectView({ id, onBack, onOpenReport }: { id: string; onBack: 
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Slim always-visible strip for a crawl running in the background. */
+function CrawlBar({ crawl, onWatch }: { crawl: ActiveCrawl; onWatch: () => void }) {
+  const { crawled, discovered, queued, current } = crawl.progress;
+  const verifying = current.startsWith("Verifying");
+  // Verify progress rides in the status line as "Verifying links… checked/total".
+  const vm = verifying ? /(\d+)\s*\/\s*(\d+)/.exec(current) : null;
+  const cap = Number.isFinite(crawl.config.maxPages) && crawl.config.maxPages > 0 ? crawl.config.maxPages : Infinity;
+  const estTotal = Math.max(1, Math.min(cap, Math.max(crawled + queued, discovered)));
+  const pct = vm
+    ? Math.min(100, Math.round((Number(vm[1]) / Math.max(1, Number(vm[2]))) * 100))
+    : Math.min(100, Math.round((crawled / estTotal) * 100));
+  const indeterminate = verifying && !vm;
+  return (
+    <div className="cw-crawlbar">
+      <span className="cw-crawlbar-dot" aria-hidden="true" />
+      <span style={{ fontSize: 13, flex: "0 0 auto" }}>{verifying ? "Verifying links…" : "Crawling…"}</span>
+      <div className={`cw-crawlbar-track${indeterminate ? " indeterminate" : ""}`} role="progressbar" aria-valuenow={indeterminate ? undefined : pct}>
+        <div className="cw-crawlbar-fill" style={{ width: `${indeterminate ? 100 : pct}%` }} />
+      </div>
+      <span className="mono" style={{ fontSize: 12, color: "var(--text-secondary)", flex: "0 0 auto" }}>
+        {vm ? `${vm[1]} / ${vm[2]} links` : verifying ? current.replace("Verifying links… ", "") : `${crawled} / ${discovered} pages`}
+      </span>
+      <button className="btn btn-sm" onClick={onWatch}>Watch</button>
+      <button className="btn btn-sm" onClick={crawl.cancel}>Cancel</button>
     </div>
   );
 }

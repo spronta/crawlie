@@ -1,5 +1,12 @@
 // Report storage for hosted crawls: metadata in D1 (fast listing + ownership),
-// full CrawlResult JSON in R2. Scoped by team_id; user_id records the creator.
+// report JSON in R2. Scoped by team_id; user_id records the creator.
+//
+// Big (out-of-core) crawls are stored as a bundle rather than one giant JSON:
+//   reports/{team}/{id}.json             — lean report (no pages; issue rollup)
+//   reports/{team}/{id}/index.json       — compact per-page index rows
+//   reports/{team}/{id}/pages/{n}.json   — full Page records, chunk n
+// Legacy reports are a single {id}.json with pages inline; loadReport serves
+// both shapes and the dashboard hydrates pages from chunks when they're absent.
 
 import type { Env } from "./env";
 
@@ -18,12 +25,21 @@ interface Issue {
   severity: string;
   url?: string;
 }
+interface IssueRollup {
+  rule: string;
+  title: string;
+  category: string;
+  severity: string;
+  count: number;
+  sample: Issue[];
+}
 interface CrawlResult {
   startedAt: number;
   config: { url: string };
   summary: Summary;
   pages?: { url: string }[];
   issues?: Issue[];
+  issueRollup?: IssueRollup[];
   packs?: { totalScore?: number } | null;
 }
 interface ReportMeta {
@@ -46,8 +62,60 @@ function slug(url: string): string {
   }
 }
 
-const key = (teamId: string, id: string) => `reports/${teamId}/${id}.json`;
+/** Deterministic report id — derived from the crawl, so retries are idempotent. */
+export function reportIdFor(startedAt: number, url: string): string {
+  return `${startedAt}-${slug(url)}`;
+}
 
+/** R2 key of a report's main JSON (lean for big crawls, full for legacy). */
+export const reportKey = (teamId: string, id: string) => `reports/${teamId}/${id}.json`;
+/** R2 key of a report bundle part (`index.json`, `pages/3.json`, …). */
+export const reportPartKey = (teamId: string, id: string, part: string) =>
+  `reports/${teamId}/${id}/${part}`;
+
+/** Insert (or overwrite) the D1 listing row for a saved report. */
+export async function saveReportRow(
+  env: Env,
+  teamId: string,
+  creatorId: string,
+  id: string,
+  row: {
+    url: string;
+    createdAt: number;
+    totalPages: number;
+    errors: number;
+    warnings: number;
+    healthScore: number;
+    geoScore: number;
+    a11yScore: number;
+    projectId: string | null;
+    packScore: number | null;
+  },
+): Promise<void> {
+  await env.DB.prepare(
+    `INSERT OR REPLACE INTO reports
+       (id, user_id, team_id, url, created_at, total_pages, errors, warnings, health_score, geo_score, a11y_score, project_id, pack_score)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+  )
+    .bind(
+      id,
+      creatorId,
+      teamId,
+      row.url,
+      row.createdAt,
+      row.totalPages,
+      row.errors,
+      row.warnings,
+      row.healthScore,
+      row.geoScore,
+      row.a11yScore,
+      row.projectId ?? null,
+      row.packScore,
+    )
+    .run();
+}
+
+/** Legacy one-shot save (small in-memory results). Kept for compatibility. */
 export async function saveReport(
   env: Env,
   teamId: string,
@@ -55,17 +123,24 @@ export async function saveReport(
   result: CrawlResult,
   projectId?: string | null,
 ): Promise<string> {
-  const id = `${result.startedAt}-${slug(result.config.url)}`;
-  await env.REPORTS.put(key(teamId, id), JSON.stringify(result), { httpMetadata: { contentType: "application/json" } });
+  const id = reportIdFor(result.startedAt, result.config.url);
+  await env.REPORTS.put(reportKey(teamId, id), JSON.stringify(result), {
+    httpMetadata: { contentType: "application/json" },
+  });
   const s = result.summary;
   const packScore = result.packs && typeof result.packs.totalScore === "number" ? result.packs.totalScore : null;
-  await env.DB.prepare(
-    `INSERT OR REPLACE INTO reports
-       (id, user_id, team_id, url, created_at, total_pages, errors, warnings, health_score, geo_score, a11y_score, project_id, pack_score)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-  )
-    .bind(id, creatorId, teamId, result.config.url, result.startedAt, s.totalPages, s.errors, s.warnings, s.healthScore, s.geoScore, s.a11yScore, projectId ?? null, packScore)
-    .run();
+  await saveReportRow(env, teamId, creatorId, id, {
+    url: result.config.url,
+    createdAt: result.startedAt,
+    totalPages: s.totalPages,
+    errors: s.errors,
+    warnings: s.warnings,
+    healthScore: s.healthScore,
+    geoScore: s.geoScore,
+    a11yScore: s.a11yScore,
+    projectId: projectId ?? null,
+    packScore,
+  });
   return id;
 }
 
@@ -115,12 +190,61 @@ export async function projectHistory(env: Env, teamId: string, projectId: string
 }
 
 export async function loadReport(env: Env, teamId: string, id: string): Promise<CrawlResult | null> {
-  const obj = await env.REPORTS.get(key(teamId, id));
+  const obj = await env.REPORTS.get(reportKey(teamId, id));
   return obj ? obj.json<CrawlResult>() : null;
 }
 
+/**
+ * Stream a report bundle part (page chunk / index) straight out of R2 —
+ * the Worker never buffers it. Parts are stored gzipped (contentEncoding on
+ * the R2 object); they're served compressed with `encodeBody: "manual"` so
+ * the runtime passes the stored bytes through and the browser inflates them.
+ */
+export async function reportPart(
+  env: Env,
+  teamId: string,
+  id: string,
+  part: string,
+): Promise<Response | null> {
+  const obj = await env.REPORTS.get(reportPartKey(teamId, id, part));
+  if (!obj) return null;
+  const gzip = obj.httpMetadata?.contentEncoding === "gzip";
+  return new Response(obj.body, {
+    encodeBody: "manual",
+    headers: {
+      "content-type": "application/json",
+      ...(gzip ? { "content-encoding": "gzip" } : {}),
+      "cache-control": "private, max-age=31536000, immutable",
+    },
+  });
+}
+
+/** Read a bundle part as JSON inside the Worker (inflating stored gzip). */
+export async function readPartJson<T>(
+  env: Env,
+  teamId: string,
+  id: string,
+  part: string,
+): Promise<T | null> {
+  const obj = await env.REPORTS.get(reportPartKey(teamId, id, part));
+  if (!obj) return null;
+  if (obj.httpMetadata?.contentEncoding === "gzip" && obj.body) {
+    const inflated = obj.body.pipeThrough(new DecompressionStream("gzip"));
+    return new Response(inflated).json<T>();
+  }
+  return obj.json<T>();
+}
+
 export async function deleteReport(env: Env, teamId: string, id: string): Promise<void> {
-  await env.REPORTS.delete(key(teamId, id));
+  await env.REPORTS.delete(reportKey(teamId, id));
+  // Bundle parts (index + page chunks) live under the id's prefix.
+  const prefix = `reports/${teamId}/${id}/`;
+  for (;;) {
+    const listing = await env.REPORTS.list({ prefix, limit: 500 });
+    if (listing.objects.length === 0) break;
+    await env.REPORTS.delete(listing.objects.map((o) => o.key));
+    if (!listing.truncated) break;
+  }
   await env.DB.prepare(`DELETE FROM reports WHERE team_id = ? AND id = ?`).bind(teamId, id).run();
 }
 
@@ -143,37 +267,69 @@ export async function reportShareToken(env: Env, teamId: string, id: string): Pr
   return row?.share_token ?? null;
 }
 
-export async function loadPublicReport(env: Env, token: string): Promise<CrawlResult | null> {
+/** Resolve a public share token to its {teamId, id}, or null. */
+export async function resolveShareToken(env: Env, token: string): Promise<{ teamId: string; id: string } | null> {
   if (!token) return null;
   const row = await env.DB.prepare(`SELECT team_id, id FROM reports WHERE share_token = ?`).bind(token).first<{ team_id: string; id: string }>();
-  if (!row) return null;
-  const obj = await env.REPORTS.get(key(row.team_id, row.id));
+  return row ? { teamId: row.team_id, id: row.id } : null;
+}
+
+export async function loadPublicReport(env: Env, token: string): Promise<CrawlResult | null> {
+  const ref = await resolveShareToken(env, token);
+  if (!ref) return null;
+  const obj = await env.REPORTS.get(reportKey(ref.teamId, ref.id));
   return obj ? obj.json<CrawlResult>() : null;
 }
 
-// Crawl-over-crawl diff, computed from the two stored results.
+/** The set of crawled URLs in a report — pages when inline, else the index. */
+async function reportUrls(env: Env, teamId: string, id: string, r: CrawlResult): Promise<Set<string>> {
+  if (r.pages && r.pages.length > 0) return new Set(r.pages.map((p) => p.url));
+  const index = await readPartJson<Array<{ url: string }>>(env, teamId, id, "index.json");
+  return new Set((index ?? []).map((e) => e.url));
+}
+
+/** Per-rule issue aggregates — the rollup when present (exact counts even for
+ *  lean reports), else recomputed from the inline issue list. */
+function reportByRule(r: CrawlResult) {
+  const m = new Map<string, { rule: string; title: string; category: string; severity: string; count: number; sampleUrls: string[] }>();
+  if (r.issueRollup && r.issueRollup.length > 0) {
+    for (const g of r.issueRollup) {
+      m.set(g.rule, {
+        rule: g.rule,
+        title: g.title,
+        category: g.category,
+        severity: g.severity,
+        count: g.count,
+        sampleUrls: g.sample.map((i) => i.url ?? "").filter(Boolean).slice(0, 5),
+      });
+    }
+    return m;
+  }
+  for (const i of r.issues ?? []) {
+    const e = m.get(i.rule) ?? { rule: i.rule, title: i.title, category: i.category, severity: i.severity, count: 0, sampleUrls: [] };
+    e.count++;
+    if (i.url && e.sampleUrls.length < 5) e.sampleUrls.push(i.url);
+    m.set(i.rule, e);
+  }
+  return m;
+}
+
+// Crawl-over-crawl diff, computed from the two stored results (lean-aware).
 export async function diffReports(env: Env, teamId: string, oldId: string, newId: string) {
   const [oldR, newR] = await Promise.all([loadReport(env, teamId, oldId), loadReport(env, teamId, newId)]);
   if (!oldR || !newR) return null;
 
-  const urls = (r: CrawlResult) => new Set((r.pages ?? []).map((p) => p.url));
-  const oldUrls = urls(oldR);
-  const newUrls = urls(newR);
-  const pagesAdded = [...newUrls].filter((u) => !oldUrls.has(u));
-  const pagesRemoved = [...oldUrls].filter((u) => !newUrls.has(u));
+  const [oldUrls, newUrls] = await Promise.all([
+    reportUrls(env, teamId, oldId, oldR),
+    reportUrls(env, teamId, newId, newR),
+  ]);
+  // Cap the URL churn lists so a six-figure crawl can't produce a huge diff.
+  const URL_LIST_CAP = 2_000;
+  const pagesAdded = [...newUrls].filter((u) => !oldUrls.has(u)).slice(0, URL_LIST_CAP);
+  const pagesRemoved = [...oldUrls].filter((u) => !newUrls.has(u)).slice(0, URL_LIST_CAP);
 
-  const byRule = (r: CrawlResult) => {
-    const m = new Map<string, { rule: string; title: string; category: string; severity: string; count: number; sampleUrls: string[] }>();
-    for (const i of r.issues ?? []) {
-      const e = m.get(i.rule) ?? { rule: i.rule, title: i.title, category: i.category, severity: i.severity, count: 0, sampleUrls: [] };
-      e.count++;
-      if (i.url && e.sampleUrls.length < 5) e.sampleUrls.push(i.url);
-      m.set(i.rule, e);
-    }
-    return m;
-  };
-  const oldByRule = byRule(oldR);
-  const newByRule = byRule(newR);
+  const oldByRule = reportByRule(oldR);
+  const newByRule = reportByRule(newR);
   const newIssues = [...newByRule.values()].filter((i) => !oldByRule.has(i.rule));
   const resolvedIssues = [...oldByRule.values()].filter((i) => !newByRule.has(i.rule));
 
