@@ -265,6 +265,9 @@ export interface BrokenLink {
   sources: string[];
   /** More linking pages exist than are listed in `sources`. */
   sourcesTruncated?: boolean;
+  /** Where the link sits on each source page (anchor text + region),
+   *  best-effort parallel to `sources`. */
+  at?: Array<{ page: string; anchor: string; region: string }>;
 }
 
 export interface CrawlResult {

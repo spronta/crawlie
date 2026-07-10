@@ -57,6 +57,38 @@ fn is_dead_link(status: u16) -> bool {
 /// that story) without bloating lean report metadata.
 const BROKEN_LINK_SOURCES_CAP: usize = 25;
 
+/// The dead target URL of a `broken-link` issue (parsed from its detail).
+pub fn broken_issue_target(i: &Issue) -> Option<&str> {
+    if i.rule != "broken-link" {
+        return None;
+    }
+    i.detail
+        .as_deref()
+        .and_then(|d| d.split_once(" \u{2192} ").map(|(_, t)| t))
+}
+
+/// Fill each broken target's `at` with where the link sits on its source
+/// pages. `lookup(page, target)` returns the (anchor, region) recorded at
+/// parse time; pages without metadata simply contribute nothing.
+pub fn attach_broken_link_context<F>(links: &mut [BrokenLink], mut lookup: F)
+where
+    F: FnMut(&str, &str) -> Option<(String, String)>,
+{
+    for bl in links.iter_mut() {
+        bl.at = bl
+            .sources
+            .iter()
+            .filter_map(|src| {
+                lookup(src, &bl.url).map(|(anchor, region)| LinkOccurrence {
+                    page: src.clone(),
+                    anchor,
+                    region,
+                })
+            })
+            .collect();
+    }
+}
+
 /// Roll `broken-link` issues up by target: one row per dead URL with its
 /// status, total occurrence count, and the pages that link to it. Parses the
 /// `"{status} → {target}"` detail this module emits for the rule.
@@ -81,6 +113,7 @@ pub fn aggregate_broken_links(issues: &[Issue]) -> Vec<BrokenLink> {
             count: 0,
             sources: Vec::new(),
             sources_truncated: false,
+            at: Vec::new(),
         });
         e.count += 1;
         if !e.sources.iter().any(|s| s == &i.url) {
@@ -2035,7 +2068,14 @@ mod broken_link_tests {
     use super::*;
 
     fn bl(source: &str, detail: &str) -> Issue {
-        issue("broken-link", "Broken Link", Category::Links, Severity::Error, source, Some(detail.into()))
+        issue(
+            "broken-link",
+            "Broken Link",
+            Category::Links,
+            Severity::Error,
+            source,
+            Some(detail.into()),
+        )
     }
 
     #[test]
@@ -2045,7 +2085,14 @@ mod broken_link_tests {
             bl("https://a.com/y", "404 → https://a.com/dead"),
             bl("https://a.com/y", "404 → https://a.com/dead"), // same page twice
             bl("https://a.com/x", "ERR → https://ext.com/gone"),
-            issue("title-missing", "Missing Title", Category::TitlesMeta, Severity::Error, "https://a.com/x", None),
+            issue(
+                "title-missing",
+                "Missing Title",
+                Category::TitlesMeta,
+                Severity::Error,
+                "https://a.com/x",
+                None,
+            ),
         ];
         let agg = aggregate_broken_links(&issues);
         assert_eq!(agg.len(), 2);

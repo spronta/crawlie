@@ -31,6 +31,7 @@ pub struct Parsed {
     pub image_urls: Vec<String>,
     pub internal_links: Vec<String>,
     pub external_links: Vec<String>,
+    pub link_meta: Vec<crate::types::LinkMeta>,
     pub og_title: Option<String>,
     pub og_image: Option<String>,
     pub og_description: Option<String>,
@@ -114,6 +115,37 @@ mod extract_tests {
             attr: attr.map(Into::into),
             regex: regex.map(Into::into),
         }
+    }
+
+    #[test]
+    fn link_meta_captures_anchor_and_region() {
+        let html = "<!doctype html><html><head><title>t</title></head><body>\
+            <nav><a href=\"/pricing\">Pricing</a></nav>\
+            <main><p><a href=\"/docs\">Read the docs</a></p>\
+            <a href=\"/icon\"><img src=\"i.png\" alt=\"Dashboard screenshot\"></a></main>\
+            <footer><a href=\"https://twitter.com/x\" aria-label=\"Twitter\"></a></footer>\
+            </body></html>";
+        let url = Url::parse("https://example.com/p").unwrap();
+        let parsed = parse_html(html, &url, "example.com", &[]);
+        let by_url: std::collections::HashMap<_, _> = parsed
+            .link_meta
+            .iter()
+            .map(|m| (m.url.as_str(), m))
+            .collect();
+        let pricing = by_url["https://example.com/pricing"];
+        assert_eq!(pricing.anchor, "Pricing");
+        assert_eq!(pricing.region, "nav");
+        let docs = by_url["https://example.com/docs"];
+        assert_eq!(docs.anchor, "Read the docs");
+        assert_eq!(docs.region, "content");
+        let icon = by_url["https://example.com/icon"];
+        assert_eq!(
+            icon.anchor, "Dashboard screenshot",
+            "img alt names the link"
+        );
+        let tw = by_url["https://twitter.com/x"];
+        assert_eq!(tw.anchor, "Twitter", "aria-label names the link");
+        assert_eq!(tw.region, "footer");
     }
 
     #[test]
@@ -256,6 +288,58 @@ fn has_aria_name(el: &ElementRef) -> bool {
     ["aria-label", "aria-labelledby", "title"]
         .iter()
         .any(|a| v.attr(a).map(|s| !s.trim().is_empty()).unwrap_or(false))
+}
+
+/// Human-findable label for a link: visible text, else image alt, else
+/// aria-label/title. Collapsed whitespace, capped so metadata stays lean.
+fn link_anchor(el: &ElementRef) -> String {
+    const CAP: usize = 80;
+    let mut text = collapse(&el.text().collect::<String>());
+    if text.is_empty() {
+        text = el
+            .select(&sel("img"))
+            .find_map(|img| img.value().attr("alt").map(|a| collapse(a)))
+            .filter(|a| !a.is_empty())
+            .or_else(|| el.value().attr("aria-label").map(collapse))
+            .or_else(|| el.value().attr("title").map(collapse))
+            .unwrap_or_default();
+    }
+    if text.chars().count() > CAP {
+        let mut t: String = text.chars().take(CAP - 1).collect();
+        t.push('…');
+        text = t;
+    }
+    text
+}
+
+/// The semantic region a link sits in: the nearest nav/header/footer/aside
+/// ancestor (tag or ARIA landmark role), else "content".
+fn link_region(el: &ElementRef) -> &'static str {
+    for anc in el.ancestors() {
+        let Some(e) = ElementRef::wrap(anc) else {
+            continue;
+        };
+        let v = e.value();
+        let region = match v.name() {
+            "nav" => Some("nav"),
+            "header" => Some("header"),
+            "footer" => Some("footer"),
+            "aside" => Some("aside"),
+            "main" | "article" => Some("content"),
+            _ => match v.attr("role") {
+                Some("navigation") => Some("nav"),
+                Some("banner") => Some("header"),
+                Some("contentinfo") => Some("footer"),
+                Some("complementary") => Some("aside"),
+                Some("main") => Some("content"),
+                _ => None,
+            },
+        };
+        if let Some(r) = region {
+            return r;
+        }
+    }
+    "content"
 }
 
 /// True if a descendant `<img>` supplies a non-empty `alt` (so e.g. an icon link
@@ -524,6 +608,7 @@ pub fn parse_html(body: &str, final_url: &Url, host: &str, extractors: &[Extract
     // links
     let mut internal_links = Vec::new();
     let mut external_links = Vec::new();
+    let mut link_meta = Vec::new();
     let mut seen = HashSet::new();
     for el in doc.select(&sel("a[href]")) {
         let v = el.value();
@@ -545,6 +630,13 @@ pub fn parse_html(body: &str, final_url: &Url, host: &str, extractors: &[Extract
             let key = u.as_str().to_string();
             if !seen.insert(key.clone()) {
                 continue;
+            }
+            if internal || u.host_str().is_some() {
+                link_meta.push(crate::types::LinkMeta {
+                    url: key.clone(),
+                    anchor: link_anchor(&el),
+                    region: link_region(&el).to_string(),
+                });
             }
             if internal {
                 internal_links.push(key);
@@ -798,6 +890,7 @@ pub fn parse_html(body: &str, final_url: &Url, host: &str, extractors: &[Extract
         images_missing_alt,
         image_urls,
         internal_links,
+        link_meta,
         external_links,
         og_title,
         og_image,

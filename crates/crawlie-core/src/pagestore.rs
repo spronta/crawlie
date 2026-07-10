@@ -498,10 +498,7 @@ impl PageStore {
     /// [`PageIndexEntry`](crate::types::PageIndexEntry) per page, in id order),
     /// tagging each entry with its `chunk_size`-page chunk number. Streams the
     /// blobs one at a time; only the compact entries accumulate.
-    pub fn page_index(
-        &self,
-        chunk_size: usize,
-    ) -> io::Result<Vec<crate::types::PageIndexEntry>> {
+    pub fn page_index(&self, chunk_size: usize) -> io::Result<Vec<crate::types::PageIndexEntry>> {
         let chunk_size = chunk_size.max(1);
         let mut out: Vec<crate::types::PageIndexEntry> = Vec::new();
         self.for_each_page(|id, p| {

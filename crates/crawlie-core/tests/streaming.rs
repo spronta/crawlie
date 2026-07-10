@@ -317,6 +317,10 @@ async fn redirect_to_crawled_url_is_not_a_duplicate_page() {
         .iter()
         .find(|b| b.url.ends_with("/missing"))
         .expect("streaming should flag /missing broken");
-    assert_eq!(missing.sources.len(), 1, "streaming: one source for the dead link");
+    assert_eq!(
+        missing.sources.len(),
+        1,
+        "streaming: one source for the dead link"
+    );
     let _ = std::fs::remove_file(&db);
 }

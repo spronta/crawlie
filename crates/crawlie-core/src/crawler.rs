@@ -921,7 +921,18 @@ where
         summary: summary.clone(),
     });
 
-    let broken_links = crate::audit::aggregate_broken_links(&issues);
+    let mut broken_links = crate::audit::aggregate_broken_links(&issues);
+    {
+        let by_url: HashMap<&str, &Page> = pages.iter().map(|p| (p.url.as_str(), p)).collect();
+        crate::audit::attach_broken_link_context(&mut broken_links, |page, target| {
+            by_url.get(page).and_then(|p| {
+                p.link_meta
+                    .iter()
+                    .find(|m| m.url == target)
+                    .map(|m| (m.anchor.clone(), m.region.clone()))
+            })
+        });
+    }
     Ok(CrawlResult {
         config,
         pages,
@@ -1282,12 +1293,35 @@ where
     // Per-page SEO penalty (Yoast-style), grouped by URL — applied in write-back.
     let seo_penalty = seo_penalty_by_url(&issues);
 
+    // Broken-link (page -> targets) pairs whose on-page location we want; the
+    // write-back pass below fills `link_ctx` as it streams each page once.
+    let mut broken_pairs: HashMap<String, Vec<String>> = HashMap::new();
+    for i in &issues {
+        if let Some(t) = crate::audit::broken_issue_target(i) {
+            broken_pairs
+                .entry(i.url.clone())
+                .or_default()
+                .push(t.to_string());
+        }
+    }
+    let mut link_ctx: HashMap<(String, String), (String, String)> = HashMap::new();
+
     // --- Write derived fields back into the stored pages (bounded memory: a
     // second read connection streams pages while this connection updates). ---
     let reader = PageStore::open(&store_path).map_err(ioerr)?;
     store.begin().map_err(ioerr)?;
     reader
         .for_each_page(|id, mut p| {
+            if let Some(targets) = broken_pairs.get(&p.url) {
+                for t in targets {
+                    if let Some(m) = p.link_meta.iter().find(|m| &m.url == t) {
+                        link_ctx.insert(
+                            (p.url.clone(), t.clone()),
+                            (m.anchor.clone(), m.region.clone()),
+                        );
+                    }
+                }
+            }
             p.inlinks = inlink_counts
                 .get(&normalize_str(&p.final_url))
                 .copied()
@@ -1319,7 +1353,12 @@ where
     if seed_redirected_from.is_some() {
         config.url = seed.to_string();
     }
-    let broken_links = crate::audit::aggregate_broken_links(&issues);
+    let mut broken_links = crate::audit::aggregate_broken_links(&issues);
+    crate::audit::attach_broken_link_context(&mut broken_links, |page, target| {
+        link_ctx
+            .get(&(page.to_string(), target.to_string()))
+            .cloned()
+    });
     let result = CrawlResult {
         config,
         pages: Vec::new(),
@@ -1553,6 +1592,10 @@ fn build_page(
             .as_ref()
             .map(|p| p.external_links.clone())
             .unwrap_or_default(),
+        link_meta: parsed
+            .as_ref()
+            .map(|p| p.link_meta.clone())
+            .unwrap_or_default(),
         inlinks: 0,
         link_score: 0.0,
         seo_score: 0,
@@ -1640,6 +1683,7 @@ fn error_page(url: &Url, depth: usize, error: String) -> Page {
         image_urls: Vec::new(),
         internal_links: Vec::new(),
         external_links: Vec::new(),
+        link_meta: Vec::new(),
         inlinks: 0,
         link_score: 0.0,
         seo_score: 0,

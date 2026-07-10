@@ -280,6 +280,10 @@ pub struct Page {
     // --- links ---
     pub internal_links: Vec<String>,
     pub external_links: Vec<String>,
+    /// Where each outgoing link lives on the page (anchor text + region),
+    /// keyed by resolved target URL. Powers "where is this broken link".
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub link_meta: Vec<LinkMeta>,
     pub inlinks: usize,
     /// Internal PageRank authority, 0–100 (the most-linked page = 100).
     #[serde(default)]
@@ -697,6 +701,30 @@ pub struct Summary {
     pub duration_ms: u64,
 }
 
+/// One outgoing link's location on its page: the anchor text a human would
+/// look for, and the semantic region it sits in (nav/header/footer/aside/
+/// content) — the difference between "somewhere on the page" and "the footer
+/// link that says Docs".
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LinkMeta {
+    /// Resolved target URL (matches `internal_links` / `external_links`).
+    pub url: String,
+    /// Visible anchor text (or image alt / aria-label), collapsed + capped.
+    pub anchor: String,
+    /// nav | header | footer | aside | content.
+    pub region: String,
+}
+
+/// One place a broken link appears: the page plus where on that page.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LinkOccurrence {
+    pub page: String,
+    pub anchor: String,
+    pub region: String,
+}
+
 /// One dead link target aggregated across every page that links to it —
 /// powers the target-centric broken-links table in the report UI. Exact
 /// counts survive lean reports, where raw `issues` are a capped sample.
@@ -714,6 +742,10 @@ pub struct BrokenLink {
     /// More linking pages exist than are listed in `sources`.
     #[serde(default)]
     pub sources_truncated: bool,
+    /// Where the link sits on each source page (parallel to `sources`,
+    /// best-effort — empty for pages crawled before this was recorded).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub at: Vec<LinkOccurrence>,
 }
 
 /// The complete output of a crawl: every page, every issue, and a summary.

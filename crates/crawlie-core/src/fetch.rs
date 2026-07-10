@@ -86,7 +86,11 @@ fn decode_body(bytes: &[u8], encoding: Option<&str>, max_out: usize) -> Vec<u8> 
             .is_ok()
     } else if enc.contains("deflate") {
         // Most servers send zlib-wrapped deflate; fall back to raw deflate.
-        if ZlibDecoder::new(bytes).take(cap).read_to_end(&mut out).is_ok() {
+        if ZlibDecoder::new(bytes)
+            .take(cap)
+            .read_to_end(&mut out)
+            .is_ok()
+        {
             true
         } else {
             out.clear();

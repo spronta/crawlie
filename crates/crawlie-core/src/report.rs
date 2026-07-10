@@ -465,6 +465,7 @@ mod tests {
                     image_urls: vec![],
                     internal_links: vec![],
                     external_links: vec![],
+                    link_meta: Vec::new(),
                     inlinks: 0,
                     link_score: 0.0,
                     seo_score: 0,

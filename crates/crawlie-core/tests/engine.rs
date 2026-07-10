@@ -157,6 +157,7 @@ fn ok_page(url: &str) -> Page {
         // A realistic page links out internally (so it isn't a structural dead end).
         internal_links: vec!["https://example.com/".into()],
         external_links: vec![],
+        link_meta: Vec::new(),
         inlinks: 3,
         link_score: 50.0,
         seo_score: 100,

@@ -442,9 +442,19 @@ mod health_tests {
     /// counts once per affected page.
     #[test]
     fn dedupes_rule_per_page() {
-        let one: Vec<Issue> = vec![err("broken-link", "https://a.com/p0", Some("404 → https://a.com/x0"))];
+        let one: Vec<Issue> = vec![err(
+            "broken-link",
+            "https://a.com/p0",
+            Some("404 → https://a.com/x0"),
+        )];
         let thirty: Vec<Issue> = (0..30)
-            .map(|i| err("broken-link", "https://a.com/p0", Some(&format!("404 → https://a.com/x{i}"))))
+            .map(|i| {
+                err(
+                    "broken-link",
+                    "https://a.com/p0",
+                    Some(&format!("404 → https://a.com/x{i}")),
+                )
+            })
             .collect();
         assert_eq!(health_score_n(100, &one), health_score_n(100, &thirty));
     }
@@ -453,7 +463,13 @@ mod health_tests {
     #[test]
     fn sitewide_dead_link_keeps_headroom() {
         let issues: Vec<Issue> = (0..1000)
-            .map(|i| err("broken-link", &format!("https://a.com/p{i}"), Some("404 → https://a.com/dead")))
+            .map(|i| {
+                err(
+                    "broken-link",
+                    &format!("https://a.com/p{i}"),
+                    Some("404 → https://a.com/dead"),
+                )
+            })
             .collect();
         let s = health_score_n(1000, &issues);
         // Every page affected by one error rule: per-page weight 3 → penalty 36.
@@ -475,7 +491,13 @@ mod health_tests {
         };
         let bad = health_score_n(1000, &mk(3)); // 9 weight/page → penalty > 80 knee
         let worse = health_score_n(1000, &mk(4));
-        assert!(bad > worse, "score keeps ordering past the knee: {bad} vs {worse}");
-        assert!(bad > 0 && worse > 0, "no hard 0 while distinguishable: {bad}, {worse}");
+        assert!(
+            bad > worse,
+            "score keeps ordering past the knee: {bad} vs {worse}"
+        );
+        assert!(
+            bad > 0 && worse > 0,
+            "no hard 0 while distinguishable: {bad}, {worse}"
+        );
     }
 }
