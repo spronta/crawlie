@@ -331,10 +331,10 @@ a:hover {
 }
 .report-bar-inner {
   /* Full width — the nav spans the whole panel, the same on every tab. */
-  padding: var(--sp-4) var(--sp-5) 0;
+  padding: var(--sp-3) var(--sp-5) 0;
   display: flex;
   flex-direction: column;
-  gap: var(--sp-4);
+  gap: var(--sp-3);
 }
 /* Breadcrumb-only bar (page detail) has no tabs sitting on the border, so it
    needs its own bottom padding to breathe above the divider. */
@@ -382,6 +382,109 @@ a:hover {
   white-space: nowrap;
   max-width: 420px;
 }
+/* Report header identity: favicon + breadcrumb + a quiet meta line. */
+.report-id {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.report-id .crumbs { flex-wrap: nowrap; }
+.report-id .crumbs .crumb-current { font-weight: 600; font-size: 14px; }
+.report-id .crumb-link { font-size: 14px; }
+
+/* Freshness badge beside the domain: is this the newest crawl of the site? */
+.freshness {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 4px;
+  padding: 2px 8px;
+  border-radius: var(--radius-full, 999px);
+  font: var(--label-12);
+  font-weight: 500;
+  line-height: 1;
+  border: 1px solid transparent;
+}
+.freshness.latest {
+  background: var(--green-bg);
+  color: var(--green-text);
+}
+.freshness.outdated {
+  background: var(--amber-bg);
+  color: var(--amber-text);
+}
+button.freshness.outdated { cursor: pointer; transition: background var(--t-fast) var(--ease); }
+button.freshness.outdated:hover { background: color-mix(in srgb, var(--amber) 22%, var(--amber-bg)); }
+.freshness svg { flex: none; opacity: 0.8; }
+
+/* Crawl metadata strip — moved out of the header onto the Overview. Reads as a
+   quiet fact row: date, size, and the robots/sitemap/llms.txt signals. */
+.crawl-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+.crawl-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+.crawl-meta-item + .crawl-meta-item::before {
+  content: "";
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--border-strong);
+  margin-right: 9px;
+}
+.crawl-meta-flag::after {
+  font-size: 11px;
+  font-weight: 700;
+}
+.crawl-meta-flag.on { color: var(--text); }
+.crawl-meta-flag.on::after { content: "✓"; color: var(--green); }
+.crawl-meta-flag.off { color: var(--text-tertiary); }
+.crawl-meta-flag.off::after { content: "✕"; color: var(--text-tertiary); }
+.report-actions { gap: 8px; align-items: center; }
+/* Normalise every control in the action row to the btn-sm height (32px) so the
+   search icon-button lines up with Export / Share / Recrawl. */
+.report-actions .icon-btn {
+  width: 32px;
+  height: 32px;
+}
+
+/* Export split-button + its CSV/JSON menu. */
+.export-menu { position: relative; }
+.export-pop {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 30;
+  min-width: 128px;
+  padding: 5px;
+  background: var(--panel, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow-pop, 0 12px 40px rgba(0, 0, 0, 0.22));
+}
+.export-item {
+  display: block;
+  width: 100%;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  color: var(--text);
+  font: var(--label-13);
+  text-align: left;
+  cursor: pointer;
+}
+.export-item:hover { background: var(--bg-2); }
 .report-body {
   flex: 1;
   min-height: 0;
@@ -765,22 +868,83 @@ table.grid tbody tr:last-child td {
   transition: transform var(--t-fast) var(--ease);
 }
 .issue-head.open .chev { transform: rotate(90deg); }
+/* "View details" affordance — a labelled pill so it reads as an action, not a
+   decoration. Reserved-width even when hidden so the row doesn't shift on hover. */
+.issue-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 10px;
+  margin: -4px 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-full, 999px);
+  background: var(--bg);
+  color: var(--text-secondary);
+  font: var(--label-12);
+  white-space: nowrap;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--t-fast) var(--ease), background var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
+}
+.issue-open svg { flex: none; }
+.issue-head:hover .issue-open,
+.issue-head.open .issue-open,
+.issue-open:focus-visible {
+  opacity: 1;
+}
+.issue-open:hover {
+  background: var(--bg-2);
+  color: var(--text);
+  border-color: var(--text-tertiary);
+}
+/* Touch / no-hover: keep the action reachable (hover reveal never fires). */
+@media (hover: none) {
+  .issue-open { opacity: 1; }
+}
+/* Expanded content reads as one panel: explainer strip, then the URL list. */
+.issue-body {
+  border-top: 1px solid var(--border);
+}
 .issue-urls {
   border-top: 1px solid var(--border);
   background: var(--bg-subtle);
+  /* Long samples scroll in place — the drill-down page owns the full list. */
+  max-height: 340px;
+  overflow-y: auto;
 }
+.issue-body > .issue-urls:first-child { border-top: none; }
 .issue-url {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: var(--sp-3);
   padding: 8px var(--sp-5);
   border-bottom: 1px solid var(--border);
   font-family: var(--font-mono);
   font-size: 12px;
   color: var(--text-secondary);
+  transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
 }
 .issue-url:last-child { border-bottom: none; }
+.issue-url:hover { background: var(--bg-2); color: var(--text); }
 .issue-url .detail { color: var(--text-tertiary); white-space: nowrap; }
+/* Trailing "view all" row — a real action, not a dead-end ellipsis. */
+.issue-more {
+  display: flex;
+  justify-content: flex-start;
+  gap: 7px;
+  width: 100%;
+  border: none;
+  border-top: 1px solid var(--border);
+  background: none;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font: var(--label-12);
+  font-family: var(--font-sans);
+}
+.issue-more:hover { color: var(--text); background: var(--bg-2); }
+.issue-more svg { flex: none; }
 
 /* category pill row */
 .cat-pill {
@@ -1103,10 +1267,13 @@ table.grid tbody tr:last-child td {
 .edu {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: var(--sp-4);
+  gap: var(--sp-5);
   padding: var(--sp-4) var(--sp-5);
-  background: var(--bg-subtle);
-  border-top: 1px solid var(--border);
+}
+.edu .col + .col {
+  border-left: 1px solid var(--border);
+  padding-left: var(--sp-5);
+  margin-left: calc(var(--sp-5) * -1 + var(--sp-2));
 }
 .edu .col b {
   font: var(--label-12);
@@ -1114,8 +1281,11 @@ table.grid tbody tr:last-child td {
   letter-spacing: 0.04em;
   color: var(--text-tertiary);
 }
-.edu .col p { margin: 6px 0 0; font: var(--copy-13); color: var(--text); }
-@media (max-width: 760px) { .edu { grid-template-columns: 1fr; } }
+.edu .col p { margin: 6px 0 0; font: var(--copy-13); color: var(--text-secondary); max-width: 44ch; }
+@media (max-width: 760px) {
+  .edu { grid-template-columns: 1fr; gap: var(--sp-4); }
+  .edu .col + .col { border-left: none; padding-left: 0; margin-left: 0; border-top: 1px solid var(--border); padding-top: var(--sp-4); }
+}
 
 /* ---------- Segmented control ---------- */
 .segmented {

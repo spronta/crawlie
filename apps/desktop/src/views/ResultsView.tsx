@@ -70,6 +70,8 @@ export function ResultsView({
   view,
   onView,
   onOpenIssue,
+  freshness,
+  onViewLatest,
 }: {
   result: CrawlResult;
   onReset: () => void;
@@ -86,6 +88,11 @@ export function ResultsView({
   onView?: (v: ReportViewState) => void;
   /** When set, issue groups offer "Open as page" (hosted drill-down route). */
   onOpenIssue?: (rule: string) => void;
+  /** Whether this saved report is the newest crawl of its site (host-computed).
+   *  Renders a Latest / Outdated badge beside the domain. */
+  freshness?: "latest" | "outdated";
+  /** Jump to the newest report of this site (makes the Outdated badge a link). */
+  onViewLatest?: () => void;
 }) {
   const controlled = !!onView;
   const [tab, setTab] = useState<Tab>(view?.tab ?? "overview");
@@ -296,39 +303,42 @@ export function ResultsView({
       <div className="report-bar">
         <div className="report-bar-inner">
           <div className="row between wrap" style={{ gap: "var(--sp-3)" }} data-tauri-drag-region>
-        <div className="row" style={{ gap: 12, alignItems: "center", minWidth: 0 }} data-tauri-drag-region>
-        <img
-          className="report-fav"
-          style={{ width: 28, height: 28 }}
-          src={faviconUrl(result.config.url)}
-          alt=""
-          loading="lazy"
-          onError={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = "hidden"; }}
-        />
-        <div className="col" style={{ gap: 4, minWidth: 0 }} data-tauri-drag-region>
-          <h1 className="h1" data-tauri-drag-region>{hostOf(result.config.url)}</h1>
-          <span className="mono muted" style={{ fontSize: 13 }} data-tauri-drag-region>
-            {result.startedAt ? `${fmtWhen(result.startedAt)} · ` : ""}
-            {num(s.totalPages)} pages · {ms(s.durationMs)} · {num(s.indexablePages)} indexable
-            {result.robotsFound ? " · robots.txt ✓" : ""}
-            {result.sitemapUrls > 0 ? ` · ${num(result.sitemapUrls)} sitemap URLs` : ""}
-            {result.llmsTxtFound ? " · llms.txt ✓" : ""}
-          </span>
+        <div className="report-id" data-tauri-drag-region>
+          <img
+            className="report-fav"
+            src={faviconUrl(result.config.url)}
+            alt=""
+            loading="lazy"
+            onError={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = "hidden"; }}
+          />
+          <div className="crumbs" data-tauri-drag-region>
+            <button className="crumb-link" onClick={onReports}>Reports</button>
+            <span className="crumb-sep" aria-hidden="true">/</span>
+            <span className="crumb-current">{hostOf(result.config.url)}</span>
+            {freshness === "latest" && <span className="freshness latest">Latest</span>}
+            {freshness === "outdated" && (
+              onViewLatest ? (
+                <button className="freshness outdated" onClick={onViewLatest} title="A newer crawl of this site exists — open it">
+                  Outdated
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+                </button>
+              ) : (
+                <span className="freshness outdated" title="A newer crawl of this site exists">Outdated</span>
+              )
+            )}
+          </div>
         </div>
-        </div>
-        <div className="row">
-          <button className="cmdk-hint" onClick={() => setPaletteOpen(true)} title="Search (⌘K)" aria-label="Search">
-            <Search size={14} /> <span className="cmdk-hint-label">Search</span>
-            <kbd className="cmdk-kbd">⌘K</kbd>
+        <div className="row report-actions">
+          <button className="icon-btn" onClick={() => setPaletteOpen(true)} title="Search (⌘K)" aria-label="Search">
+            <Search size={16} />
           </button>
-          <button className="btn btn-secondary btn-sm" onClick={() => download("csv")}><IconDownload size={15} /> CSV</button>
-          <button className="btn btn-secondary btn-sm" onClick={() => download("json")}><IconDownload size={15} /> JSON</button>
+          <ExportMenu onExport={download} />
           {sharing ? (
             <ShareControl sharing={sharing} />
           ) : (
             <button className="btn btn-secondary btn-sm" onClick={share} title={isTauri() ? "Save a shareable HTML report" : "Available in the desktop app"}><IconShare size={15} /> Share</button>
           )}
-          <button className="btn btn-primary btn-sm" onClick={onReset}><IconRefresh size={15} /> New crawl</button>
+          <button className="btn btn-primary btn-sm" onClick={onReset}><IconRefresh size={15} /> Recrawl</button>
         </div>
           </div>
 
@@ -720,6 +730,14 @@ function Overview({
 
   return (
     <div className="section-gap">
+      <div className="crawl-meta">
+        {result.startedAt && <span className="crawl-meta-item">Crawled {fmtWhen(result.startedAt)}</span>}
+        <span className="crawl-meta-item">{num(s.totalPages)} pages</span>
+        <span className="crawl-meta-item">{ms(s.durationMs)}</span>
+        <span className={`crawl-meta-item crawl-meta-flag ${result.robotsFound ? "on" : "off"}`}>robots.txt</span>
+        <span className="crawl-meta-item">{result.sitemapUrls > 0 ? `${num(result.sitemapUrls)} sitemap URLs` : "no sitemap"}</span>
+        <span className={`crawl-meta-item crawl-meta-flag ${result.llmsTxtFound ? "on" : "off"}`}>llms.txt</span>
+      </div>
       {fixes.length > 0 && (
         <div className="card card-pad">
           <div className="row between" style={{ marginBottom: "var(--sp-4)" }}>
@@ -898,6 +916,36 @@ function Issues({
 /** Target-centric rows for the broken-link drill-in. Prefer the exact
  *  crawl-time aggregation; older reports fall back to aggregating the
  *  (possibly sampled) inline issues. */
+/** Export split-button: one visible trigger, a small CSV/JSON menu. Collapses
+ *  two download buttons into one, keeping the action row uncluttered. */
+function ExportMenu({ onExport }: { onExport: (fmt: "csv" | "json") => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("mousedown", onDown); document.removeEventListener("keydown", onKey); };
+  }, [open]);
+  const pick = (fmt: "csv" | "json") => { onExport(fmt); setOpen(false); };
+  return (
+    <div ref={ref} className="export-menu">
+      <button className="btn btn-secondary btn-sm" onClick={() => setOpen((o) => !o)} aria-haspopup="menu" aria-expanded={open} title="Export report">
+        <IconDownload size={15} /> Export
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 3, opacity: 0.7 }}><path d="m6 9 6 6 6-6" /></svg>
+      </button>
+      {open && (
+        <div className="export-pop" role="menu">
+          <button role="menuitem" className="export-item" onClick={() => pick("csv")}>CSV</button>
+          <button role="menuitem" className="export-item" onClick={() => pick("json")}>JSON</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function brokenLinkRows(brokenLinks: BrokenLink[] | undefined, items: Issue[]): { rows: BrokenLink[]; exact: boolean } {
   if (brokenLinks?.length) return { rows: brokenLinks, exact: true };
   const map = new Map<string, BrokenLink>();
@@ -946,17 +994,23 @@ function IssueGroup({ group, trueCount, totalPages, onOpenUrl, brokenLinks, focu
         )}
         <span className="cat-pill">{CATEGORY_LABELS[group.category]}</span>
         <span className="mono muted">{num(count)}</span>
+        {onOpenIssue && (
+          <span
+            className="issue-open"
+            role="button"
+            tabIndex={0}
+            title="View this issue on its own page"
+            aria-label={`View ${group.title} details`}
+            onClick={(e) => { e.stopPropagation(); onOpenIssue(group.rule); }}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onOpenIssue(group.rule); } }}
+          >
+            View details
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 17 17 7" /><path d="M7 7h10v10" /></svg>
+          </span>
+        )}
       </button>
       {open && (
-        <>
-          {onOpenIssue && (
-            <div style={{ display: "flex", justifyContent: "flex-end", padding: "8px 14px 0" }}>
-              <button className="btn btn-sm" onClick={() => onOpenIssue(group.rule)}>
-                Open as page
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 5 }}><path d="M7 17 17 7" /><path d="M7 7h10v10" /></svg>
-              </button>
-            </div>
-          )}
+        <div className="issue-body">
           {info && (
             <div className="edu">
               <div className="col"><b>Why it matters</b><p>{info.why}</p></div>
@@ -974,12 +1028,18 @@ function IssueGroup({ group, trueCount, totalPages, onOpenUrl, brokenLinks, focu
                   {i.detail && <span className="detail">{i.detail}</span>}
                 </div>
               ))}
-              {count > Math.min(group.items.length, 200) && (
-                <div className="issue-url tertiary">+ {num(count - Math.min(group.items.length, 200))} more{trueCount !== undefined && trueCount > group.items.length ? " (showing a sample)" : ""}</div>
-              )}
+              {count > Math.min(group.items.length, 200) &&
+                (onOpenIssue ? (
+                  <button className="issue-url issue-more" onClick={() => onOpenIssue(group.rule)}>
+                    View all {num(count)} affected URLs
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+                  </button>
+                ) : (
+                  <div className="issue-url tertiary">+ {num(count - Math.min(group.items.length, 200))} more{trueCount !== undefined && trueCount > group.items.length ? " (showing a sample)" : ""}</div>
+                ))}
             </div>
           )}
-        </>
+        </div>
       )}
     </div>
   );

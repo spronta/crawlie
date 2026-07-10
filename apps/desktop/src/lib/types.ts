@@ -300,6 +300,27 @@ export interface CrawlResult {
    *  from the report bundle — lets tables browse the whole crawl while full
    *  Page records load per-chunk on demand. */
   pageIndex?: PageIndexEntry[];
+  /** Audit breakdowns for the Insights tab, computed server-side over the
+   *  **full** crawl. Absent on legacy reports — the UI then falls back to
+   *  computing them client-side from the hydrated page window. */
+  insights?: InsightsBreakdown[];
+}
+
+/** Semantic colour of an insights segment; the UI maps each to a CSS var. */
+export type InsightsTone = "good" | "warn" | "bad" | "critical" | "info" | "muted";
+
+/** One labelled slice of an insights breakdown bar. */
+export interface InsightsSegment {
+  label: string;
+  count: number;
+  tone: InsightsTone;
+}
+
+/** One audit-breakdown card: a title, its denominator, and its segments. */
+export interface InsightsBreakdown {
+  title: string;
+  total: number;
+  bars: InsightsSegment[];
 }
 
 /** One compact page-index row from a lean (out-of-core) report — every field
