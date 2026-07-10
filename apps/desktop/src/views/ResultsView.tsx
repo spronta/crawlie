@@ -69,6 +69,7 @@ export function ResultsView({
   sharing,
   view,
   onView,
+  onOpenIssue,
 }: {
   result: CrawlResult;
   onReset: () => void;
@@ -83,6 +84,8 @@ export function ResultsView({
    *  into the host's URL; without it everything stays internal (desktop). */
   view?: ReportViewState;
   onView?: (v: ReportViewState) => void;
+  /** When set, issue groups offer "Open as page" (hosted drill-down route). */
+  onOpenIssue?: (rule: string) => void;
 }) {
   const controlled = !!onView;
   const [tab, setTab] = useState<Tab>(view?.tab ?? "overview");
@@ -356,6 +359,7 @@ export function ResultsView({
           setCatFilter={setCatFilter}
           onOpenUrl={openUrl}
           focusRule={focusRule}
+          onOpenIssue={onOpenIssue}
         />
       )}
       {tab === "pages" && (
@@ -826,6 +830,7 @@ function Issues({
   setCatFilter,
   onOpenUrl,
   focusRule,
+  onOpenIssue,
 }: {
   result: CrawlResult;
   sevFilter: Severity | "all";
@@ -835,6 +840,7 @@ function Issues({
   onOpenUrl: (u: string) => void;
   /** A rule to auto-expand and scroll to (deep link / command palette). */
   focusRule?: string | null;
+  onOpenIssue?: (rule: string) => void;
 }) {
   const problems = result.issues.filter((i) => i.severity !== "good");
   // Lean reports: `issues` holds per-rule samples; the rollup has exact counts.
@@ -883,7 +889,7 @@ function Issues({
       {groups.length === 0 ? (
         <div className="card card-pad"><Empty>No issues match this filter.</Empty></div>
       ) : (
-        <div>{groups.map((g) => <IssueGroup key={g.rule} group={g} trueCount={trueCounts.get(g.rule)} totalPages={result.summary.totalPages} onOpenUrl={onOpenUrl} brokenLinks={result.brokenLinks} focus={g.rule === focusRule} />)}</div>
+        <div>{groups.map((g) => <IssueGroup key={g.rule} group={g} trueCount={trueCounts.get(g.rule)} totalPages={result.summary.totalPages} onOpenUrl={onOpenUrl} brokenLinks={result.brokenLinks} focus={g.rule === focusRule} onOpenIssue={onOpenIssue} />)}</div>
       )}
     </div>
   );
@@ -910,7 +916,7 @@ function brokenLinkRows(brokenLinks: BrokenLink[] | undefined, items: Issue[]): 
   return { rows, exact: false };
 }
 
-function IssueGroup({ group, trueCount, totalPages, onOpenUrl, brokenLinks, focus }: { group: { rule: string; title: string; severity: Severity; category: Issue["category"]; items: Issue[] }; trueCount?: number; totalPages: number; onOpenUrl: (u: string) => void; brokenLinks?: BrokenLink[]; focus?: boolean }) {
+function IssueGroup({ group, trueCount, totalPages, onOpenUrl, brokenLinks, focus, onOpenIssue }: { group: { rule: string; title: string; severity: Severity; category: Issue["category"]; items: Issue[] }; trueCount?: number; totalPages: number; onOpenUrl: (u: string) => void; brokenLinks?: BrokenLink[]; focus?: boolean; onOpenIssue?: (rule: string) => void }) {
   const [open, setOpen] = useState(!!focus);
   const headRef = useRef<HTMLButtonElement>(null);
   // Deep-linked / palette-focused group: open it and scroll it into view once.
@@ -943,6 +949,14 @@ function IssueGroup({ group, trueCount, totalPages, onOpenUrl, brokenLinks, focu
       </button>
       {open && (
         <>
+          {onOpenIssue && (
+            <div style={{ display: "flex", justifyContent: "flex-end", padding: "8px 14px 0" }}>
+              <button className="btn btn-sm" onClick={() => onOpenIssue(group.rule)}>
+                Open as page
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 5 }}><path d="M7 17 17 7" /><path d="M7 7h10v10" /></svg>
+              </button>
+            </div>
+          )}
           {info && (
             <div className="edu">
               <div className="col"><b>Why it matters</b><p>{info.why}</p></div>
