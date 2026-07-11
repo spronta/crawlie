@@ -1,0 +1,13 @@
+{
+  "name": "crawlie",
+  "description": "Fast technical-SEO + AI-search (GEO) audits: crawlie MCP server (runs locally via npx) plus skills for full-site audits, broken-link fixes, pre-launch gates, and GEO readiness.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Spronta",
+    "url": "https://spronta.com"
+  },
+  "homepage": "https://github.com/spronta/crawlie",
+  "repository": "https://github.com/spronta/crawlie",
+  "license": "MIT",
+  "keywords": ["seo", "geo", "crawler", "site-audit", "broken-links", "ai-search"]
+}
