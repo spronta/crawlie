@@ -1,0 +1,30 @@
+{
+  "name": "crawlie",
+  "version": "0.2.0",
+  "description": "Hosted technical-SEO + GEO (AI-search) site audits from Crawlie Cloud.",
+  "author": {
+    "name": "Spronta",
+    "url": "https://crawlie.app"
+  },
+  "homepage": "https://crawlie.app",
+  "repository": "https://github.com/spronta/crawlie",
+  "license": "MIT",
+  "keywords": ["seo", "geo", "crawler", "site-audit", "broken-links", "ai-search"],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Crawlie",
+    "shortDescription": "Hosted technical-SEO + GEO site audits.",
+    "longDescription": "Turn your agent into an SEO team: crawl any site, catch broken links, redirect chains, missing metadata, thin content, and AI-search (GEO) gaps — then get a prioritized fix list and diff crawls to prove the fixes landed. Runs on Crawlie Cloud: sign in and go, nothing to install.",
+    "developerName": "Spronta",
+    "category": "Developer Tools",
+    "capabilities": [],
+    "websiteURL": "https://crawlie.app",
+    "privacyPolicyURL": "https://www.crawlie.co/legal/privacy",
+    "termsOfServiceURL": "https://www.crawlie.co/legal/terms",
+    "defaultPrompt": [
+      "Audit this site for technical SEO and GEO issues and give me the top fixes"
+    ],
+    "screenshots": []
+  }
+}

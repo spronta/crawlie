@@ -1,14 +1,13 @@
 {
   "name": "crawlie",
-  "displayName": "Crawlie",
   "description": "Turn your agent into an SEO team: crawl any site, catch broken links, redirect chains, missing metadata, thin content, and AI-search (GEO) gaps — then get a prioritized fix list and diff crawls to prove the fixes landed. Runs on Crawlie Cloud: sign in and go, nothing to install.",
   "version": "0.2.0",
   "author": {
     "name": "Spronta",
     "url": "https://spronta.com"
   },
-  "homepage": "https://crawlie.app",
+  "homepage": "https://github.com/spronta/crawlie",
   "repository": "https://github.com/spronta/crawlie",
   "license": "MIT",
-  "keywords": ["seo", "geo", "crawler", "site-audit", "broken-links", "ai-search", "mcp"]
+  "keywords": ["seo", "geo", "crawler", "site-audit", "broken-links", "ai-search"]
 }

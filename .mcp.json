@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "crawlie": {
+      "type": "http",
+      "url": "https://crawlie.app/mcp"
+    }
+  }
+}
