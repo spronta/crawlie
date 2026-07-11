@@ -24,6 +24,7 @@ export const IconArrowRight = ({ size }: IconProps) => I("M5 12h14M12 5l7 7-7 7"
 export const IconHistory = ({ size }: IconProps) => I("M3 3v5h5M3.05 13A9 9 0 1 0 6 5.3L3 8M12 7v5l4 2", size);
 export const IconTrash = ({ size }: IconProps) => I("M3 6h18M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2", size);
 export const IconGlobe = ({ size }: IconProps) => I("M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20", size);
+export const IconDatabase = ({ size }: IconProps) => I("M3 5v14c0 1.7 4 3 9 3s9-1.3 9-3V5M3 12c0 1.7 4 3 9 3s9-1.3 9-3", size, <ellipse cx="12" cy="5" rx="9" ry="3" />);
 export const IconSpark = ({ size }: IconProps) => I("M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 15l.9 2.4L22 18l-2.1.6L19 21l-.9-2.4L16 18l2.1-.6z", size);
 export const IconBack = ({ size }: IconProps) => I("M19 12H5M12 19l-7-7 7-7", size);
 export const IconShare = ({ size }: IconProps) => I("M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v13", size);
