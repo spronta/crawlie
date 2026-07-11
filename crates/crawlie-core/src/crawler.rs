@@ -933,6 +933,13 @@ where
             })
         });
     }
+    // The site's favicon as the crawl saw it: prefer the seed page's icon,
+    // else the first page that declares one.
+    let favicon = pages
+        .iter()
+        .find(|p| p.url == config.url || p.final_url == config.url)
+        .and_then(|p| p.markup.favicon.clone())
+        .or_else(|| pages.iter().find_map(|p| p.markup.favicon.clone()));
     Ok(CrawlResult {
         config,
         pages,
@@ -944,6 +951,7 @@ where
         sitemap_found,
         robots_blocked,
         llms_txt_found,
+        favicon,
         link_graph,
         seed_redirected_from,
         started_at,
@@ -1370,6 +1378,8 @@ where
         sitemap_found,
         robots_blocked,
         llms_txt_found,
+        // Pages live on disk here; the finalize pass fills this from the store.
+        favicon: None,
         // Streaming crawls keep pages on disk, not in RAM, so the in-memory graph
         // is left empty here (this path is for sites too large to hold anyway).
         link_graph: crate::types::LinkGraph::default(),

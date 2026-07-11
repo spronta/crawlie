@@ -491,6 +491,13 @@ pub fn parse_html(body: &str, final_url: &Url, host: &str, extractors: &[Extract
             .collect();
         if rels.iter().any(|r| r.contains("icon")) {
             markup.has_favicon = true;
+            // Keep the first resolvable icon URL (data: URIs won't resolve —
+            // fine, the boolean still records that an icon was declared).
+            if markup.favicon.is_none() {
+                if let Some(u) = el.value().attr("href").and_then(|h| resolve(final_url, h)) {
+                    markup.favicon = Some(u.to_string());
+                }
+            }
         }
         if rels.iter().any(|r| r == "prev") {
             if let Some(p) = el.value().attr("href").and_then(|h| resolve(final_url, h)) {

@@ -281,6 +281,8 @@ export interface CrawlResult {
   sitemapUrls: number;
   robotsBlocked: string[];
   llmsTxtFound: boolean;
+  /** Site favicon URL discovered in the crawl (absent on older reports). */
+  favicon?: string;
   linkGraph?: LinkGraph;
   startedAt: number;
   /** Guidance for user-defined check rules present in `issues` (Pro packs). */
@@ -398,6 +400,10 @@ export interface ReportMeta {
   healthScore: number;
   geoScore: number;
   a11yScore: number;
+  /** Hosted crawl launch source. Older cloud reports omit this. */
+  trigger?: "manual" | "automatic" | null;
+  /** Site favicon URL discovered in the crawl; absent on older reports. */
+  favicon?: string | null;
 }
 
 export interface IssueDelta {

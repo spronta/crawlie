@@ -306,7 +306,7 @@ export function ResultsView({
         <div className="report-id" data-tauri-drag-region>
           <img
             className="report-fav"
-            src={faviconUrl(result.config.url)}
+            src={faviconUrl(result.config.url, result.favicon)}
             alt=""
             loading="lazy"
             onError={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = "hidden"; }}
@@ -1624,7 +1624,10 @@ function hostOf(url: string): string {
     return url;
   }
 }
-function faviconUrl(url: string): string {
+function faviconUrl(url: string, crawled?: string | null): string {
+  // The crawl records the site's actual declared icon; a favicon service is
+  // only the fallback for older reports (it often guesses a generic globe).
+  if (crawled) return crawled;
   try {
     return `https://www.google.com/s2/favicons?domain=${new URL(url).host}&sz=64`;
   } catch {

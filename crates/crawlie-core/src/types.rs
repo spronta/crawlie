@@ -455,6 +455,9 @@ pub struct MarkupSignals {
     pub meta_refresh: Option<String>,
     /// A favicon (`<link rel="icon">` variant) is declared.
     pub has_favicon: bool,
+    /// Resolved URL of the first declared favicon, when present.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub favicon: Option<String>,
     /// A character encoding is declared (`<meta charset>` or http-equiv).
     pub has_charset: bool,
     /// Internal links carrying `rel="nofollow"`.
@@ -772,6 +775,11 @@ pub struct CrawlResult {
     /// Whether the site publishes an `/llms.txt` (AI-engine guidance file).
     #[serde(default)]
     pub llms_txt_found: bool,
+    /// The site's favicon URL as discovered in the crawl (seed page's declared
+    /// icon, else the first page that declares one). UIs prefer this over
+    /// favicon-service guesses.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub favicon: Option<String>,
     /// The internal-link graph: nodes, edges, and structure analytics. Rebuilt
     /// on report load, so older reports gain it without a re-crawl.
     #[serde(default)]
