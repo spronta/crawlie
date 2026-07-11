@@ -1,9 +1,0 @@
-{
-  "mcpServers": {
-    "crawlie": {
-      "type": "http",
-      "url": "https://crawlie.app/mcp",
-      "oauth_resource": "https://crawlie.app/mcp"
-    }
-  }
-}

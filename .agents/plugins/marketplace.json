@@ -5,10 +5,10 @@
   },
   "plugins": [
     {
-      "name": "crawlie-cloud",
+      "name": "crawlie",
       "source": {
         "source": "local",
-        "path": "./plugins/crawlie-cloud"
+        "path": "./"
       },
       "policy": {
         "installation": "AVAILABLE",

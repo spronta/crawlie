@@ -1,6 +1,6 @@
 {
-  "name": "crawlie-cloud",
-  "version": "0.1.0",
+  "name": "crawlie",
+  "version": "0.2.0",
   "description": "Hosted technical-SEO + GEO (AI-search) site audits from Crawlie Cloud.",
   "author": {
     "name": "Spronta",
@@ -15,7 +15,7 @@
   "interface": {
     "displayName": "Crawlie",
     "shortDescription": "Hosted technical-SEO + GEO site audits.",
-    "longDescription": "Crawl and audit whole websites for technical SEO and AI-search (GEO) readiness from your agent: prioritized fixes, broken links, metadata and canonical problems, and report diffs that verify fixes landed. Audits run hosted on Crawlie Cloud — sign in and go, nothing to install. Open source at github.com/spronta/crawlie.",
+    "longDescription": "Turn your agent into an SEO team: crawl any site, catch broken links, redirect chains, missing metadata, thin content, and AI-search (GEO) gaps — then get a prioritized fix list and diff crawls to prove the fixes landed. Runs on Crawlie Cloud: sign in and go, nothing to install.",
     "developerName": "Spronta",
     "category": "Developer Tools",
     "capabilities": [],
