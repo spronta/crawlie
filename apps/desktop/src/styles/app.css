@@ -533,7 +533,11 @@ button.freshness.outdated:hover { background: color-mix(in srgb, var(--amber) 22
   height: 40px;
   padding: 0 14px;
   border-radius: var(--radius-sm);
-  border: 1px solid transparent;
+  /* Outline by default — without an explicit background the native UA button
+     grey leaks through. Filled variants (primary/danger) override both. */
+  border: 1px solid var(--border-strong);
+  background: var(--bg);
+  color: var(--text);
   font: var(--label-14);
   cursor: pointer;
   white-space: nowrap;
@@ -545,9 +549,13 @@ button.freshness.outdated:hover { background: color-mix(in srgb, var(--amber) 22
   outline: none;
   box-shadow: 0 0 0 2px var(--focus-gap), 0 0 0 4px var(--blue);
 }
+.btn:hover:not(:disabled) {
+  background: var(--gray-100);
+}
 .btn-primary {
   background: var(--text);
   color: var(--bg);
+  border-color: transparent;
 }
 .btn-primary:hover {
   background: color-mix(in srgb, var(--text) 88%, var(--bg));
@@ -562,6 +570,7 @@ button.freshness.outdated:hover { background: color-mix(in srgb, var(--amber) 22
 }
 .btn-ghost {
   background: transparent;
+  border-color: transparent;
   color: var(--text-secondary);
 }
 .btn-ghost:hover {
@@ -569,6 +578,7 @@ button.freshness.outdated:hover { background: color-mix(in srgb, var(--amber) 22
   color: var(--text);
 }
 .btn-danger {
+  border-color: transparent;
   background: var(--red);
   color: #fff;
 }
