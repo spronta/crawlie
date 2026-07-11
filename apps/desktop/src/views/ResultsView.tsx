@@ -1176,6 +1176,22 @@ function Pages({
   const end = Math.min(visible.length, Math.ceil((scrollTop + viewH) / ROW_H) + OVERSCAN);
   const slice = visible.slice(start, end);
 
+  // Fill the viewport instead of guessing an offset: measure where the table
+  // actually starts (host top bars differ between desktop and cloud) and take
+  // everything below it — but never taller than the rows themselves.
+  const [availH, setAvailH] = useState<number>();
+  useEffect(() => {
+    const measure = () => {
+      const top = scrollRef.current?.getBoundingClientRect().top ?? 0;
+      setAvailH(Math.max(320, window.innerHeight - top - 24));
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, []);
+  const contentH = visible.length * ROW_H + 44; // rows + sticky header
+  const tableH = availH === undefined ? undefined : Math.min(availH, Math.max(320, contentH));
+
   const sticky: React.CSSProperties = { position: "sticky", top: 0, zIndex: 2, background: "var(--panel, var(--bg))" };
   function th(key: SortKey, label: string, align?: "right") {
     const active = sort === key;
@@ -1218,7 +1234,7 @@ function Pages({
         className="table-wrap"
         ref={scrollRef}
         onScroll={(e) => setScrollTop((e.target as HTMLDivElement).scrollTop)}
-        style={{ maxHeight: "calc(100dvh - 300px)", minHeight: 320, overflow: "auto" }}
+        style={{ height: tableH, maxHeight: availH, minHeight: 320, overflow: "auto" }}
       >
         <table className="grid">
           <thead>
