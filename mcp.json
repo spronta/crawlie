@@ -1,8 +1,7 @@
 {
   "mcpServers": {
     "crawlie": {
-      "command": "npx",
-      "args": ["-y", "-p", "crawlie", "crawlie-mcp"]
+      "url": "https://crawlie.app/mcp"
     }
   }
 }

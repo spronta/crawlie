@@ -1,6 +1,6 @@
 {
   "name": "crawlie",
-  "description": "Fast technical-SEO + AI-search (GEO) audits: crawlie MCP server (runs locally via npx) plus skills for full-site audits, broken-link fixes, pre-launch gates, and GEO readiness.",
+  "description": "Technical-SEO + AI-search (GEO) audits: hosted crawlie MCP server (crawlie.app — sign in and go) plus skills for full-site audits, broken-link fixes, pre-launch gates, and GEO readiness. Prefer local? Run the OSS server with npx crawlie.",
   "version": "0.1.0",
   "author": {
     "name": "Spronta",
