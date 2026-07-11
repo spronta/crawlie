@@ -10,6 +10,11 @@
       "name": "crawlie",
       "source": "./",
       "description": "Fast technical-SEO + AI-search (GEO) audits: crawlie MCP server plus skills for full-site audits, broken-link fixes, pre-launch gates, and GEO readiness."
+    },
+    {
+      "name": "crawlie-cloud",
+      "source": "./plugins/crawlie-cloud",
+      "description": "Hosted technical-SEO + GEO audits via the remote crawlie MCP server at crawlie.app — sign in with your Crawlie account, nothing to install. Same audit skills, crawls run in the cloud."
     }
   ]
 }

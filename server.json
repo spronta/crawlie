@@ -1,0 +1,24 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "app.crawlie/crawlie",
+  "title": "Crawlie",
+  "description": "Technical SEO + GEO (AI-search) site audits: hosted crawls, prioritized fixes, report diffs.",
+  "version": "0.1.0",
+  "websiteUrl": "https://crawlie.app",
+  "repository": {
+    "url": "https://github.com/spronta/crawlie",
+    "source": "github"
+  },
+  "icons": [
+    {
+      "src": "https://www.crawlie.co/favicon.svg",
+      "mimeType": "image/svg+xml"
+    }
+  ],
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://crawlie.app/mcp"
+    }
+  ]
+}
