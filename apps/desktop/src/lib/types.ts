@@ -390,6 +390,21 @@ export interface Fix {
   howToFix: string;
 }
 
+/** The deployment a crawl-on-deploy run was based on. Provider-normalized, so
+ *  the report overview renders it the same for Vercel/Netlify/GitHub/webhooks. */
+export interface DeployMeta {
+  /** Provider id — matches the integration/plugin brand mark (e.g. "vercel"). */
+  provider: string;
+  /** Provider deployment id, when the hook carries one. */
+  deployment?: string;
+  /** The deployment's URL, when known. */
+  url?: string;
+  /** Source branch, when known. */
+  branch?: string;
+  /** Short commit sha (7 chars), when known. */
+  commit?: string;
+}
+
 export interface ReportMeta {
   id: string;
   url: string;
@@ -401,7 +416,9 @@ export interface ReportMeta {
   geoScore: number;
   a11yScore: number;
   /** Hosted crawl launch source. Older cloud reports omit this. */
-  trigger?: "manual" | "automatic" | null;
+  trigger?: "manual" | "automatic" | "deploy" | null;
+  /** For deploy-triggered crawls, the deployment audited. Absent otherwise. */
+  deploy?: DeployMeta | null;
   /** Site favicon URL discovered in the crawl; absent on older reports. */
   favicon?: string | null;
 }

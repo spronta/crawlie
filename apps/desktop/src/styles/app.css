@@ -806,12 +806,15 @@ button.freshness.outdated:hover { background: color-mix(in srgb, var(--amber) 22
   border-radius: var(--radius-md);
   background: var(--bg);
 }
-table.grid {
+table.data-grid {
+  /* Explicit display so a host that layers CSS utilities (e.g. Tailwind's
+     `.grid`) can't override the table's default box via a colliding class. */
+  display: table;
   width: 100%;
   border-collapse: collapse;
   font: var(--copy-13);
 }
-table.grid th {
+table.data-grid th {
   position: sticky;
   top: 0;
   text-align: left;
@@ -824,20 +827,20 @@ table.grid th {
   cursor: pointer;
   user-select: none;
 }
-table.grid th .arrow { color: var(--text-tertiary); margin-left: 4px; }
-table.grid td {
+table.data-grid th .arrow { color: var(--text-tertiary); margin-left: 4px; }
+table.data-grid td {
   padding: 10px 14px;
   border-bottom: 1px solid var(--border);
   vertical-align: middle;
 }
-table.grid tbody tr {
+table.data-grid tbody tr {
   cursor: pointer;
   transition: background var(--t-fast) var(--ease);
 }
-table.grid tbody tr:hover {
+table.data-grid tbody tr:hover {
   background: var(--bg-subtle);
 }
-table.grid tbody tr:last-child td {
+table.data-grid tbody tr:last-child td {
   border-bottom: none;
 }
 .cell-url {

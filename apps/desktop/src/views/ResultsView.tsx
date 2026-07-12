@@ -1236,7 +1236,7 @@ function Pages({
         onScroll={(e) => setScrollTop((e.target as HTMLDivElement).scrollTop)}
         style={{ height: tableH, maxHeight: availH, minHeight: 320, overflow: "auto" }}
       >
-        <table className="grid">
+        <table className="data-grid">
           <thead>
             <tr>
               {th("url", "URL")}
