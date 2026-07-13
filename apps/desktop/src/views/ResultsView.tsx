@@ -72,6 +72,7 @@ export function ResultsView({
   onOpenIssue,
   freshness,
   onViewLatest,
+  pageExtras,
 }: {
   result: CrawlResult;
   onReset: () => void;
@@ -93,6 +94,10 @@ export function ResultsView({
   freshness?: "latest" | "outdated";
   /** Jump to the newest report of this site (makes the Outdated badge a link). */
   onViewLatest?: () => void;
+  /** Host-injected content for the page detail view, rendered between the
+   *  issues list and the SERP preview (the cloud report adds live Search
+   *  Console metrics here). Called with the open page. */
+  pageExtras?: (page: Page) => React.ReactNode;
 }) {
   const controlled = !!onView;
   const [tab, setTab] = useState<Tab>(view?.tab ?? "overview");
@@ -292,6 +297,7 @@ export function ResultsView({
           onBack={() => setOpenPageUrl(null)}
           onReports={onReports}
           onSearch={() => setPaletteOpen(true)}
+          extras={pageExtras?.(page)}
         />
         {paletteEl}
       </>
@@ -358,7 +364,7 @@ export function ResultsView({
 
       {toast && <div className="toast">{toast}</div>}
 
-      <div className={`report-body${tab === "pages" || tab === "graph" || extraTabs?.find((t) => t.id === tab)?.wide ? " wide" : ""}`}>
+      <div className={`report-body${tab === "pages" || tab === "graph" ? " wide fill" : extraTabs?.find((t) => t.id === tab)?.wide ? " wide" : ""}`}>
       {tab === "overview" && <Overview result={result} onCategory={goCategory} onSeverity={goSeverity} onStatus={goStatus} onDepth={goDepth} />}
       {tab === "issues" && (
         <Issues
@@ -1303,6 +1309,7 @@ function PageDetail({
   onBack,
   onReports,
   onSearch,
+  extras,
 }: {
   page: Page;
   issues: Issue[];
@@ -1311,6 +1318,8 @@ function PageDetail({
   onBack: () => void;
   onReports: () => void;
   onSearch?: () => void;
+  /** Host-injected block (cloud: live Search Console metrics for this page). */
+  extras?: React.ReactNode;
 }) {
   const problems = issues.filter((i) => i.severity !== "good");
   return (
@@ -1361,6 +1370,8 @@ function PageDetail({
               ))}
             </div>
           )}
+
+          {extras}
 
           {page.status === 200 && <SerpPreview page={page} />}
 

@@ -503,19 +503,21 @@ button.freshness.outdated:hover { background: color-mix(in srgb, var(--amber) 22
   max-width: none;
   padding-inline: var(--sp-4);
 }
-/* Pages: the body doesn't scroll — the table fills the remaining height and
-   scrolls inside itself, so it uses the full content area. */
-.report-body.wide {
+/* Pages/graph only (.fill): the body doesn't scroll — the table fills the
+   remaining height and scrolls inside itself, so it uses the full content
+   area. Other wide tabs (Insights, Rules, Search…) have no internal scroller
+   and keep normal page scrolling — overflow:hidden would clip them. */
+.report-body.fill {
   overflow: hidden;
   padding-bottom: var(--sp-4);
 }
-.report-body.wide > .section-gap {
+.report-body.fill > .section-gap {
   flex: 1;
   min-height: 0;
 }
 /* The table itself goes truly full-bleed — edge to edge of the panel, flush
    sides, no rounded box — and fills the available height. */
-.report-body.wide .table-wrap {
+.report-body.fill .table-wrap {
   flex: 1;
   min-height: 0;
   margin-inline: calc(-1 * var(--sp-4));
