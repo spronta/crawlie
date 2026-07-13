@@ -121,6 +121,15 @@ pub struct CrawlConfig {
     /// the Screaming-Frog-style "custom JavaScript snippet".
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub render_js: Option<String>,
+    /// Render mode only: measure lab Web Vitals (LCP/CLS/FCP) on at most this
+    /// many pages; pages after the sample render "light" — images, fonts,
+    /// media and common analytics scripts blocked, vitals skipped — which is
+    /// several times faster on heavy sites. Vitals need real resource loading,
+    /// so the two can't mix on one page. `0` (the default) disables sampling:
+    /// every rendered page loads full resources and reports vitals, the
+    /// historical behavior.
+    #[serde(default)]
+    pub vitals_sample_pages: usize,
 }
 
 /// A host/path exclusion rule: a substring match by default, or a regular
@@ -188,6 +197,7 @@ impl CrawlConfig {
             render: false,
             render_wait_ms: default_render_wait(),
             render_js: None,
+            vitals_sample_pages: 0,
         }
     }
 }

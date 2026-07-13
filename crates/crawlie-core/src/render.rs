@@ -151,9 +151,24 @@ fn detect_chrome() -> Option<String> {
         .map(|p| p.to_string())
 }
 
+/// Resource patterns blocked on "light" renders (pages outside the vitals
+/// sample): page weight (images, fonts, media) plus analytics scripts that
+/// contribute no DOM content. Audit rules read attributes from the DOM —
+/// `<img>` tags and their alts are still parsed whether or not the bytes
+/// loaded — so blocking these doesn't change what the rules see.
+#[cfg(feature = "render")]
+const LIGHT_BLOCKED: &[&str] = &[
+    "*.png*", "*.jpg*", "*.jpeg*", "*.gif*", "*.webp*", "*.avif*", "*.svg*", "*.ico*",
+    "*.woff*", "*.ttf*", "*.otf*", "*.eot*",
+    "*.mp4*", "*.webm*", "*.ogg*", "*.mp3*", "*.m4a*", "*.mov*",
+    "*googletagmanager.com/*", "*google-analytics.com/*", "*doubleclick.net/*",
+    "*connect.facebook.net/*", "*static.hotjar.com/*", "*clarity.ms/*",
+    "*cdn.segment.com/*", "*plausible.io/*",
+];
+
 #[cfg(feature = "render")]
 mod real {
-    use super::detect_chrome;
+    use super::{detect_chrome, LIGHT_BLOCKED};
     use chromiumoxide::browser::{Browser, BrowserConfig};
     use futures::StreamExt;
     use std::time::Duration;
@@ -211,13 +226,20 @@ mod real {
         /// delay after navigation for late hydration; `custom_js` is an
         /// optional user snippet whose JSON-encoded result is captured. Always
         /// closes the tab, even on error.
+        ///
+        /// `full` picks the render mode: `true` loads every resource and
+        /// measures lab vitals; `false` is a "light" render — images, fonts,
+        /// media and common analytics blocked, vitals skipped (they'd be
+        /// meaningless without real resource loading). Audits read the DOM's
+        /// markup, not loaded bytes, so both modes feed the rules identically.
         pub async fn render_html(
             &self,
             url: &Url,
             wait_ms: u64,
             custom_js: Option<&str>,
+            full: bool,
         ) -> Result<super::Rendered, String> {
-            let fut = self.render_inner(url, wait_ms, custom_js);
+            let fut = self.render_inner(url, wait_ms, custom_js, full);
             match tokio::time::timeout(self.nav_timeout, fut).await {
                 Ok(res) => res,
                 Err(_) => Err("render timed out".to_string()),
@@ -229,12 +251,32 @@ mod real {
             url: &Url,
             wait_ms: u64,
             custom_js: Option<&str>,
+            full: bool,
         ) -> Result<super::Rendered, String> {
-            let page = self
-                .browser
-                .new_page(url.as_str())
-                .await
-                .map_err(|e| format!("new tab failed: {e}"))?;
+            let page = if full {
+                self.browser
+                    .new_page(url.as_str())
+                    .await
+                    .map_err(|e| format!("new tab failed: {e}"))?
+            } else {
+                // Light render: open blank, arm the blocklist, then navigate —
+                // blocking must be active before the first request goes out.
+                use chromiumoxide::cdp::browser_protocol::network::{
+                    EnableParams, SetBlockedUrLsParams,
+                };
+                let page = self
+                    .browser
+                    .new_page("about:blank")
+                    .await
+                    .map_err(|e| format!("new tab failed: {e}"))?;
+                let _ = page.execute(EnableParams::default()).await;
+                let urls: Vec<String> = LIGHT_BLOCKED.iter().map(|s| s.to_string()).collect();
+                let _ = page.execute(SetBlockedUrLsParams { urls }).await;
+                // Same stance as the full path: a navigation error is
+                // non-fatal — the DOM may still be readable below.
+                let _ = page.goto(url.as_str()).await;
+                page
+            };
 
             let nav = page.wait_for_navigation().await;
             if wait_ms > 0 {
@@ -253,7 +295,10 @@ mod real {
                 cls: f64,
                 fcp: f64,
             }
-            let vitals = match page.evaluate(super::VITALS_JS).await {
+            let vitals = if !full {
+                None
+            } else {
+                match page.evaluate(super::VITALS_JS).await {
                 Ok(v) => v.into_value::<Raw>().ok().and_then(|r| {
                     (r.lcp > 0.0 || r.fcp > 0.0 || r.cls > 0.0).then_some(crate::types::WebVitals {
                         lcp_ms: r.lcp.round().max(0.0) as u32,
@@ -262,6 +307,7 @@ mod real {
                     })
                 }),
                 Err(_) => None,
+                }
             };
             // WCAG contrast walk over the live computed styles.
             #[derive(serde::Deserialize)]
@@ -358,6 +404,7 @@ mod stub {
             _url: &Url,
             _wait_ms: u64,
             _custom_js: Option<&str>,
+            _full: bool,
         ) -> Result<super::Rendered, String> {
             Err("rendering unavailable".to_string())
         }

@@ -14,7 +14,7 @@ use crate::sitemap;
 use crate::types::*;
 use futures::stream::{FuturesUnordered, StreamExt};
 use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use url::Url;
@@ -102,6 +102,7 @@ fn diff_render(raw: &Parsed, rend: &Parsed) -> Option<RenderDiff> {
 async fn fetch_one(
     client: &reqwest::Client,
     renderer: Option<&Renderer>,
+    vitals_budget: Option<&AtomicUsize>,
     u: &Url,
     host: &str,
     extractors: &[Extractor],
@@ -127,7 +128,16 @@ async fn fetch_one(
                 pre_render_word_count = rp.word_count;
                 raw_parsed = Some(rp);
             }
-            if let Ok(res) = r.render_html(&o.final_url, render_wait_ms, render_js).await {
+            // Spend one vitals slot when sampling is on: pages inside the
+            // sample render with full resources and report lab vitals; pages
+            // after it render light (heavy resources blocked, vitals skipped).
+            let full = match vitals_budget {
+                None => true,
+                Some(b) => b
+                    .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |n| n.checked_sub(1))
+                    .is_ok(),
+            };
+            if let Ok(res) = r.render_html(&o.final_url, render_wait_ms, render_js, full).await {
                 html = Some(res.html);
                 web_vitals = res.vitals;
                 contrast = res.contrast;
@@ -365,6 +375,9 @@ struct Prep {
     seed_redirected_from: Option<String>,
     client: reqwest::Client,
     renderer: Option<Arc<Renderer>>,
+    /// Remaining full-resource renders (the lab-vitals sample); `None` means
+    /// sampling is off and every page renders full.
+    vitals_budget: Option<Arc<AtomicUsize>>,
     filters: ExcludeFilters,
     robots: Robots,
     robots_found: bool,
@@ -439,6 +452,10 @@ where
     } else {
         None
     };
+    // Lab-vitals sampling (render mode): the first N rendered pages load full
+    // resources and measure vitals; the rest render light. See CrawlConfig.
+    let vitals_budget = (config.render && config.vitals_sample_pages > 0)
+        .then(|| Arc::new(AtomicUsize::new(config.vitals_sample_pages)));
 
     let concurrency = config.concurrency.max(1);
     let follow = matches!(config.mode, CrawlMode::Site);
@@ -534,6 +551,7 @@ where
         seed_redirected_from,
         client,
         renderer,
+        vitals_budget,
         filters,
         robots,
         robots_found,
@@ -597,6 +615,7 @@ where
         seed_redirected_from,
         client,
         renderer,
+        vitals_budget,
         filters,
         robots,
         robots_found,
@@ -636,6 +655,7 @@ where
             let host = host.clone();
             let extractors = config.extract.clone();
             let renderer = renderer.clone();
+            let vitals_budget = vitals_budget.clone();
             let render_wait = config.render_wait_ms;
             let render_js = config.render_js.clone();
             let max_body = config.max_body_bytes.max(64 * 1024);
@@ -643,6 +663,7 @@ where
                 let res = fetch_one(
                     &client,
                     renderer.as_deref(),
+                    vitals_budget.as_deref(),
                     &u,
                     &host,
                     &extractors,
@@ -988,6 +1009,7 @@ where
         seed_redirected_from,
         client,
         renderer,
+        vitals_budget,
         filters,
         robots,
         robots_found,
@@ -1026,6 +1048,7 @@ where
             let host = host.clone();
             let extractors = config.extract.clone();
             let renderer = renderer.clone();
+            let vitals_budget = vitals_budget.clone();
             let render_wait = config.render_wait_ms;
             let render_js = config.render_js.clone();
             let max_body = config.max_body_bytes.max(64 * 1024);
@@ -1033,6 +1056,7 @@ where
                 let res = fetch_one(
                     &client,
                     renderer.as_deref(),
+                    vitals_budget.as_deref(),
                     &u,
                     &host,
                     &extractors,
