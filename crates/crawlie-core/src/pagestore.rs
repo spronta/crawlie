@@ -453,14 +453,17 @@ impl PageStore {
     /// Raw stored page blobs for one contiguous id-order slice. Each blob is
     /// already the page's final JSON (the derived-field write-back rewrites
     /// them), so a caller can emit a JSON array by joining with commas —
-    /// serving a chunk costs zero serde work.
+    /// serving a chunk costs zero serde work. Ids are assigned contiguously
+    /// from 0, so the slice is a primary-key range scan — OFFSET would walk
+    /// and discard `offset` rows per chunk, going quadratic over the store
+    /// as a big crawl streams out.
     pub fn blobs_slice(&self, offset: usize, limit: usize) -> io::Result<Vec<String>> {
         let mut stmt = self
             .conn
-            .prepare("SELECT blob FROM page ORDER BY id LIMIT ?1 OFFSET ?2")
+            .prepare("SELECT blob FROM page WHERE id >= ?1 AND id < ?2 ORDER BY id")
             .map_err(ioerr)?;
         let rows = stmt
-            .query_map(params![limit as i64, offset as i64], |r| {
+            .query_map(params![offset as i64, (offset + limit) as i64], |r| {
                 r.get::<_, String>(0)
             })
             .map_err(ioerr)?;
@@ -478,10 +481,10 @@ impl PageStore {
     pub fn pages_slice(&self, offset: usize, limit: usize) -> io::Result<Vec<Page>> {
         let mut stmt = self
             .conn
-            .prepare("SELECT blob FROM page ORDER BY id LIMIT ?1 OFFSET ?2")
+            .prepare("SELECT blob FROM page WHERE id >= ?1 AND id < ?2 ORDER BY id")
             .map_err(ioerr)?;
         let rows = stmt
-            .query_map(params![limit as i64, offset as i64], |r| {
+            .query_map(params![offset as i64, (offset + limit) as i64], |r| {
                 r.get::<_, String>(0)
             })
             .map_err(ioerr)?;
