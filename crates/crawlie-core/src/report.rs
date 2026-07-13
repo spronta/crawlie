@@ -524,6 +524,7 @@ mod tests {
             llms_txt_found: false,
             link_graph: Default::default(),
             seed_redirected_from: None,
+            favicon: None,
             started_at,
         }
     }

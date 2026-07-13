@@ -293,6 +293,7 @@ fn custom_issues_merge_into_summary_and_scores() {
         llms_txt_found: false,
         link_graph: Default::default(),
         seed_redirected_from: None,
+        favicon: None,
         started_at: 0,
         custom_rules: vec![],
     };
@@ -861,6 +862,7 @@ fn recompute_heals_stale_scores_from_signals() {
         llms_txt_found: false,
         link_graph: Default::default(),
         seed_redirected_from: None,
+        favicon: None,
         started_at: 0,
     };
     crawlie_core::scoring::recompute(&mut result);
