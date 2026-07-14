@@ -22,6 +22,15 @@ export interface ExtraTab {
   content: React.ReactNode;
 }
 
+/** Host-injected evidence layers for the page-level Content 360 view. The
+ * shared crawler owns Overview, Content and Technical; cloud products add
+ * real data-backed sections such as Discoverability and, later, Engagement. */
+export interface PageDetailSection {
+  id: string;
+  label: string;
+  content: React.ReactNode;
+}
+
 /** Public-link plumbing injected by the cloud report view. When present, the
  *  header's Share button opens the share popover instead of the desktop's
  *  HTML export. */
@@ -40,6 +49,7 @@ export interface Sharing {
 export interface ReportViewState {
   tab: string;
   page: string | null;
+  pageSection: string;
   sev: Severity | "all";
   cat: Category | null;
   status: number | null;
@@ -52,6 +62,7 @@ function sameView(a: ReportViewState, b?: ReportViewState): boolean {
   return (
     a.tab === b.tab &&
     (a.page ?? null) === (b.page ?? null) &&
+    (a.pageSection ?? "overview") === (b.pageSection ?? "overview") &&
     (a.sev ?? "all") === (b.sev ?? "all") &&
     (a.cat ?? null) === (b.cat ?? null) &&
     (a.status ?? null) === (b.status ?? null) &&
@@ -72,7 +83,7 @@ export function ResultsView({
   onOpenIssue,
   freshness,
   onViewLatest,
-  pageExtras,
+  pageSections,
 }: {
   result: CrawlResult;
   onReset: () => void;
@@ -94,16 +105,15 @@ export function ResultsView({
   freshness?: "latest" | "outdated";
   /** Jump to the newest report of this site (makes the Outdated badge a link). */
   onViewLatest?: () => void;
-  /** Host-injected content for the page detail view, rendered between the
-   *  issues list and the SERP preview (the cloud report adds live Search
-   *  Console metrics here). Called with the open page. */
-  pageExtras?: (page: Page) => React.ReactNode;
+  /** Host-injected evidence layers for the page-level Content 360 view. */
+  pageSections?: (page: Page) => PageDetailSection[];
 }) {
   const controlled = !!onView;
   const [tab, setTab] = useState<Tab>(view?.tab ?? "overview");
   // `openPageUrl` is the routable string (synchronous source of truth); `page`
   // is the resolved Page object rendered in the detail view.
   const [openPageUrl, setOpenPageUrl] = useState<string | null>(view?.page ?? null);
+  const [pageSection, setPageSection] = useState(view?.pageSection ?? "overview");
   const [page, setPage] = useState<Page | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   // Cross-filter state, driven by the overview charts.
@@ -143,11 +153,12 @@ export function ResultsView({
   const [rowLoading, setRowLoading] = useState<string | null>(null);
   // Open a page = set the routable URL; the resolve effect below turns it into
   // a Page object. Works the same controlled (URL-driven) or not (desktop).
-  const openRow = (row: PageRow) => setOpenPageUrl(row.url);
+  const openRow = (row: PageRow) => { setPageSection("overview"); setOpenPageUrl(row.url); };
   const openUrl = (u: string) => {
     const row = pageRows.find((r) => r.url === u || r.finalUrl === u);
     if (row) {
       setTab("pages");
+      setPageSection("overview");
       setOpenPageUrl(row.url);
     }
   };
@@ -197,16 +208,17 @@ export function ResultsView({
   viewRef.current = view;
   useEffect(() => {
     if (!onView) return;
-    const next: ReportViewState = { tab, page: openPageUrl, sev: sevFilter, cat: catFilter, status: pageStatus, depth: pageDepth, rule: focusRule };
+    const next: ReportViewState = { tab, page: openPageUrl, pageSection, sev: sevFilter, cat: catFilter, status: pageStatus, depth: pageDepth, rule: focusRule };
     if (!sameView(next, viewRef.current)) onView(next);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, openPageUrl, sevFilter, catFilter, pageStatus, pageDepth, focusRule]);
+  }, [tab, openPageUrl, pageSection, sevFilter, catFilter, pageStatus, pageDepth, focusRule]);
 
   // URL → internal state (controlled only): back/forward + cold deep links.
   useEffect(() => {
     if (!controlled || !view) return;
     if (view.tab !== tab) setTab(view.tab);
     if ((view.page ?? null) !== openPageUrl) setOpenPageUrl(view.page ?? null);
+    if ((view.pageSection ?? "overview") !== pageSection) setPageSection(view.pageSection ?? "overview");
     if ((view.sev ?? "all") !== sevFilter) setSevFilter(view.sev ?? "all");
     if ((view.cat ?? null) !== catFilter) setCatFilter(view.cat ?? null);
     if ((view.status ?? null) !== pageStatus) setPageStatus(view.status ?? null);
@@ -297,7 +309,9 @@ export function ResultsView({
           onBack={() => setOpenPageUrl(null)}
           onReports={onReports}
           onSearch={() => setPaletteOpen(true)}
-          extras={pageExtras?.(page)}
+          activeSection={pageSection}
+          onSectionChange={setPageSection}
+          sections={pageSections?.(page) ?? []}
         />
         {paletteEl}
       </>
@@ -733,6 +747,7 @@ function Overview({
   const fixes = result.issueRollup?.length
     ? topFixesFromRollup(result.issueRollup, 5)
     : topFixes(result.issues, 5);
+  const sitemapFound = result.sitemapFound ?? result.sitemapUrls > 0;
 
   return (
     <div className="section-gap">
@@ -741,7 +756,13 @@ function Overview({
         <span className="crawl-meta-item">{num(s.totalPages)} pages</span>
         <span className="crawl-meta-item">{ms(s.durationMs)}</span>
         <span className={`crawl-meta-item crawl-meta-flag ${result.robotsFound ? "on" : "off"}`}>robots.txt</span>
-        <span className="crawl-meta-item">{result.sitemapUrls > 0 ? `${num(result.sitemapUrls)} sitemap URLs` : "no sitemap"}</span>
+        <span className={`crawl-meta-item crawl-meta-flag ${sitemapFound ? "on" : "off"}`}>
+          {result.sitemapUrls > 0
+            ? `${num(result.sitemapUrls)} sitemap URLs`
+            : sitemapFound
+              ? "sitemap"
+              : "no sitemap"}
+        </span>
         <span className={`crawl-meta-item crawl-meta-flag ${result.llmsTxtFound ? "on" : "off"}`}>llms.txt</span>
       </div>
       {fixes.length > 0 && (
@@ -1309,7 +1330,9 @@ function PageDetail({
   onBack,
   onReports,
   onSearch,
-  extras,
+  activeSection,
+  onSectionChange,
+  sections,
 }: {
   page: Page;
   issues: Issue[];
@@ -1318,10 +1341,20 @@ function PageDetail({
   onBack: () => void;
   onReports: () => void;
   onSearch?: () => void;
-  /** Host-injected block (cloud: live Search Console metrics for this page). */
-  extras?: React.ReactNode;
+  activeSection: string;
+  onSectionChange: (section: string) => void;
+  sections: PageDetailSection[];
 }) {
-  const problems = issues.filter((i) => i.severity !== "good");
+  const problems = issues
+    .filter((i) => i.severity !== "good")
+    .sort((a, b) => severityRank(b.severity) - severityRank(a.severity));
+  const navigation = [
+    { id: "overview", label: "Overview" },
+    ...sections.map(({ id, label }) => ({ id, label })),
+    { id: "content", label: "Content & AI" },
+    { id: "technical", label: "Technical" },
+  ];
+  const section = navigation.some((item) => item.id === activeSection) ? activeSection : "overview";
   return (
     <>
       <div className="report-bar">
@@ -1343,43 +1376,126 @@ function PageDetail({
         </div>
       </div>
       <div className="report-body">
-        <div className="section-gap" style={{ maxWidth: 960, margin: "0 auto", width: "100%", padding: "var(--sp-5) var(--sp-5) var(--sp-7)" }}>
-          <div className="row between wrap" style={{ gap: "var(--sp-3)", alignItems: "flex-start" }}>
-            <div className="col" style={{ gap: 10, minWidth: 0 }}>
+        <div className="content360-page">
+          <header className="content360-hero">
+            <div className="row between wrap" style={{ gap: "var(--sp-3)", alignItems: "flex-start" }}>
+              <div className="col" style={{ gap: 9, minWidth: 0 }}>
               <h1 style={{ margin: 0, font: "var(--heading-24)", letterSpacing: "-0.01em" }}>{page.title ?? shortUrl(page.url)}</h1>
-              <div className="row" style={{ gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-                <StatusPill status={page.status} />
-                <MetaPill>depth {page.depth}</MetaPill>
-                {page.status === 200 && <MetaPill color={scoreColor(page.seoScore)}>SEO {page.seoScore}</MetaPill>}
-                {page.status === 200 && <MetaPill color={scoreColor(page.geo.score)}>GEO {page.geo.score}</MetaPill>}
+                <span className="content360-url">{page.url}</span>
               </div>
-              <span className="mono tertiary" style={{ fontSize: 12.5, wordBreak: "break-all" }}>{page.url}</span>
+              <button className="btn btn-secondary btn-sm" onClick={() => openExternal(page.finalUrl)} style={{ flex: "0 0 auto" }}>
+                <IconExternal size={15} /> Open URL
+              </button>
             </div>
-            <button className="btn btn-secondary btn-sm" onClick={() => openExternal(page.finalUrl)} style={{ flex: "0 0 auto" }}>
-              <IconExternal size={15} /> Open URL
-            </button>
+          </header>
+
+          <div className="content360-scorebar" aria-label="Page snapshot">
+            <Content360Score label="Response" value={String(page.status)} tone={page.status >= 200 && page.status < 400 ? "good" : "bad"} detail={ms(page.responseTimeMs)} />
+            <Content360Score label="SEO" value={page.status === 200 ? String(page.seoScore) : "Not scored"} tone={scoreTone(page.seoScore)} detail="out of 100" />
+            <Content360Score label="AI readiness" value={page.status === 200 ? String(page.geo.score) : "Not scored"} tone={scoreTone(page.geo.score)} detail="out of 100" />
+            <Content360Score label="Open issues" value={problems.length.toLocaleString()} tone={problems.length ? "warn" : "good"} detail={problems.length ? "needs review" : "all clear"} />
           </div>
-          {problems.length > 0 && (
-            <div className="col" style={{ gap: 8 }}>
-              <span className="h3">Issues <span className="mono muted">{problems.length}</span></span>
-              {problems.map((i, idx) => (
-                <div className="row between" key={idx} style={{ padding: "8px 0", borderBottom: "1px solid var(--border)" }}>
-                  <span className="row" style={{ gap: 8 }}><SeverityBadge severity={i.severity} /><span style={{ font: "var(--label-13)" }}>{i.title}</span></span>
-                  {i.detail && <span className="tertiary mono" style={{ fontSize: 12 }}>{i.detail}</span>}
-                </div>
-              ))}
-            </div>
-          )}
 
-          {extras}
+          <nav className="content360-nav" aria-label="Content 360 sections">
+            {navigation.map((item) => (
+              <button key={item.id} className={section === item.id ? "on" : ""} aria-current={section === item.id ? "page" : undefined} onClick={() => onSectionChange(item.id)}>
+                {item.label}
+              </button>
+            ))}
+          </nav>
 
-          {page.status === 200 && <SerpPreview page={page} />}
+          <div className="content360-section">
+            {section === "overview" && <Content360Overview page={page} problems={problems} />}
+            {sections.map((item) => section === item.id ? <div key={item.id}>{item.content}</div> : null)}
+            {section === "content" && page.status === 200 && (
+              <div className="content360-stack">
+                <SectionIntro eyebrow="How this page presents" title="Content & AI" copy="Review the page as search engines, social platforms, and answer engines understand it." />
+                <SerpPreview page={page} />
+                <SocialPreview page={page} />
+                <GeoCard geo={page.geo} />
+              </div>
+            )}
+            {section === "content" && page.status !== 200 && <ContentUnavailable status={page.status} />}
+            {section === "technical" && <TechnicalDetails page={page} />}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
 
-          {page.status === 200 && <SocialPreview page={page} />}
+function Content360Score({ label, value, detail, tone }: { label: string; value: string; detail: string; tone: "good" | "warn" | "bad" | "neutral" }) {
+  return (
+    <div className={`content360-score ${tone}`}>
+      <span>{label}</span>
+      <strong>{value}</strong>
+      <small>{detail}</small>
+    </div>
+  );
+}
 
-          {page.status === 200 && <GeoCard geo={page.geo} />}
+function Content360Overview({ page, problems }: { page: Page; problems: Issue[] }) {
+  const critical = problems.filter((issue) => issue.severity === "error").length;
+  const readability = typeof page.readability === "number" ? `${Math.round(page.readability)} · ${fleschLabel(page.readability)}` : "Not measured";
+  const summary = page.status !== 200
+    ? `This URL returned HTTP ${page.status}, so content and search-readiness checks are incomplete.`
+    : problems.length
+      ? `${problems.length} ${problems.length === 1 ? "issue needs" : "issues need"} attention before this page is fully ready to discover and reuse.`
+      : "This page is technically healthy and ready for the performance and audience signals layered onto Content 360.";
+  return (
+    <div className="content360-overview">
+      <section className="content360-overview-lead">
+        <div>
+          <span className="content360-eyebrow">Decision layer</span>
+          <h2>{critical ? "Fix the blockers first" : problems.length ? "Improve this page" : "Page is ready"}</h2>
+          <p>{summary}</p>
+        </div>
+        <dl>
+          <div><dt>Indexable</dt><dd>{page.indexable ? "Yes" : "No"}</dd></div>
+          <div><dt>Canonical</dt><dd>{page.canonicalized ? "Canonicalised" : page.canonical ? "Declared" : "Missing"}</dd></div>
+          <div><dt>Content</dt><dd>{num(page.wordCount)} words</dd></div>
+          <div><dt>Internal reach</dt><dd>{num(page.inlinks)} inlinks</dd></div>
+        </dl>
+      </section>
 
-          <dl className="kv">
+      <section className="content360-priorities">
+        <div className="content360-section-head">
+          <div><span className="content360-eyebrow">Recommended order</span><h3>Priorities</h3></div>
+          <span>{problems.length ? `${problems.length} open` : "No crawl issues"}</span>
+        </div>
+        {problems.length ? problems.map((issue, index) => (
+          <div className="content360-priority" key={`${issue.rule}-${index}`}>
+            <span className="content360-priority-rank">{index + 1}</span>
+            <SeverityBadge severity={issue.severity} />
+            <div><b>{issue.title}</b>{issue.detail && <small>{issue.detail}</small>}</div>
+          </div>
+        )) : (
+          <div className="content360-clear"><span>✓</span><div><b>No technical or content issues in this crawl</b><small>Use Discoverability next to see whether a healthy page is earning demand.</small></div></div>
+        )}
+      </section>
+
+      <section className="content360-facts">
+        <div><span className="content360-eyebrow">Content</span><h3>{num(page.wordCount)} words</h3><p>{page.h1.length || 0} H1, {page.h2Count} H2, {page.h3Count} H3 · readability {readability}</p></div>
+        <div><span className="content360-eyebrow">Structure</span><h3>{page.inlinks} incoming links</h3><p>Depth {page.depth} · link score {Math.round(page.linkScore)}/100 · {page.internalLinks.length} outgoing internal links</p></div>
+        <div><span className="content360-eyebrow">Delivery</span><h3>{ms(page.responseTimeMs)}</h3><p>{bytes(page.sizeBytes)} transferred · {page.contentEncoding ?? "no compression"}</p></div>
+      </section>
+    </div>
+  );
+}
+
+function SectionIntro({ eyebrow, title, copy }: { eyebrow: string; title: string; copy: string }) {
+  return <div className="content360-intro"><span className="content360-eyebrow">{eyebrow}</span><h2>{title}</h2><p>{copy}</p></div>;
+}
+
+function ContentUnavailable({ status }: { status: number }) {
+  return <div className="content360-unavailable"><CircleAlert size={20} /><div><b>Content signals are unavailable</b><span>This URL returned HTTP {status}. Resolve the response first, then crawl it again.</span></div></div>;
+}
+
+function TechnicalDetails({ page }: { page: Page }) {
+  return (
+    <div className="content360-technical-wrap">
+      <SectionIntro eyebrow="Crawler evidence" title="Technical" copy="The response, directives, document structure, and delivery details captured in this crawl." />
+      <dl className="kv content360-technical">
             <Row k="Final URL" v={page.finalUrl} mono />
             <Row k="Title" v={page.title ?? "—"} />
             {page.title && <Row k="Title length" v={`${page.title.length} chars`} />}
@@ -1443,31 +1559,14 @@ function PageDetail({
             {page.duplicateOf && <Row k="Duplicate of" v={page.duplicateOf} mono />}
             {page.redirectChain.length > 0 && <Row k="Redirects" v={page.redirectChain.map((r) => `${r.status} → ${shortUrl(r.to)}`).join("\n")} mono />}
             {page.error && <Row k="Error" v={page.error} />}
-          </dl>
-        </div>
-      </div>
-    </>
+      </dl>
+    </div>
   );
 }
 
-function MetaPill({ children, color }: { children: React.ReactNode; color?: string }) {
-  return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        fontFamily: "var(--font-mono)",
-        fontSize: 12,
-        padding: "2px 8px",
-        borderRadius: "var(--radius-full)",
-        background: "var(--bg-2)",
-        border: "1px solid var(--border)",
-        color: color ?? "var(--text-secondary)",
-      }}
-    >
-      {children}
-    </span>
-  );
+function scoreTone(score: number): "good" | "warn" | "bad" | "neutral" {
+  if (!Number.isFinite(score)) return "neutral";
+  return score >= 80 ? "good" : score >= 50 ? "warn" : "bad";
 }
 
 /* Google-style snippet mock so title/description truncation is visible at a

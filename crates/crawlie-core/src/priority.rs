@@ -4,7 +4,7 @@
 
 use crate::knowledge::rule_info;
 use crate::types::{Category, Fix, Issue, IssueGroup, Severity};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 fn rank(s: Severity) -> u8 {
     match s {
@@ -65,6 +65,7 @@ pub fn group_issues(issues: &[Issue], sample_limit: usize) -> Vec<IssueGroup> {
 pub fn rollup_issues(issues: &[Issue], sample_limit: usize) -> Vec<crate::types::IssueRollup> {
     let mut order: Vec<String> = Vec::new();
     let mut map: HashMap<String, crate::types::IssueRollup> = HashMap::new();
+    let mut affected: HashMap<String, HashSet<String>> = HashMap::new();
     for i in issues {
         let r = map.entry(i.rule.clone()).or_insert_with(|| {
             order.push(i.rule.clone());
@@ -74,17 +75,26 @@ pub fn rollup_issues(issues: &[Issue], sample_limit: usize) -> Vec<crate::types:
                 category: i.category,
                 severity: i.severity,
                 count: 0,
+                affected_pages: 0,
                 sample: Vec::new(),
             }
         });
         r.count += 1;
+        affected
+            .entry(i.rule.clone())
+            .or_default()
+            .insert(i.url.clone());
         if r.sample.len() < sample_limit {
             r.sample.push(i.clone());
         }
     }
     let mut out: Vec<crate::types::IssueRollup> = order
         .into_iter()
-        .filter_map(|rule| map.remove(&rule))
+        .filter_map(|rule| {
+            let mut rollup = map.remove(&rule)?;
+            rollup.affected_pages = affected.remove(&rule).map_or(0, |urls| urls.len());
+            Some(rollup)
+        })
         .collect();
     out.sort_by(|a, b| {
         rank(b.severity)
@@ -164,4 +174,35 @@ pub fn top_fixes(issues: &[Issue], limit: usize) -> Vec<Fix> {
     });
     fixes.truncate(limit);
     fixes
+}
+
+#[cfg(test)]
+mod issue_rollup_tests {
+    use super::*;
+
+    fn missing_title(url: &str) -> Issue {
+        Issue {
+            rule: "title-missing".into(),
+            title: "Missing Title".into(),
+            category: Category::TitlesMeta,
+            severity: Severity::Error,
+            url: url.into(),
+            detail: None,
+        }
+    }
+
+    #[test]
+    fn rollup_tracks_findings_and_distinct_pages() {
+        let rollup = rollup_issues(
+            &[
+                missing_title("https://example.com/a"),
+                missing_title("https://example.com/a"),
+                missing_title("https://example.com/b"),
+            ],
+            1,
+        );
+        assert_eq!(rollup[0].count, 3);
+        assert_eq!(rollup[0].affected_pages, 2);
+        assert_eq!(rollup[0].sample.len(), 1);
+    }
 }

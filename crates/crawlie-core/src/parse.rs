@@ -5,6 +5,7 @@
 use crate::structured_data;
 use crate::types::{
     A11ySignals, ExtractValue, Extractor, GeoSignals, Hreflang, MarkupSignals, SchemaValidation,
+    SearchSection,
 };
 use scraper::{ElementRef, Html, Node, Selector};
 use std::collections::hash_map::DefaultHasher;
@@ -26,6 +27,10 @@ pub struct Parsed {
     pub word_count: usize,
     pub text_ratio: f32,
     pub text: Option<String>,
+    pub search_text: Option<String>,
+    pub headings: Vec<String>,
+    pub search_sections: Vec<SearchSection>,
+    pub breadcrumbs: Vec<String>,
     pub images_total: usize,
     pub images_missing_alt: usize,
     pub image_urls: Vec<String>,
@@ -277,6 +282,91 @@ fn collect_visible_text(el: ElementRef, out: &mut String) {
     }
 }
 
+/// Search content deliberately excludes repeated chrome even when it is
+/// nested inside the selected semantic root.
+fn collect_search_text(el: ElementRef, out: &mut String) {
+    for child in el.children() {
+        match child.value() {
+            Node::Text(t) => {
+                out.push_str(t);
+                out.push(' ');
+            }
+            Node::Element(e) => {
+                if matches!(
+                    e.name(),
+                    "script" | "style" | "noscript" | "template" | "nav" | "header" | "footer" | "aside"
+                ) {
+                    continue;
+                }
+                if let Some(child_el) = ElementRef::wrap(child) {
+                    if child_el.value().attr("aria-hidden") == Some("true") {
+                        continue;
+                    }
+                    collect_search_text(child_el, out);
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+fn heading_level(name: &str) -> Option<u8> {
+    let bytes = name.as_bytes();
+    (bytes.len() == 2 && bytes[0] == b'h' && (b'1'..=b'6').contains(&bytes[1]))
+        .then_some(bytes.get(1).copied().unwrap_or(b'0') - b'0')
+}
+
+fn search_passages(root: ElementRef, breadcrumbs: &[String]) -> Vec<SearchSection> {
+    let mut sections: Vec<SearchSection> = Vec::new();
+    let mut hierarchy: Vec<(u8, String)> = Vec::new();
+    for node in root.descendants() {
+        if let Node::Element(element) = node.value() {
+            let Some(level) = heading_level(element.name()) else { continue };
+            let Some(el) = ElementRef::wrap(node) else { continue };
+            let value = collapse(&el.text().collect::<String>());
+            if value.is_empty() { continue }
+            while hierarchy.last().map(|(l, _)| *l >= level).unwrap_or(false) {
+                hierarchy.pop();
+            }
+            hierarchy.push((level, value.clone()));
+            let anchor = el.value().attr("id").map(str::to_string)
+                .filter(|s| !s.trim().is_empty());
+            sections.push(SearchSection {
+                heading: value,
+                level,
+                anchor,
+                text: String::new(),
+                breadcrumbs: breadcrumbs.iter().cloned()
+                    .chain(hierarchy.iter().map(|(_, h)| h.clone())).collect(),
+                kind: None,
+            });
+            continue;
+        }
+        let Node::Text(raw) = node.value() else { continue };
+        let hidden = node.ancestors().any(|ancestor| {
+            ancestor.value().as_element().map(|element| {
+                matches!(element.name(), "script" | "style" | "noscript" | "template" | "nav" | "header" | "footer" | "aside")
+                    || heading_level(element.name()).is_some()
+                    || element.attr("aria-hidden") == Some("true")
+            }).unwrap_or(false)
+        });
+        if hidden { continue }
+        let value = collapse(raw);
+        if value.is_empty() { continue }
+        if sections.is_empty() {
+            sections.push(SearchSection {
+                heading: String::new(), level: 0, anchor: None, text: String::new(),
+                breadcrumbs: breadcrumbs.to_vec(), kind: Some("lead".into()),
+            });
+        }
+        let current = sections.last_mut().expect("section exists");
+        if !current.text.is_empty() { current.text.push(' ') }
+        current.text.push_str(&value);
+    }
+    sections.retain(|s| !s.heading.is_empty() || !s.text.is_empty());
+    sections
+}
+
 fn sel(s: &str) -> Selector {
     Selector::parse(s).expect("valid selector")
 }
@@ -469,6 +559,34 @@ pub fn parse_html(body: &str, final_url: &Url, host: &str, extractors: &[Extract
         .collect();
     let h2_count = doc.select(&sel("h2")).count();
     let h3_count = doc.select(&sel("h3")).count();
+    let headings: Vec<String> = doc
+        .select(&sel("h1, h2, h3, h4, h5, h6"))
+        .map(|e| collapse(&e.text().collect::<String>()))
+        .filter(|s| !s.is_empty())
+        .collect();
+
+    let breadcrumbs: Vec<String> = doc
+        .select(&sel("[aria-label='breadcrumb'], [aria-label='Breadcrumb'], .breadcrumb, nav.breadcrumbs"))
+        .map(|e| collapse(&e.text().collect::<String>()))
+        .filter(|s| !s.is_empty())
+        .take(3)
+        .collect();
+
+    let content_root = doc
+        .select(&sel("main, article, [role='main']"))
+        .next()
+        .or_else(|| doc.select(&sel("body")).next());
+    let (search_text, mut search_sections) = content_root
+        .map(|root| {
+            let mut raw = String::new();
+            collect_search_text(root, &mut raw);
+            let normalized = collapse(&raw);
+            (
+                (!normalized.is_empty()).then_some(normalized),
+                search_passages(root, &breadcrumbs),
+            )
+        })
+        .unwrap_or((None, Vec::new()));
 
     // question-style headings (great for AI answer extraction)
     let question_headings = doc
@@ -708,6 +826,11 @@ pub fn parse_html(body: &str, final_url: &Url, host: &str, extractors: &[Extract
     }
     let schema_validations = schema_report.items;
     let invalid_jsonld = schema_report.invalid_blocks;
+    for block in &json_ld_blocks {
+        if let Ok(value) = serde_json::from_str::<serde_json::Value>(block) {
+            extract_faq_sections(&value, &breadcrumbs, &mut search_sections);
+        }
+    }
     let structured_data = !schema_types.is_empty();
     let faq_schema = schema_types
         .iter()
@@ -893,6 +1016,10 @@ pub fn parse_html(body: &str, final_url: &Url, host: &str, extractors: &[Extract
         word_count,
         text_ratio,
         text,
+        search_text,
+        headings,
+        search_sections,
+        breadcrumbs,
         images_total,
         images_missing_alt,
         image_urls,
@@ -946,4 +1073,75 @@ fn extract_schema_types(json: &str) -> Vec<String> {
         }
     }
     types
+}
+
+fn json_string<'a>(value: &'a serde_json::Value, key: &str) -> Option<&'a str> {
+    value.get(key).and_then(serde_json::Value::as_str)
+}
+
+fn plain_json_text(input: &str) -> String {
+    let mut out = String::new();
+    let mut in_tag = false;
+    for c in input.chars() {
+        match c {
+            '<' => in_tag = true,
+            '>' => {
+                in_tag = false;
+                out.push(' ');
+            }
+            _ if !in_tag => out.push(c),
+            _ => {}
+        }
+    }
+    collapse(&out)
+}
+
+/// Pull FAQPage/QAPage question-answer pairs into first-class passages. This
+/// preserves useful answers that may exist only in JSON-LD or collapsed UI.
+fn extract_faq_sections(
+    value: &serde_json::Value,
+    breadcrumbs: &[String],
+    out: &mut Vec<SearchSection>,
+) {
+    match value {
+        serde_json::Value::Array(items) => {
+            for item in items {
+                extract_faq_sections(item, breadcrumbs, out);
+            }
+        }
+        serde_json::Value::Object(map) => {
+            let ty = map.get("@type").and_then(serde_json::Value::as_str).unwrap_or("");
+            if matches!(ty, "FAQPage" | "QAPage") {
+                let entities: Vec<&serde_json::Value> = match map.get("mainEntity") {
+                    Some(serde_json::Value::Array(items)) => items.iter().collect(),
+                    Some(item) => vec![item],
+                    None => Vec::new(),
+                };
+                for entity in entities {
+                    let question = json_string(entity, "name").map(plain_json_text).unwrap_or_default();
+                    let answer = entity
+                        .get("acceptedAnswer")
+                        .or_else(|| entity.get("suggestedAnswer"))
+                        .and_then(|answer| json_string(answer, "text").or_else(|| json_string(answer, "name")))
+                        .map(plain_json_text)
+                        .unwrap_or_default();
+                    if question.is_empty() || answer.is_empty() {
+                        continue;
+                    }
+                    out.push(SearchSection {
+                        heading: question.clone(),
+                        level: 2,
+                        anchor: None,
+                        text: answer,
+                        breadcrumbs: breadcrumbs.iter().cloned().chain([question]).collect(),
+                        kind: Some("faq".into()),
+                    });
+                }
+            }
+            for child in map.values() {
+                extract_faq_sections(child, breadcrumbs, out);
+            }
+        }
+        _ => {}
+    }
 }

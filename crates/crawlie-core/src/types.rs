@@ -219,6 +219,22 @@ pub struct Hreflang {
     pub href: String,
 }
 
+/// A search-ready passage extracted from the semantic page body. Keeping this
+/// in the crawl artifact lets hosted search index answers/sections without
+/// storing or reparsing customer HTML in the Worker.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SearchSection {
+    pub heading: String,
+    pub level: u8,
+    pub anchor: Option<String>,
+    pub text: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub breadcrumbs: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub kind: Option<String>,
+}
+
 /// Everything the crawler learned about one URL.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -250,6 +266,17 @@ pub struct Page {
     /// packs (`crawlie-rules`). `None` for non-HTML or error responses.
     #[serde(default)]
     pub text: Option<String>,
+    /// Visible text from the primary semantic content region (`main`,
+    /// `article`, or role=main), with site chrome removed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub search_text: Option<String>,
+    /// Ordered H1-H3 labels and search-ready passages.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub headings: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub search_sections: Vec<SearchSection>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub breadcrumbs: Vec<String>,
     pub canonical: Option<String>,
     pub meta_robots: Option<String>,
     pub lang: Option<String>,
@@ -852,6 +879,9 @@ pub struct IssueRollup {
     pub severity: Severity,
     /// True total number of findings for this rule across the whole crawl.
     pub count: usize,
+    /// Distinct pages carrying at least one finding for this rule.
+    #[serde(default)]
+    pub affected_pages: usize,
     /// The first findings for this rule (capped), for drill-down previews.
     pub sample: Vec<Issue>,
 }

@@ -67,7 +67,7 @@ pub fn build_client(user_agent: &str, timeout_secs: u64) -> reqwest::Result<Clie
 /// `max_out` decompressed bytes (decompression-bomb guard). Returns the bytes
 /// unchanged when the encoding is absent, unrecognised, or decompression
 /// fails — a malformed stream should never lose the page.
-fn decode_body(bytes: &[u8], encoding: Option<&str>, max_out: usize) -> Vec<u8> {
+pub(crate) fn decode_body(bytes: &[u8], encoding: Option<&str>, max_out: usize) -> Vec<u8> {
     let enc = match encoding {
         Some(e) => e.trim().to_ascii_lowercase(),
         None => return bytes.to_vec(),
@@ -113,7 +113,7 @@ fn decode_body(bytes: &[u8], encoding: Option<&str>, max_out: usize) -> Vec<u8> 
 /// Read a response body incrementally, stopping at `cap` bytes. Bodies at or
 /// under the cap arrive intact; anything larger is truncated and the
 /// connection dropped, so one huge (or hostile) resource can't balloon memory.
-async fn read_body_capped(
+pub(crate) async fn read_body_capped(
     mut resp: reqwest::Response,
     cap: usize,
 ) -> Result<Vec<u8>, reqwest::Error> {

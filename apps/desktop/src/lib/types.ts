@@ -279,6 +279,8 @@ export interface CrawlResult {
   summary: Summary;
   robotsFound: boolean;
   sitemapUrls: number;
+  /** Whether a sitemap file was found, even if it contained no extractable URLs. */
+  sitemapFound?: boolean;
   robotsBlocked: string[];
   llmsTxtFound: boolean;
   /** Site favicon URL discovered in the crawl (absent on older reports). */
@@ -376,6 +378,8 @@ export interface IssueRollup {
   category: Category;
   severity: Severity;
   count: number;
+  /** Exact distinct URLs affected (present on newer reports). */
+  affectedPages?: number;
   sample: Issue[];
 }
 

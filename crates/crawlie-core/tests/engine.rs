@@ -69,6 +69,30 @@ fn counts_images_missing_alt() {
 }
 
 #[test]
+fn extracts_search_passages_from_semantic_content_and_faq_schema() {
+    let html = r##"<!doctype html><html lang="en"><body>
+      <nav aria-label="Breadcrumb">Home Docs Billing</nav>
+      <header><p>Repeated navigation chrome</p></header>
+      <main><h1 id="billing">Billing</h1><p>Billing overview.</p>
+        <h2 id="cancel">How do I cancel?</h2><div>Cancel from workspace settings.</div>
+        <h4 id="details">Cancellation details</h4><div>The owner can cancel.</div></main>
+      <footer><p>Repeated footer chrome</p></footer>
+      <script type="application/ld+json">{
+        "@type":"FAQPage","mainEntity":[{"@type":"Question","name":"When does access end?",
+        "acceptedAnswer":{"@type":"Answer","text":"Access continues until the billing period ends."}}]
+      }</script>
+    </body></html>"##;
+    let url = Url::parse("https://example.com/help/billing").unwrap();
+    let p = parse_html(html, &url, "example.com", &[]);
+    assert!(p.search_text.as_deref().unwrap_or("").contains("Cancel from workspace settings"));
+    assert!(!p.search_text.as_deref().unwrap_or("").contains("navigation chrome"));
+    assert_eq!(p.headings, vec!["Billing", "How do I cancel?", "Cancellation details"]);
+    assert!(p.search_sections.iter().any(|s| s.anchor.as_deref() == Some("cancel") && s.text.contains("workspace settings")));
+    assert!(p.search_sections.iter().any(|s| s.kind.as_deref() == Some("faq") && s.text.contains("billing period")));
+    assert!(p.breadcrumbs.iter().any(|b| b.contains("Home Docs Billing")));
+}
+
+#[test]
 fn parses_markup_hygiene_signals() {
     let html = r##"<!doctype html>
 <html>
@@ -140,6 +164,10 @@ fn ok_page(url: &str) -> Page {
         word_count: 500,
         text_ratio: 0.4,
         text: None,
+        search_text: None,
+        headings: vec![],
+        search_sections: vec![],
+        breadcrumbs: vec![],
         canonical: Some(url.into()),
         meta_robots: None,
         lang: Some("en".into()),

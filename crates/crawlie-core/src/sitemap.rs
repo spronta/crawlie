@@ -7,6 +7,7 @@ use url::Url;
 
 const MAX_URLS: usize = 5000;
 const MAX_INDEX_CHILDREN: usize = 50;
+const MAX_SITEMAP_BYTES: usize = 50 * 1024 * 1024 + 1;
 
 /// Extract every `<loc>…</loc>` value from sitemap XML.
 fn extract_locs(xml: &str) -> Vec<String> {
@@ -33,7 +34,20 @@ async fn fetch_text(client: &Client, url: &str) -> Option<String> {
     if !resp.status().is_success() {
         return None;
     }
-    resp.text().await.ok()
+    // Crawlie preserves Content-Encoding so page audits can tell whether a
+    // response was compressed. That also means special files must explicitly
+    // decode their bodies before parsing them; otherwise a Brotli/gzip sitemap
+    // looks like binary noise and silently yields zero <loc> entries.
+    let encoding = resp
+        .headers()
+        .get(reqwest::header::CONTENT_ENCODING)
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_owned);
+    let raw = crate::fetch::read_body_capped(resp, MAX_SITEMAP_BYTES)
+        .await
+        .ok()?;
+    let decoded = crate::fetch::decode_body(&raw, encoding.as_deref(), MAX_SITEMAP_BYTES);
+    Some(String::from_utf8_lossy(&decoded).into_owned())
 }
 
 /// Size/shape facts about one fetched sitemap file, for the protocol-limit
@@ -111,4 +125,54 @@ pub async fn discover(client: &Client, sitemap_urls: &[String]) -> Discovery {
 /// Default sitemap location for a host.
 pub fn default_url(base: &Url) -> Option<String> {
     base.join("/sitemap.xml").ok().map(|u| u.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+
+    #[tokio::test]
+    async fn discovers_urls_from_a_brotli_sitemap() {
+        let xml = br#"<?xml version="1.0" encoding="UTF-8"?>
+            <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+                <url><loc>https://example.com/one</loc></url>
+                <url><loc>https://example.com/two</loc></url>
+            </urlset>"#;
+        let mut compressed = Vec::new();
+        {
+            let mut writer = brotli::CompressorWriter::new(&mut compressed, 4096, 5, 22);
+            writer.write_all(xml).unwrap();
+        }
+
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut request = [0_u8; 1024];
+            let _ = stream.read(&mut request);
+            write!(
+                stream,
+                "HTTP/1.1 200 OK\r\nContent-Type: application/xml\r\nContent-Encoding: br\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                compressed.len()
+            )
+            .unwrap();
+            stream.write_all(&compressed).unwrap();
+        });
+
+        let client = crate::fetch::build_client("crawlie-test", 5).unwrap();
+        let discovery = discover(&client, &[format!("http://{address}/sitemap.xml")]).await;
+        server.join().unwrap();
+
+        assert_eq!(
+            discovery.pages,
+            vec![
+                "https://example.com/one".to_string(),
+                "https://example.com/two".to_string(),
+            ]
+        );
+        assert_eq!(discovery.stats.len(), 1);
+        assert_eq!(discovery.stats[0].url_count, 2);
+    }
 }
