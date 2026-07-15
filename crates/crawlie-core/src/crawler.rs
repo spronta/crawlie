@@ -745,18 +745,33 @@ where
         }
     }
 
-    // Inlinks.
+    // Inlinks + the anchor texts pointing at each page.
     let mut inlinks: HashMap<String, usize> = HashMap::new();
+    let mut inbound_anchors: HashMap<String, HashMap<String, usize>> = HashMap::new();
     for p in &pages {
         for l in &p.internal_links {
             *inlinks.entry(normalize_str(l)).or_insert(0) += 1;
         }
+        let internal: std::collections::HashSet<String> =
+            p.internal_links.iter().map(|l| normalize_str(l)).collect();
+        for m in &p.link_meta {
+            if m.anchor.is_empty() {
+                continue;
+            }
+            let target = normalize_str(&m.url);
+            if internal.contains(&target) {
+                *inbound_anchors
+                    .entry(target)
+                    .or_default()
+                    .entry(m.anchor.clone())
+                    .or_insert(0) += 1;
+            }
+        }
     }
     for p in &mut pages {
-        p.inlinks = inlinks
-            .get(&normalize_str(&p.final_url))
-            .copied()
-            .unwrap_or(0);
+        let key = normalize_str(&p.final_url);
+        p.inlinks = inlinks.get(&key).copied().unwrap_or(0);
+        p.inlink_anchors = top_anchors(inbound_anchors.remove(&key));
     }
 
     // Internal-link authority (PageRank).
@@ -1149,6 +1164,7 @@ where
     let link_scores = crate::scoring::pagerank(&store.adjacency().map_err(ioerr)?);
     // Inlink counts and duplicate canonicals, as SQL aggregates.
     let inlink_counts = store.inlink_counts().map_err(ioerr)?;
+    let mut inlink_anchor_map = store.inlink_anchors(INLINK_ANCHOR_CAP).map_err(ioerr)?;
     let hash_canon = store.hash_canon().map_err(ioerr)?;
     // Duplicate title/description sets (the cross-page audit context).
     let mut cross = store.cross_page().map_err(ioerr)?;
@@ -1354,10 +1370,17 @@ where
                     }
                 }
             }
-            p.inlinks = inlink_counts
-                .get(&normalize_str(&p.final_url))
-                .copied()
-                .unwrap_or(0);
+            let key = normalize_str(&p.final_url);
+            p.inlinks = inlink_counts.get(&key).copied().unwrap_or(0);
+            p.inlink_anchors = inlink_anchor_map
+                .remove(&key)
+                .map(|ranked| {
+                    ranked
+                        .into_iter()
+                        .map(|(text, count)| crate::types::AnchorCount { text, count })
+                        .collect()
+                })
+                .unwrap_or_default();
             p.link_score = link_scores.get(id).copied().unwrap_or(0.0);
             p.duplicate_of = p
                 .content_hash
@@ -1603,6 +1626,10 @@ fn build_page(
         text: parsed.as_ref().and_then(|p| p.text.clone()),
         search_text: parsed.as_ref().and_then(|p| p.search_text.clone()),
         headings: parsed.as_ref().map(|p| p.headings.clone()).unwrap_or_default(),
+        heading_outline: parsed
+            .as_ref()
+            .map(|p| p.heading_outline.clone())
+            .unwrap_or_default(),
         search_sections: parsed.as_ref().map(|p| p.search_sections.clone()).unwrap_or_default(),
         breadcrumbs: parsed.as_ref().map(|p| p.breadcrumbs.clone()).unwrap_or_default(),
         canonical,
@@ -1635,6 +1662,7 @@ fn build_page(
             .map(|p| p.link_meta.clone())
             .unwrap_or_default(),
         inlinks: 0,
+        inlink_anchors: Vec::new(),
         link_score: 0.0,
         seo_score: 0,
         og_title: parsed.as_ref().and_then(|p| p.og_title.clone()),
@@ -1682,6 +1710,22 @@ fn build_page(
     page
 }
 
+/// Keep only the few most-used inbound anchors so page records stay lean.
+const INLINK_ANCHOR_CAP: usize = 6;
+
+fn top_anchors(counts: Option<HashMap<String, usize>>) -> Vec<crate::types::AnchorCount> {
+    let Some(counts) = counts else {
+        return Vec::new();
+    };
+    let mut ranked: Vec<(String, usize)> = counts.into_iter().collect();
+    ranked.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+    ranked.truncate(INLINK_ANCHOR_CAP);
+    ranked
+        .into_iter()
+        .map(|(text, count)| crate::types::AnchorCount { text, count })
+        .collect()
+}
+
 fn error_page(url: &Url, depth: usize, error: String) -> Page {
     Page {
         url: normalize(url),
@@ -1707,6 +1751,7 @@ fn error_page(url: &Url, depth: usize, error: String) -> Page {
         text: None,
         search_text: None,
         headings: Vec::new(),
+        heading_outline: Vec::new(),
         search_sections: Vec::new(),
         breadcrumbs: Vec::new(),
         canonical: None,
@@ -1727,6 +1772,7 @@ fn error_page(url: &Url, depth: usize, error: String) -> Page {
         external_links: Vec::new(),
         link_meta: Vec::new(),
         inlinks: 0,
+        inlink_anchors: Vec::new(),
         link_score: 0.0,
         seo_score: 0,
         og_title: None,

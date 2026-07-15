@@ -273,6 +273,10 @@ pub struct Page {
     /// Ordered H1-H3 labels and search-ready passages.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub headings: Vec<String>,
+    /// Full H1–H6 outline as (level, text) pairs, capped — the page's actual
+    /// heading structure for outline inspection (older reports omit it).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub heading_outline: Vec<(u8, String)>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub search_sections: Vec<SearchSection>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -322,6 +326,10 @@ pub struct Page {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub link_meta: Vec<LinkMeta>,
     pub inlinks: usize,
+    /// Most-common anchor texts of internal links pointing at this page — how
+    /// the site itself describes it. Top few by count; older reports omit it.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub inlink_anchors: Vec<AnchorCount>,
     /// Internal PageRank authority, 0–100 (the most-linked page = 100).
     #[serde(default)]
     pub link_score: f32,
@@ -754,6 +762,14 @@ pub struct LinkMeta {
     pub anchor: String,
     /// nav | header | footer | aside | content.
     pub region: String,
+}
+
+/// One inbound anchor text and how many internal links use it.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct AnchorCount {
+    pub text: String,
+    pub count: usize,
 }
 
 /// One place a broken link appears: the page plus where on that page.

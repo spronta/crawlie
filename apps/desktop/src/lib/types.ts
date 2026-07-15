@@ -96,6 +96,8 @@ export interface Page {
   h1: string[];
   h2Count: number;
   h3Count: number;
+  /** Full H1–H6 outline as [level, text] pairs (older reports omit). */
+  headingOutline?: Array<[number, string]>;
   wordCount: number;
   textRatio: number;
   canonical: string | null;
@@ -112,6 +114,8 @@ export interface Page {
   internalLinks: string[];
   externalLinks: string[];
   inlinks: number;
+  /** Top anchor texts of internal links pointing here (older reports omit). */
+  inlinkAnchors?: Array<{ text: string; count: number }>;
   linkScore: number;
   seoScore: number;
   ogTitle: string | null;

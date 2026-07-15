@@ -1513,6 +1513,9 @@ function TechnicalDetails({ page }: { page: Page }) {
             <Row k="Images" v={`${page.imagesTotal} (${page.imagesMissingAlt} missing alt)`} />
             <Row k="Internal / External links" v={`${num(page.internalLinks.length)} / ${num(page.externalLinks.length)}`} />
             <Row k="Inlinks" v={num(page.inlinks)} />
+            {(page.inlinkAnchors?.length ?? 0) > 0 && (
+              <Row k="Inbound anchors" v={page.inlinkAnchors!.map((a) => `“${a.text}” ×${a.count}`).join("  ·  ")} />
+            )}
             <Row k="Link score" v={`${Math.round(page.linkScore)} / 100`} />
             <Row k="Response" v={`${ms(page.responseTimeMs)} · ${bytes(page.sizeBytes)}`} />
             <Row k="Compression" v={page.contentEncoding ?? "none"} />
@@ -1560,6 +1563,19 @@ function TechnicalDetails({ page }: { page: Page }) {
             {page.redirectChain.length > 0 && <Row k="Redirects" v={page.redirectChain.map((r) => `${r.status} → ${shortUrl(r.to)}`).join("\n")} mono />}
             {page.error && <Row k="Error" v={page.error} />}
       </dl>
+      {(page.headingOutline?.length ?? 0) > 0 && (
+        <details className="content360-outline">
+          <summary>Heading outline ({page.headingOutline!.length})</summary>
+          <ol>
+            {page.headingOutline!.map(([level, text], i) => (
+              <li key={i} style={{ paddingLeft: (level - 1) * 16 }}>
+                <span>H{level}</span>
+                {text}
+              </li>
+            ))}
+          </ol>
+        </details>
+      )}
     </div>
   );
 }

@@ -2104,3 +2104,10 @@ table.data-grid tbody tr:last-child td {
   border-radius: var(--radius-md);
   box-shadow: 0 0 0 2px var(--blue-border, var(--blue));
 }
+
+/* Heading outline in the page technical panel */
+.content360-outline { margin-top: 14px; }
+.content360-outline summary { color: var(--text-secondary); font-size: 12.5px; cursor: pointer; user-select: none; }
+.content360-outline ol { margin: 10px 0 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+.content360-outline li { display: flex; align-items: baseline; gap: 8px; color: var(--text-primary); font-size: 12.5px; min-width: 0; }
+.content360-outline li span { flex: 0 0 auto; color: var(--text-tertiary); font: var(--mono-10, 10px monospace); }

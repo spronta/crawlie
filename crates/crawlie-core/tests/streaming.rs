@@ -162,6 +162,40 @@ async fn streaming_crawl_matches_in_memory() {
     assert!(home_inlinks >= 2, "home should have inlinks from A and B");
     assert!(any_seo, "SEO scores should be written back to the store");
 
+    // Structural fields flow through both paths identically: /a is linked as
+    // "A" from home and B, and the home page keeps its heading outline.
+    let mem_a = mem
+        .pages
+        .iter()
+        .find(|p| p.url.ends_with("/a"))
+        .expect("page /a in memory crawl");
+    assert_eq!(
+        mem_a
+            .inlink_anchors
+            .iter()
+            .map(|a| (a.text.as_str(), a.count))
+            .collect::<Vec<_>>(),
+        vec![("A", 2)],
+        "in-memory inbound anchors aggregate across linking pages"
+    );
+    let mut store_a_anchors = Vec::new();
+    let mut store_home_outline = Vec::new();
+    store
+        .for_each_page(|_, p| {
+            if p.url.ends_with("/a") {
+                store_a_anchors = p.inlink_anchors.clone();
+            }
+            if p.url.ends_with('/') && p.status == 200 {
+                store_home_outline = p.heading_outline.clone();
+            }
+        })
+        .unwrap();
+    assert_eq!(
+        store_a_anchors, mem_a.inlink_anchors,
+        "streaming inbound anchors match in-memory"
+    );
+    assert_eq!(store_home_outline, vec![(1, "Home".to_string())]);
+
     // The .db is a complete, self-contained artifact: reopening it reconstructs
     // the same issues and summary as the live crawl.
     let reopened = PageStore::open(&db).unwrap();

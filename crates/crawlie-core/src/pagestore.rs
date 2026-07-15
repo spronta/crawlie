@@ -36,7 +36,8 @@ CREATE TABLE IF NOT EXISTS page (
 );
 CREATE TABLE IF NOT EXISTS edge (
     src INTEGER NOT NULL,
-    dst TEXT NOT NULL
+    dst TEXT NOT NULL,
+    anchor TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS idx_edge_dst ON edge(dst);
 -- The audit findings + crawl metadata, written once the crawl finishes, so a
@@ -167,12 +168,19 @@ impl PageStore {
             )
             .map_err(ioerr)?;
         if !page.internal_links.is_empty() {
+            // Anchor per target from link_meta (first occurrence wins there).
+            let anchors: std::collections::HashMap<&str, &str> = page
+                .link_meta
+                .iter()
+                .map(|m| (m.url.as_str(), m.anchor.as_str()))
+                .collect();
             let mut stmt = self
                 .conn
-                .prepare("INSERT INTO edge (src, dst) VALUES (?1, ?2)")
+                .prepare("INSERT INTO edge (src, dst, anchor) VALUES (?1, ?2, ?3)")
                 .map_err(ioerr)?;
             for link in &page.internal_links {
-                stmt.execute(params![id, norm(link)]).map_err(ioerr)?;
+                let anchor = anchors.get(link.as_str()).copied().unwrap_or("");
+                stmt.execute(params![id, norm(link), anchor]).map_err(ioerr)?;
             }
         }
         Ok(id as usize)
@@ -257,6 +265,39 @@ impl PageStore {
         for row in rows {
             let (dst, c) = row.map_err(ioerr)?;
             map.insert(dst, c);
+        }
+        Ok(map)
+    }
+
+    /// Top inbound anchor texts per destination URL, capped per page so the
+    /// result stays proportional to page count, not edge count.
+    pub fn inlink_anchors(
+        &self,
+        per_page: usize,
+    ) -> io::Result<HashMap<String, Vec<(String, usize)>>> {
+        let mut stmt = self
+            .conn
+            .prepare(
+                "SELECT dst, anchor, COUNT(*) c FROM edge WHERE anchor <> ''
+                  GROUP BY dst, anchor ORDER BY dst, c DESC, anchor",
+            )
+            .map_err(ioerr)?;
+        let rows = stmt
+            .query_map([], |r| {
+                Ok((
+                    r.get::<_, String>(0)?,
+                    r.get::<_, String>(1)?,
+                    r.get::<_, i64>(2)? as usize,
+                ))
+            })
+            .map_err(ioerr)?;
+        let mut map: HashMap<String, Vec<(String, usize)>> = HashMap::new();
+        for row in rows {
+            let (dst, anchor, count) = row.map_err(ioerr)?;
+            let entry = map.entry(dst).or_default();
+            if entry.len() < per_page {
+                entry.push((anchor, count));
+            }
         }
         Ok(map)
     }

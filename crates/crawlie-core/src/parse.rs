@@ -29,6 +29,7 @@ pub struct Parsed {
     pub text: Option<String>,
     pub search_text: Option<String>,
     pub headings: Vec<String>,
+    pub heading_outline: Vec<(u8, String)>,
     pub search_sections: Vec<SearchSection>,
     pub breadcrumbs: Vec<String>,
     pub images_total: usize,
@@ -151,6 +152,27 @@ mod extract_tests {
         let tw = by_url["https://twitter.com/x"];
         assert_eq!(tw.anchor, "Twitter", "aria-label names the link");
         assert_eq!(tw.region, "footer");
+    }
+
+    #[test]
+    fn heading_outline_keeps_levels_in_document_order() {
+        let html = "<!doctype html><html><head><title>t</title></head><body>\
+            <h1>Guide</h1><h2>Setup</h2><h3>Install</h3><h2>Usage</h2>\
+            <h4>  Spaced   heading  </h4><h5></h5>\
+            </body></html>";
+        let url = Url::parse("https://example.com/guide").unwrap();
+        let parsed = parse_html(html, &url, "example.com", &[]);
+        assert_eq!(
+            parsed.heading_outline,
+            vec![
+                (1, "Guide".to_string()),
+                (2, "Setup".to_string()),
+                (3, "Install".to_string()),
+                (2, "Usage".to_string()),
+                (4, "Spaced heading".to_string()),
+            ],
+            "levels kept, whitespace collapsed, empty headings dropped"
+        );
     }
 
     #[test]
@@ -563,6 +585,26 @@ pub fn parse_html(body: &str, final_url: &Url, host: &str, extractors: &[Extract
         .select(&sel("h1, h2, h3, h4, h5, h6"))
         .map(|e| collapse(&e.text().collect::<String>()))
         .filter(|s| !s.is_empty())
+        .collect();
+    // The same pass with levels kept, capped so huge docs stay lean: the
+    // page's actual outline (h4-h6 included) for structure inspection.
+    const OUTLINE_CAP: usize = 80;
+    const OUTLINE_TEXT_CAP: usize = 140;
+    let heading_outline: Vec<(u8, String)> = doc
+        .select(&sel("h1, h2, h3, h4, h5, h6"))
+        .filter_map(|e| {
+            let mut text = collapse(&e.text().collect::<String>());
+            if text.is_empty() {
+                return None;
+            }
+            if text.chars().count() > OUTLINE_TEXT_CAP {
+                text = text.chars().take(OUTLINE_TEXT_CAP - 1).collect();
+                text.push('…');
+            }
+            let level = e.value().name().as_bytes().get(1).map(|b| b - b'0').unwrap_or(1);
+            Some((level, text))
+        })
+        .take(OUTLINE_CAP)
         .collect();
 
     let breadcrumbs: Vec<String> = doc
@@ -1018,6 +1060,7 @@ pub fn parse_html(body: &str, final_url: &Url, host: &str, extractors: &[Extract
         text,
         search_text,
         headings,
+        heading_outline,
         search_sections,
         breadcrumbs,
         images_total,
