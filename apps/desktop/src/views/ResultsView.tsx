@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CircleAlert, Info, Search, TriangleAlert } from "lucide-react";
+import { ArrowRight, Check, CircleAlert, Clipboard, Info, Search, TriangleAlert } from "lucide-react";
 import type { BrokenLink, Category, CrawlResult, GeoSignals, Issue, Page, PageRow, Severity } from "../lib/types";
 import { CATEGORY_LABELS } from "../lib/types";
 import { ruleInfo, setCustomRules } from "../lib/rules";
@@ -23,8 +23,8 @@ export interface ExtraTab {
 }
 
 /** Host-injected evidence layers for the page-level Content 360 view. The
- * shared crawler owns Overview, Content and Technical; cloud products add
- * real data-backed sections such as Discoverability and, later, Engagement. */
+ * shared crawler owns Summary, Content, Technical and Raw data; cloud products
+ * add real data-backed sections such as Discoverability and History. */
 export interface PageDetailSection {
   id: string;
   label: string;
@@ -84,6 +84,7 @@ export function ResultsView({
   freshness,
   onViewLatest,
   pageSections,
+  pageCrumb,
 }: {
   result: CrawlResult;
   onReset: () => void;
@@ -107,6 +108,10 @@ export function ResultsView({
   onViewLatest?: () => void;
   /** Host-injected evidence layers for the page-level Content 360 view. */
   pageSections?: (page: Page) => PageDetailSection[];
+  /** Override the page-detail breadcrumb prefix (host owns the crumb + click).
+   *  When set, the page view shows `{label} / {url}` instead of the default
+   *  `Reports / {host} / {tab} / {url}` — used by the hosted /pages/:slug route. */
+  pageCrumb?: { label: string; onClick: () => void };
 }) {
   const controlled = !!onView;
   const [tab, setTab] = useState<Tab>(view?.tab ?? "overview");
@@ -312,6 +317,7 @@ export function ResultsView({
           activeSection={pageSection}
           onSectionChange={setPageSection}
           sections={pageSections?.(page) ?? []}
+          pageCrumb={pageCrumb}
         />
         {paletteEl}
       </>
@@ -1333,6 +1339,7 @@ function PageDetail({
   activeSection,
   onSectionChange,
   sections,
+  pageCrumb,
 }: {
   page: Page;
   issues: Issue[];
@@ -1344,15 +1351,17 @@ function PageDetail({
   activeSection: string;
   onSectionChange: (section: string) => void;
   sections: PageDetailSection[];
+  pageCrumb?: { label: string; onClick: () => void };
 }) {
   const problems = issues
     .filter((i) => i.severity !== "good")
     .sort((a, b) => severityRank(b.severity) - severityRank(a.severity));
   const navigation = [
-    { id: "overview", label: "Overview" },
+    { id: "overview", label: "Summary" },
     ...sections.map(({ id, label }) => ({ id, label })),
     { id: "content", label: "Content & AI" },
     { id: "technical", label: "Technical" },
+    { id: "raw", label: "Raw data" },
   ];
   const section = navigation.some((item) => item.id === activeSection) ? activeSection : "overview";
   return (
@@ -1360,11 +1369,17 @@ function PageDetail({
       <div className="report-bar">
         <div className="report-bar-inner crumbs-only" style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <nav className="crumbs" style={{ flex: 1, minWidth: 0 }} data-tauri-drag-region>
-            <button className="crumb-link" onClick={onReports}>Reports</button>
-            <span className="crumb-sep">/</span>
-            <button className="crumb-link" onClick={onBack}>{reportName}</button>
-            <span className="crumb-sep">/</span>
-            <button className="crumb-link" onClick={onBack}>{crumb}</button>
+            {pageCrumb ? (
+              <button className="crumb-link" onClick={pageCrumb.onClick}>{pageCrumb.label}</button>
+            ) : (
+              <>
+                <button className="crumb-link" onClick={onReports}>Reports</button>
+                <span className="crumb-sep">/</span>
+                <button className="crumb-link" onClick={onBack}>{reportName}</button>
+                <span className="crumb-sep">/</span>
+                <button className="crumb-link" onClick={onBack}>{crumb}</button>
+              </>
+            )}
             <span className="crumb-sep">/</span>
             <span className="crumb-current mono">{shortUrl(page.url)}</span>
           </nav>
@@ -1389,14 +1404,7 @@ function PageDetail({
             </div>
           </header>
 
-          <div className="content360-scorebar" aria-label="Page snapshot">
-            <Content360Score label="Response" value={String(page.status)} tone={page.status >= 200 && page.status < 400 ? "good" : "bad"} detail={ms(page.responseTimeMs)} />
-            <Content360Score label="SEO" value={page.status === 200 ? String(page.seoScore) : "Not scored"} tone={scoreTone(page.seoScore)} detail="out of 100" />
-            <Content360Score label="AI readiness" value={page.status === 200 ? String(page.geo.score) : "Not scored"} tone={scoreTone(page.geo.score)} detail="out of 100" />
-            <Content360Score label="Open issues" value={problems.length.toLocaleString()} tone={problems.length ? "warn" : "good"} detail={problems.length ? "needs review" : "all clear"} />
-          </div>
-
-          <nav className="content360-nav" aria-label="Content 360 sections">
+          <nav className="content360-nav" aria-label="Page detail sections">
             {navigation.map((item) => (
               <button key={item.id} className={section === item.id ? "on" : ""} aria-current={section === item.id ? "page" : undefined} onClick={() => onSectionChange(item.id)}>
                 {item.label}
@@ -1405,7 +1413,7 @@ function PageDetail({
           </nav>
 
           <div className="content360-section">
-            {section === "overview" && <Content360Overview page={page} problems={problems} />}
+            {section === "overview" && <Content360Overview page={page} problems={problems} onSectionChange={onSectionChange} />}
             {sections.map((item) => section === item.id ? <div key={item.id}>{item.content}</div> : null)}
             {section === "content" && page.status === 200 && (
               <div className="content360-stack">
@@ -1417,6 +1425,7 @@ function PageDetail({
             )}
             {section === "content" && page.status !== 200 && <ContentUnavailable status={page.status} />}
             {section === "technical" && <TechnicalDetails page={page} />}
+            {section === "raw" && <RawPageData page={page} issues={issues} />}
           </div>
         </div>
       </div>
@@ -1424,61 +1433,247 @@ function PageDetail({
   );
 }
 
-function Content360Score({ label, value, detail, tone }: { label: string; value: string; detail: string; tone: "good" | "warn" | "bad" | "neutral" }) {
-  return (
-    <div className={`content360-score ${tone}`}>
-      <span>{label}</span>
-      <strong>{value}</strong>
-      <small>{detail}</small>
-    </div>
-  );
+type ReadinessTone = "good" | "warn" | "bad";
+
+interface PageVerdict {
+  tone: ReadinessTone;
+  label: string;
+  title: string;
+  summary: string;
 }
 
-function Content360Overview({ page, problems }: { page: Page; problems: Issue[] }) {
+interface ReadinessSignal {
+  label: string;
+  value: string;
+  detail: string;
+  tone: ReadinessTone;
+}
+
+function pageVerdict(page: Page, problems: Issue[]): PageVerdict {
+  const critical = problems.filter((issue) => issue.severity === "error").length;
+  const warnings = problems.filter((issue) => issue.severity === "warning").length;
+  if (page.status !== 200) {
+    return {
+      tone: "bad",
+      label: "Response blocker",
+      title: `The page is unavailable to search engines`,
+      summary: `The final URL returned HTTP ${page.status}. Restore a successful response before spending time on copy, schema, or search optimisation.`,
+    };
+  }
+  if (!page.indexable) {
+    const reason = page.indexability?.trim() || (page.canonicalized ? "its canonical points to another URL" : "an indexing directive blocks it");
+    return {
+      tone: "bad",
+      label: page.canonicalized ? "Consolidated elsewhere" : "Indexing blocker",
+      title: page.canonicalized ? "This URL is not the canonical page" : "This page cannot enter search results",
+      summary: `The page loads, but ${reason.toLowerCase()}. Confirm that this is intentional before optimising anything downstream.`,
+    };
+  }
+  if (critical > 0) {
+    return {
+      tone: "bad",
+      label: "Critical attention",
+      title: `${critical} critical ${critical === 1 ? "issue needs" : "issues need"} resolving`,
+      summary: "The page is crawlable and indexable, but the highest-impact crawl findings should be resolved before treating it as launch-ready.",
+    };
+  }
+  if (warnings > 0) {
+    return {
+      tone: "warn",
+      label: "Ready with gaps",
+      title: `The page works, with ${warnings} worthwhile ${warnings === 1 ? "improvement" : "improvements"}`,
+      summary: "Nothing currently blocks indexing. The recommended action below is the clearest next move to improve how this page is understood or discovered.",
+    };
+  }
+  return {
+    tone: "good",
+    label: "Technically ready",
+    title: "No crawl blocker is holding this page back",
+    summary: problems.length
+      ? "Only minor observations remain. Use Discoverability and History to decide whether the next move is content, distribution, or simply more time."
+      : "The crawl evidence is clean. Use Discoverability and History next to see whether the page is earning impressions and clicks.",
+  };
+}
+
+function pageReadiness(page: Page): ReadinessSignal[] {
+  const available = page.status === 200;
+  const internallyReachable = page.depth === 0 || page.inlinks > 0;
+  const reachTone: ReadinessTone = !internallyReachable ? "bad" : page.depth <= 3 ? "good" : "warn";
+  const scoreSignal = (label: string, score: number): ReadinessSignal => ({
+    label,
+    value: available ? `${Math.round(score)}/100` : "Unavailable",
+    detail: available ? (score >= 80 ? "Strong crawl signals" : score >= 50 ? "Some gaps remain" : "Needs focused work") : "Fix the response first",
+    tone: available ? (score >= 80 ? "good" : score >= 50 ? "warn" : "bad") : "bad",
+  });
+  return [
+    {
+      label: "Available",
+      value: `HTTP ${page.status}`,
+      detail: available ? `${ms(page.responseTimeMs)} response` : "Successful response required",
+      tone: available ? "good" : "bad",
+    },
+    {
+      label: "Indexable",
+      value: available && page.indexable ? "Allowed" : "Blocked",
+      detail: page.indexable ? "No indexing block found" : page.indexability || (page.canonicalized ? "Canonicalised elsewhere" : "Review directives"),
+      tone: available && page.indexable ? "good" : "bad",
+    },
+    {
+      label: "Internally found",
+      value: page.depth === 0 ? "Root URL" : `${num(page.inlinks)} inlinks`,
+      detail: !internallyReachable ? "No internal path found" : `Crawl depth ${page.depth}`,
+      tone: reachTone,
+    },
+    scoreSignal("Search setup", page.seoScore),
+    scoreSignal("Answer readiness", page.geo.score),
+  ];
+}
+
+const CONTENT_CATEGORIES = new Set<Category>(["titles-meta", "headings", "content", "images", "social", "structured-data", "geo"]);
+
+function issueEvidenceSection(issue: Issue): "content" | "technical" {
+  return CONTENT_CATEGORIES.has(issue.category) ? "content" : "technical";
+}
+
+function Content360Overview({ page, problems, onSectionChange }: { page: Page; problems: Issue[]; onSectionChange: (section: string) => void }) {
   const critical = problems.filter((issue) => issue.severity === "error").length;
   const readability = typeof page.readability === "number" ? `${Math.round(page.readability)} · ${fleschLabel(page.readability)}` : "Not measured";
-  const summary = page.status !== 200
-    ? `This URL returned HTTP ${page.status}, so content and search-readiness checks are incomplete.`
-    : problems.length
-      ? `${problems.length} ${problems.length === 1 ? "issue needs" : "issues need"} attention before this page is fully ready to discover and reuse.`
-      : "This page is technically healthy and ready for the performance and audience signals layered onto Content 360.";
+  const verdict = pageVerdict(page, problems);
+  const readiness = pageReadiness(page);
+  const strongSignals = readiness.filter((signal) => signal.tone === "good").length;
+  const primary = problems[0];
+  const primaryInfo = primary ? ruleInfo(primary.rule) : undefined;
+  const evidenceSection = primary ? issueEvidenceSection(primary) : "technical";
   return (
     <div className="content360-overview">
-      <section className="content360-overview-lead">
-        <div>
-          <span className="content360-eyebrow">Decision layer</span>
-          <h2>{critical ? "Fix the blockers first" : problems.length ? "Improve this page" : "Page is ready"}</h2>
-          <p>{summary}</p>
+      <section className={`content360-assessment ${verdict.tone}`}>
+        <div className="content360-assessment-copy">
+          <div className="content360-verdict-label"><span aria-hidden="true" />{verdict.label}</div>
+          <h2>{verdict.title}</h2>
+          <p>{verdict.summary}</p>
         </div>
-        <dl>
-          <div><dt>Indexable</dt><dd>{page.indexable ? "Yes" : "No"}</dd></div>
-          <div><dt>Canonical</dt><dd>{page.canonicalized ? "Canonicalised" : page.canonical ? "Declared" : "Missing"}</dd></div>
-          <div><dt>Content</dt><dd>{num(page.wordCount)} words</dd></div>
-          <div><dt>Internal reach</dt><dd>{num(page.inlinks)} inlinks</dd></div>
+        <dl className="content360-assessment-evidence">
+          <div><dt>Response</dt><dd>HTTP {page.status}</dd><small>{ms(page.responseTimeMs)}</small></div>
+          <div><dt>Indexing</dt><dd>{page.indexable ? "Allowed" : "Blocked"}</dd><small>{page.canonicalized ? "canonical elsewhere" : page.indexable ? "directives clear" : "review directives"}</small></div>
+          <div><dt>Internal reach</dt><dd>{page.depth === 0 ? "Root URL" : `${num(page.inlinks)} inlinks`}</dd><small>depth {page.depth}</small></div>
+          <div><dt>Findings</dt><dd>{problems.length ? `${problems.length} open` : "All clear"}</dd><small>{critical ? `${critical} critical` : problems.length ? "prioritised below" : "this crawl"}</small></div>
         </dl>
       </section>
 
-      <section className="content360-priorities">
+      <section className="content360-readiness">
         <div className="content360-section-head">
-          <div><span className="content360-eyebrow">Recommended order</span><h3>Priorities</h3></div>
-          <span>{problems.length ? `${problems.length} open` : "No crawl issues"}</span>
+          <div><span className="content360-eyebrow">From publish to discoverability</span><h3>Readiness path</h3></div>
+          <span>{strongSignals} of {readiness.length} strong</span>
         </div>
-        {problems.length ? problems.map((issue, index) => (
-          <div className="content360-priority" key={`${issue.rule}-${index}`}>
-            <span className="content360-priority-rank">{index + 1}</span>
-            <SeverityBadge severity={issue.severity} />
-            <div><b>{issue.title}</b>{issue.detail && <small>{issue.detail}</small>}</div>
-          </div>
-        )) : (
-          <div className="content360-clear"><span>✓</span><div><b>No technical or content issues in this crawl</b><small>Use Discoverability next to see whether a healthy page is earning demand.</small></div></div>
-        )}
+        <ol className="content360-readiness-list">
+          {readiness.map((signal, index) => (
+            <li className={signal.tone} key={signal.label}>
+              <div className="content360-readiness-top">
+                <span className="content360-readiness-step">{index + 1}</span>
+                <span className="content360-readiness-mark" aria-hidden="true">{signal.tone === "good" ? <Check size={12} /> : signal.tone === "warn" ? "!" : "×"}</span>
+              </div>
+              <span>{signal.label}</span>
+              <b>{signal.value}</b>
+              <small>{signal.detail}</small>
+            </li>
+          ))}
+        </ol>
       </section>
+
+      {primary ? (
+        <section className={`content360-next-action tone-${primary.severity}`}>
+          <div className="content360-next-action-main">
+            <span className="content360-eyebrow">Next best action</span>
+            <div className="content360-next-action-title"><SeverityBadge severity={primary.severity} /><h3>{primary.title}</h3></div>
+            <p>{primary.detail || primaryInfo?.why || "Resolve this finding, then crawl the page again to confirm the result."}</p>
+            <button className="btn btn-secondary btn-sm" onClick={() => onSectionChange(evidenceSection)}>
+              Review {evidenceSection === "content" ? "content" : "technical"} evidence <ArrowRight size={14} />
+            </button>
+          </div>
+          <div className="content360-next-action-fix">
+            <span className="content360-eyebrow">How to resolve it</span>
+            <p>{primaryInfo?.howToFix || "Inspect the captured evidence, correct the source page, and verify the change with a fresh crawl."}</p>
+            {primaryInfo?.impact && <><span className="content360-eyebrow">Why this comes first</span><p>{primaryInfo.impact}</p></>}
+          </div>
+        </section>
+      ) : (
+        <section className="content360-clear content360-clear-standalone"><span><Check size={14} /></span><div><b>No crawl issue needs action</b><small>Check Discoverability for demand, then History for regressions or recent changes.</small></div></section>
+      )}
+
+      {problems.length > 1 && (
+        <details className="content360-all-findings">
+          <summary>All crawl findings <span>{problems.length}</span></summary>
+          <div>
+            {problems.map((issue, index) => (
+              <div className="content360-priority" key={`${issue.rule}-${index}`}>
+                <span className="content360-priority-rank">{index + 1}</span>
+                <SeverityBadge severity={issue.severity} />
+                <div><b>{issue.title}</b>{issue.detail && <small>{issue.detail}</small>}</div>
+              </div>
+            ))}
+          </div>
+        </details>
+      )}
 
       <section className="content360-facts">
         <div><span className="content360-eyebrow">Content</span><h3>{num(page.wordCount)} words</h3><p>{page.h1.length || 0} H1, {page.h2Count} H2, {page.h3Count} H3 · readability {readability}</p></div>
         <div><span className="content360-eyebrow">Structure</span><h3>{page.inlinks} incoming links</h3><p>Depth {page.depth} · link score {Math.round(page.linkScore)}/100 · {page.internalLinks.length} outgoing internal links</p></div>
         <div><span className="content360-eyebrow">Delivery</span><h3>{ms(page.responseTimeMs)}</h3><p>{bytes(page.sizeBytes)} transferred · {page.contentEncoding ?? "no compression"}</p></div>
       </section>
+    </div>
+  );
+}
+
+function RawPageData({ page, issues }: { page: Page; issues: Issue[] }) {
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
+  const payload = useMemo(() => ({ page, issues }), [page, issues]);
+  const json = useMemo(() => JSON.stringify(payload, null, 2), [payload]);
+
+  const copy = async () => {
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error("Clipboard API unavailable");
+      await navigator.clipboard.writeText(json);
+      setCopyState("copied");
+    } catch {
+      const textarea = document.createElement("textarea");
+      textarea.value = json;
+      textarea.setAttribute("readonly", "");
+      textarea.style.cssText = "position:fixed;inset:0 auto auto -9999px;opacity:0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      const copied = document.execCommand("copy");
+      textarea.remove();
+      setCopyState(copied ? "copied" : "failed");
+    }
+  };
+
+  const download = () => {
+    const blob = new Blob([json], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    let slug = "page";
+    try {
+      const parsed = new URL(page.url);
+      slug = `${parsed.hostname}${parsed.pathname}`.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "") || parsed.hostname;
+    } catch {
+      // Keep the safe fallback for malformed historical URLs.
+    }
+    a.download = `crawlie-${slug}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
+  return (
+    <div className="content360-raw">
+      <div className="content360-raw-head">
+        <SectionIntro eyebrow="Complete crawl record" title="Raw page data" copy="Every captured page field and page-specific issue, unchanged and ready for debugging or downstream analysis." />
+        <div className="row wrap" style={{ gap: 8 }}>
+          <button className="btn btn-secondary btn-sm" onClick={copy}><Clipboard size={14} />{copyState === "copied" ? "Copied" : copyState === "failed" ? "Copy failed" : "Copy JSON"}</button>
+          <button className="btn btn-secondary btn-sm" onClick={download}><IconDownload size={14} />Download JSON</button>
+        </div>
+      </div>
+      <div className="content360-raw-summary"><span>{Object.keys(page).length} page fields</span><span>{issues.length} issue records</span><span>JSON</span></div>
+      <pre tabIndex={0} aria-label="Raw page data as JSON">{json}</pre>
     </div>
   );
 }
@@ -1578,11 +1773,6 @@ function TechnicalDetails({ page }: { page: Page }) {
       )}
     </div>
   );
-}
-
-function scoreTone(score: number): "good" | "warn" | "bad" | "neutral" {
-  if (!Number.isFinite(score)) return "neutral";
-  return score >= 80 ? "good" : score >= 50 ? "warn" : "bad";
 }
 
 /* Google-style snippet mock so title/description truncation is visible at a
