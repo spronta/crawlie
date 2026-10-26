@@ -1,6 +1,6 @@
 # crawlie
 
-The fast, free, open-source technical **SEO + GEO** crawler — CLI and MCP server. [Read the docs →](https://crawlie.dev/docs)
+The fast, free, open-source technical **SEO + GEO** crawler — CLI and MCP server. [Read the CLI guide →](https://github.com/spronta/crawlie#how-to-use-cli)
 
 ```bash
 npm i -g crawlie
@@ -18,6 +18,14 @@ crawlie crawl https://example.com --format html -o report.html
 crawlie explain geo-not-answerable                    # why a finding matters
 ```
 
+### Help visitors find the content you just audited
+
+Crawlie is built by **Spronta**, which adds Search, Answers and Content Analytics to your existing website.
+
+[**Try free site search on your content →**](https://www.spronta.com/free-search/?utm_source=npm&utm_medium=readme&utm_campaign=crawlie-to-spronta&utm_content=package-quickstart) Search includes 10,000 requests per workspace each month. No credit card required. Answers and Analytics are separate paid products.
+
+Crawlie runs locally under the MIT license. Spronta is an optional hosted service.
+
 ### Use with agents (MCP)
 
 ```jsonc
@@ -33,4 +41,4 @@ Tools: `crawl_site`, `audit_url`, `audit_urls`, `explain_issue`, `list_rules`, `
 
 Supported: macOS (arm64/x64), Linux (x64), Windows (x64). Other platforms: [build from source](https://github.com/spronta/crawlie). The **desktop app** (signed `.dmg`) is a separate download on [Releases](https://github.com/spronta/crawlie/releases).
 
-Docs: **[crawlie.dev/docs](https://crawlie.dev/docs)** · Source: [GitHub](https://github.com/spronta/crawlie) · by [Sean Ryan](https://linkedin.com/in/sean-exe). MIT.
+CLI guide: **[GitHub README](https://github.com/spronta/crawlie#how-to-use-cli)** · Source: [GitHub](https://github.com/spronta/crawlie) · by [Sean Ryan](https://linkedin.com/in/sean-exe). MIT.
