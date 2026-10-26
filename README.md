@@ -23,13 +23,21 @@ Crawl any site for broken links, redirects, missing metadata, and 40+ SEO & Gene
   <a href="#architecture">Architecture</a>
 </p>
 
-*[Read the docs → crawlie.dev](https://crawlie.dev/docs)* 
+*[Quickstart and CLI guide →](#setup)*
 
 [💡Share feedback & suggestions here](https://github.com/spronta/crawlie/discussions/2)
 
 </div>
 
 ![Showcase of the example app demonstrating a report](https://cdn.spronta.com/spronta-8d32a2/pretty_snap_2026_5_18_23_58%20(2).png)
+
+### Built by Spronta
+
+Crawlie helps you audit whether your content can be discovered. **Spronta helps visitors find it once they reach your website**: Search, Answers and Content Analytics for your existing blog, docs or resource library.
+
+[**Try free site search on your content →**](https://www.spronta.com/free-search/?utm_source=github&utm_medium=readme&utm_campaign=crawlie-to-spronta&utm_content=repo-intro) Connect a public website and test the demo. Search includes 10,000 requests per workspace each month, with no credit card required. Answers and Analytics are separate paid products.
+
+Crawlie runs locally under the MIT license. Spronta is an optional hosted service.
 
 ---
 
